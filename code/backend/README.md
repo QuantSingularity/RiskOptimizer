@@ -4,7 +4,7 @@
 
 The RiskOptimizer backend is a comprehensive financial risk management and portfolio optimization system built with **Flask**, **Celery**, and modern Python technologies. It provides asynchronous task processing for computationally intensive financial calculations, real-time monitoring, and a scalable architecture.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Architecture](#architecture)
 - [Key Features](#key-features)
@@ -17,7 +17,7 @@ The RiskOptimizer backend is a comprehensive financial risk management and portf
 - [Performance Optimization](#performance-optimization)
 - [License](#license)
 
-## 🏗️ Architecture
+## Architecture
 
 The backend is built on a robust, microservices-oriented architecture designed for high throughput and reliability in financial computations.
 
@@ -139,7 +139,7 @@ The platform offers a comprehensive suite of financial and technical features:
    kubectl apply -f deployment/ingress.yaml
    ```
 
-## 📚 API Documentation
+## API Documentation
 
 ### Core API Endpoints Summary
 
@@ -263,7 +263,7 @@ response = requests.post(
 )
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -286,7 +286,7 @@ The application uses a hierarchical configuration system:
 2. **Environment-specific** settings in `config/{environment}.py` (if applicable)
 3. **Environment variables** override file settings
 
-## 🔄 Task Processing
+## Task Processing
 
 The backend leverages **Celery** for all long-running, computationally intensive tasks to ensure the main API remains responsive.
 
@@ -320,7 +320,7 @@ Monitor task execution using:
 3. **Prometheus metrics**: Task execution metrics
 4. **Grafana dashboards**: Visual monitoring dashboards
 
-## 🧪 Testing
+## Testing
 
 ### Test Structure
 

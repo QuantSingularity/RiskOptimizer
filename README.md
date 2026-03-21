@@ -4,7 +4,7 @@
 [![Test Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)](https://github.com/quantsingularity/RiskOptimizer/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## 📊 AI-Powered Portfolio Risk Management Platform
+## AI-Powered Portfolio Risk Management Platform
 
 RiskOptimizer is an advanced portfolio risk management platform that leverages artificial intelligence and blockchain technology to help investors optimize their investment strategies and manage risk effectively.
 
