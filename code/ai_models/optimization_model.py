@@ -135,7 +135,7 @@ class AdvancedPortfolioOptimizer:
         returns.cov()
         risk_adjustment = (self.risk_tolerance - 5) / 10
         risk_adjusted_returns = {}
-        market_weights = {
+        {
             asset: 1 / len(historical_data.columns)
             for asset in historical_data.columns
             if asset != "market_index"

@@ -733,7 +733,7 @@ def run_tests() -> Any:
 
 if __name__ == "__main__":
     result = run_tests()
-    logger.info(f"\nTest Summary:")
+    logger.info("\nTest Summary:")
     logger.info(f"  Ran {result.testsRun} tests")
     logger.info(f"  Failures: {len(result.failures)}")
     logger.info(f"  Errors: {len(result.errors)}")

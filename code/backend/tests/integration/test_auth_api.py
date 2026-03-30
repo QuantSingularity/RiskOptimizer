@@ -32,8 +32,7 @@ class TestAuthAPI(unittest.TestCase):
             }
             login_response = requests.post(f"{BASE_URL}/auth/login", json=login_data)
             if login_response.status_code == 200:
-                access_token = login_response.json()["access_token"]
-                headers = {"Authorization": f"Bearer {access_token}"}
+                login_response.json()["access_token"]
         except Exception as e:
             logger.info(f"Error during test user cleanup: {e}")
 

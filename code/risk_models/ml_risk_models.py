@@ -21,7 +21,6 @@ from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
-import logging
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(

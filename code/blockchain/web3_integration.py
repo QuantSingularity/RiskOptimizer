@@ -72,7 +72,7 @@ def record_trade_on_blockchain(
         )
         return
     logger.info(f"\nRecording transaction from {sender_account}...")
-    tx = contract.functions.recordTransaction(
+    contract.functions.recordTransaction(
         user_address, tx_type, ticker, quantity_wei, price_wei, notes
     ).build_transaction(
         {
@@ -81,7 +81,7 @@ def record_trade_on_blockchain(
             "gas": 2000000,
         }
     )
-    logger.info(f"Mock Transaction Built (would be sent to the network):")
+    logger.info("Mock Transaction Built (would be sent to the network):")
     logger.info(
         f"  Function: recordTransaction('{user_address}', '{tx_type}', '{ticker}', {quantity_wei}, {price_wei}, '{notes}')"
     )

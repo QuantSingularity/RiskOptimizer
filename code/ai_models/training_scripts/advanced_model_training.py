@@ -76,7 +76,7 @@ def train_and_evaluate_model(data: Any, risk_tolerance: Any = 5) -> Any:
     y_pred = optimizer.return_model.predict(X_test)
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
-    logger.info(f"Model evaluation metrics:")
+    logger.info("Model evaluation metrics:")
     logger.info(f"Mean Squared Error: {mse:.6f}")
     logger.info(f"R² Score: {r2:.4f}")
     weights, metrics = optimizer.optimize_portfolio(test_data)

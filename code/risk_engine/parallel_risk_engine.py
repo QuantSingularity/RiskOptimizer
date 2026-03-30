@@ -21,7 +21,6 @@ import psutil
 from joblib import Parallel, delayed
 from scipy import stats
 from typing import Any
-import logging
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(

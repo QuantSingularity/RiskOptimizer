@@ -35,11 +35,6 @@ class TestAPIIntegration:
     @pytest.mark.asyncio
     async def test_monte_carlo_api_workflow(self):
         """Test complete Monte Carlo simulation API workflow."""
-        task_request = {
-            "portfolio_data": self.portfolio_data,
-            "num_simulations": 1000,
-            "time_horizon": 252,
-        }
         task_response = {
             "status": "success",
             "data": {
@@ -76,15 +71,6 @@ class TestAPIIntegration:
     @pytest.mark.asyncio
     async def test_portfolio_optimization_api_workflow(self):
         """Test complete portfolio optimization API workflow."""
-        optimization_params = {
-            "method": "mean_variance",
-            "target_return": 0.1,
-            "max_weight_per_asset": 0.4,
-        }
-        task_request = {
-            "assets_data": self.assets_data,
-            "optimization_params": optimization_params,
-        }
         task_response = {
             "status": "success",
             "data": {
@@ -124,15 +110,6 @@ class TestAPIIntegration:
     @pytest.mark.asyncio
     async def test_report_generation_api_workflow(self):
         """Test complete report generation API workflow."""
-        report_config = {
-            "format": "pdf",
-            "include_charts": True,
-            "include_risk_analysis": True,
-        }
-        task_request = {
-            "portfolio_data": self.portfolio_data,
-            "report_config": report_config,
-        }
         task_response = {
             "status": "success",
             "data": {

@@ -23,7 +23,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from typing import Any
-import logging
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
