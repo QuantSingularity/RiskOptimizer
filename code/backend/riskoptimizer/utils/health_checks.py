@@ -3,14 +3,15 @@ Health check system for monitoring application health.
 Provides comprehensive health checks for all application components.
 """
 
-import time
+import logging
 import os
+import time
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
-from sqlalchemy import text
+
 from riskoptimizer.infrastructure.cache.redis_cache import redis_cache
 from riskoptimizer.infrastructure.database.session import get_db_session
-import logging
+from sqlalchemy import text
 
 logging.basicConfig(
     level=logging.INFO,

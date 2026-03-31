@@ -1,7 +1,8 @@
 import unittest
-from typing import Any
 from decimal import Decimal, getcontext
+from typing import Any
 from unittest.mock import MagicMock, patch
+
 from riskoptimizer.core.exceptions import CalculationError, ValidationError
 from riskoptimizer.domain.services.risk_service import RiskService
 

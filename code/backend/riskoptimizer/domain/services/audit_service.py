@@ -1,10 +1,11 @@
+import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
+
 from riskoptimizer.core.exceptions import DatabaseError
 from riskoptimizer.infrastructure.database.models import AuditLog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

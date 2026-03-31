@@ -12,10 +12,11 @@ This module provides advanced risk modeling using Extreme Value Theory:
 
 import logging
 import warnings
+from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Any
 from scipy import stats
 
 logger = logging.getLogger(__name__)

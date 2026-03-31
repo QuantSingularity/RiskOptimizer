@@ -3,6 +3,7 @@ Database session management for the RiskOptimizer application.
 Provides SQLAlchemy session factory and connection pooling.
 """
 
+import logging
 from contextlib import contextmanager
 from typing import Generator
 
@@ -11,7 +12,6 @@ from riskoptimizer.core.exceptions import DatabaseError
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

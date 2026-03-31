@@ -17,12 +17,13 @@ import os
 import uuid
 import warnings
 from io import BytesIO
+from typing import Any
+
 import jinja2
 import markdown
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Any
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(

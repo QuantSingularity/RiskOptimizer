@@ -3,6 +3,7 @@ Risk controller for handling risk calculation API endpoints.
 Implements RESTful API design with proper error handling.
 """
 
+import logging
 from typing import Any, Dict, Optional
 
 from flask import Blueprint, Response, jsonify, request
@@ -21,7 +22,6 @@ from riskoptimizer.core.exceptions import (
     ValidationError,
 )
 from riskoptimizer.domain.services.risk_service import risk_service
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

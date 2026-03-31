@@ -3,14 +3,15 @@ Rate limiting middleware for the API.
 Implements rate limiting to prevent abuse of the API.
 """
 
+import logging
 import time
 from functools import wraps
 from typing import Any, Callable, Dict, Optional
+
 from flask import Response, g, jsonify, request
 from riskoptimizer.core.config import config
 from riskoptimizer.core.exceptions import RateLimitError, RiskOptimizerException
 from riskoptimizer.infrastructure.cache.redis_cache import redis_cache
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

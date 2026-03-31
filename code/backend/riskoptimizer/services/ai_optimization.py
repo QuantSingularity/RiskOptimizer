@@ -9,14 +9,15 @@ It provides methods for:
 4. Running risk simulations
 """
 
+import logging
 import os
 import sys
 from datetime import datetime, timedelta
-import numpy as np
 from typing import Any
+
+import numpy as np
 import pandas as pd
 from ai_models.optimization_model import AdvancedPortfolioOptimizer
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

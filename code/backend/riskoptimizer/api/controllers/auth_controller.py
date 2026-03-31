@@ -3,6 +3,7 @@ Authentication controller for handling user authentication API endpoints.
 Implements user registration, login, token refresh, and logout.
 """
 
+import logging
 from typing import Any, Dict, Optional
 
 from flask import Blueprint, Response, jsonify, request
@@ -17,7 +18,6 @@ from riskoptimizer.core.exceptions import (
     ValidationError,
 )
 from riskoptimizer.domain.services.auth_service import auth_service
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

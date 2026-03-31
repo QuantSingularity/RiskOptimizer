@@ -1,9 +1,10 @@
+import logging
 import os
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from typing import Any
 from arch import arch_model
-import logging
 
 logger = logging.getLogger(__name__)
 DATA_DIR = "data"

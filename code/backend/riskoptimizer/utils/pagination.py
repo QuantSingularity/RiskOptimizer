@@ -3,11 +3,12 @@ Pagination utilities for optimized data retrieval.
 Provides utilities for paginating large datasets in API responses.
 """
 
+import logging
 from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Union
+
 from flask import request, url_for
 from riskoptimizer.core.exceptions import ValidationError
 from sqlalchemy.orm import Query
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

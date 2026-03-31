@@ -1,7 +1,8 @@
-import unittest
-import requests
-from typing import Any
 import logging
+import unittest
+from typing import Any
+
+import requests
 
 logging.basicConfig(
     level=logging.INFO,

@@ -1,11 +1,12 @@
+import logging
 from decimal import Decimal, getcontext
 from typing import Any, Dict, List
+
 import numpy as np
 from riskoptimizer.core.exceptions import CalculationError, ValidationError
 from riskoptimizer.infrastructure.cache.redis_cache import redis_cache
 from riskoptimizer.services.quant_analysis import RiskMetrics
 from riskoptimizer.utils.cache_utils import memoize
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

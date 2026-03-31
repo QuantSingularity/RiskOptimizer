@@ -1,4 +1,6 @@
+import logging
 from typing import Any, Dict, List, Optional
+
 from cryptography.fernet import Fernet
 from riskoptimizer.core.config import config
 from riskoptimizer.core.exceptions import ConflictError, DatabaseError, NotFoundError
@@ -7,7 +9,6 @@ from riskoptimizer.infrastructure.database.models import User
 from riskoptimizer.infrastructure.database.session import get_db_session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

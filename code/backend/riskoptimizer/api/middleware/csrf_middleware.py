@@ -1,6 +1,7 @@
 import secrets
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional
+
 from flask import Response, current_app, g, jsonify, request
 from riskoptimizer.core.config import config
 from riskoptimizer.core.exceptions import RiskOptimizerException, SecurityError

@@ -1,5 +1,6 @@
-import pandas as pd
 from typing import Any
+
+import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 

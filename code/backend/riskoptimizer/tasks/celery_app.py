@@ -4,8 +4,9 @@ Handles asynchronous task processing for heavy computations.
 """
 
 import os
-import redis
 from typing import Any
+
+import redis
 from celery import Celery
 from celery.schedules import crontab
 from kombu import Queue

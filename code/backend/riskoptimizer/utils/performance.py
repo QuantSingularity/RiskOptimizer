@@ -3,15 +3,16 @@ Performance monitoring utilities for tracking API performance metrics.
 Provides utilities for monitoring response times, throughput, and resource usage.
 """
 
-import time
+import logging
 import os
+import time
 from collections import defaultdict, deque
 from functools import wraps
 from typing import Any, Callable, Dict, List
+
 import psutil
 from flask import g, request
 from riskoptimizer.infrastructure.cache.redis_cache import redis_cache
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

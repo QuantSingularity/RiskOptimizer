@@ -7,6 +7,7 @@ import io
 import logging
 from datetime import datetime
 from typing import Any, Dict
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from reportlab.lib import colors

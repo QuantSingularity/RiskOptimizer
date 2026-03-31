@@ -1,10 +1,10 @@
+import logging
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from flask import g, jsonify, request
 from riskoptimizer.core.exceptions import AuthenticationError, AuthorizationError
 from riskoptimizer.domain.services.auth_service import auth_service
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

@@ -1,5 +1,6 @@
 from decimal import Decimal, getcontext
 from typing import Any, List
+
 import numpy as np
 from scipy.stats import norm
 

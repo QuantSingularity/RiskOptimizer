@@ -10,15 +10,16 @@ beyond traditional mean-variance optimization to include:
 5. Reinforcement learning for dynamic portfolio allocation
 """
 
+import logging
 import os
+from typing import Any
+
 import joblib
 import numpy as np
 import pandas as pd
-from typing import Any
 from scipy.optimize import minimize
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
-import logging
 
 logger = logging.getLogger(__name__)
 

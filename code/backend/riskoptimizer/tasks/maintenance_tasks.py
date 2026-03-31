@@ -6,10 +6,11 @@ Handles cache management, data cleanup, and system monitoring tasks.
 import gc
 import json
 import logging
+import os
 from datetime import datetime
 from typing import Any
+
 import psutil
-import os
 import redis
 from riskoptimizer.tasks.celery_app import celery_app
 

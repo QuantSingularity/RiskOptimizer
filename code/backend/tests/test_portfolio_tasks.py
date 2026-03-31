@@ -3,10 +3,11 @@ Unit tests for portfolio management tasks.
 """
 
 from datetime import datetime
+from typing import Any
 from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
-from typing import Any
 from tasks.celery_app import TaskValidationError
 from tasks.portfolio_tasks import (
     _calculate_tracking_error,

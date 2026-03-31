@@ -1,5 +1,7 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Tuple
+
 import bcrypt
 import jwt
 from riskoptimizer.core.config import config
@@ -10,7 +12,6 @@ from riskoptimizer.infrastructure.database.repositories.user_repository import (
     user_repository,
 )
 from riskoptimizer.infrastructure.database.session import get_db_session
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

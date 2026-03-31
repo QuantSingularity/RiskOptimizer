@@ -3,6 +3,7 @@ Portfolio controller for handling portfolio-related API endpoints.
 Implements RESTful API design with proper error handling.
 """
 
+import logging
 from typing import Any, Dict, Optional
 
 from flask import Blueprint, Response, jsonify, request
@@ -18,7 +19,6 @@ from riskoptimizer.core.exceptions import (
 )
 from riskoptimizer.domain.services.portfolio_service import portfolio_service
 from riskoptimizer.utils.pagination import create_paginated_response
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

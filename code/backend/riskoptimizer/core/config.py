@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 from typing import Optional
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -150,6 +151,7 @@ class Config:
     def _load_security_config(self) -> SecurityConfig:
         """Load security configuration from environment variables."""
         import logging
+
         from cryptography.fernet import Fernet
 
         secret_key = os.getenv("SECRET_KEY")

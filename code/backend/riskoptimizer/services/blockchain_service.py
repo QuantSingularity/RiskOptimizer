@@ -11,14 +11,15 @@ It connects the backend API with Ethereum and other blockchain networks.
 """
 
 import json
+import logging
 import os
+from typing import Any
+
 from dotenv import load_dotenv
 from eth_account import Account
-from typing import Any
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.time_based import medium_gas_price_strategy
 from web3.middleware import ExtraDataToPOAMiddleware
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

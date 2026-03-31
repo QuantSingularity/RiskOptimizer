@@ -1,11 +1,12 @@
+import logging
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
+
 from riskoptimizer.core.exceptions import DatabaseError, NotFoundError
 from riskoptimizer.domain.services.audit_service import audit_service
 from riskoptimizer.infrastructure.database.models import Allocation, Portfolio, User
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

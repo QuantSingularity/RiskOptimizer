@@ -1,10 +1,11 @@
 import json
+import logging
 import time
 import uuid
 from contextvars import ContextVar
 from typing import Any, Dict, Optional
+
 from flask import g, has_request_context, request
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

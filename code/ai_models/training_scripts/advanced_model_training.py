@@ -9,15 +9,16 @@ It demonstrates how to:
 4. Validate model performance
 """
 
+import logging
 import os
 import sys
+from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Any
-from sklearn.metrics import mean_squared_error, r2_score
 from optimization_model import AdvancedPortfolioOptimizer
-import logging
+from sklearn.metrics import mean_squared_error, r2_score
 
 logging.basicConfig(
     level=logging.INFO,

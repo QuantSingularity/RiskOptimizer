@@ -4,9 +4,10 @@ Test configuration and fixtures for the RiskOptimizer test suite.
 
 import tempfile
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
-import numpy as np
 from typing import Any
+from unittest.mock import MagicMock, patch
+
+import numpy as np
 import pandas as pd
 import pytest
 

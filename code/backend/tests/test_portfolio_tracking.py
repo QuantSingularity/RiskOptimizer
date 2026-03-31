@@ -5,11 +5,12 @@ This module contains automated tests for the portfolio tracking functionality,
 including both backend database operations and blockchain integration.
 """
 
+from typing import Any
 from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pandas as pd
 import pytest
-from typing import Any
 from services.ai_optimization import AIOptimizationService
 from services.blockchain_service import BlockchainService
 

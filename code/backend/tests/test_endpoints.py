@@ -1,6 +1,7 @@
-from unittest.mock import MagicMock, patch
-import pandas as pd
 from typing import Any
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
 
 
 def test_index(client: Any) -> Any:

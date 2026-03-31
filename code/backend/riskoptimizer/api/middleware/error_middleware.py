@@ -1,10 +1,10 @@
+import logging
 import traceback
 from typing import Any, Dict, Union
 
 import werkzeug.exceptions as werkzeug_exceptions
 from flask import Flask, Response, current_app, g, jsonify, request
 from riskoptimizer.core.exceptions import RiskOptimizerException
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

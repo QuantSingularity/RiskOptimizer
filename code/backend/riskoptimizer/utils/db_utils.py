@@ -3,15 +3,16 @@ Database optimization utilities for improved query performance.
 Provides utilities for query optimization, connection pooling, and database monitoring.
 """
 
+import logging
 import time
 from contextlib import contextmanager
 from typing import Any, Dict, Generator, List, Optional
+
 from riskoptimizer.infrastructure.database.session import get_db_session
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import QueuePool
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

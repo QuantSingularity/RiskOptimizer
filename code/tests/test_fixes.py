@@ -9,22 +9,22 @@ This module provides comprehensive tests for the new features and enhancements:
 5. Customizable dashboards
 """
 
+import logging
 import os
 import shutil
 import sys
 import tempfile
 import unittest
 from datetime import datetime
-import numpy as np
-import pandas as pd
 from typing import Any
 
+import numpy as np
+import pandas as pd
 from frontend.dashboard.dashboard_framework import ChartComponent, Dashboard
 from reporting.reporting_framework import ReportGenerator, ReportTemplate
 from risk_engine.parallel_risk_engine import ParallelRiskEngine
 from risk_models.extreme_value_theory import ExtremeValueRisk
 from risk_models.ml_risk_models import CopulaMLRiskModel, MLRiskModel
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

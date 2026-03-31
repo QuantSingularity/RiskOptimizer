@@ -1,5 +1,7 @@
+import logging
 from decimal import Decimal, getcontext
 from typing import Any, Dict, List, Optional
+
 from riskoptimizer.core.exceptions import NotFoundError, ValidationError
 from riskoptimizer.domain.services.audit_service import audit_service
 from riskoptimizer.infrastructure.cache.redis_cache import redis_cache
@@ -11,7 +13,6 @@ from riskoptimizer.infrastructure.database.repositories.user_repository import (
 )
 from riskoptimizer.infrastructure.database.session import get_db_session
 from riskoptimizer.utils.cache_utils import cache_invalidate, cache_result
-import logging
 
 logging.basicConfig(
     level=logging.INFO,
