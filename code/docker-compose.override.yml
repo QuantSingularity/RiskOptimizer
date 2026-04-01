@@ -1,0 +1,44 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Development overrides – applied automatically when you run:
+#   docker compose up
+#
+# Changes from production:
+#  - API runs with Flask dev server (hot-reload)
+#  - DEBUG_MODE=true
+#  - Source code is bind-mounted for live editing
+#  - Flower monitoring is always enabled
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  api:
+    build:
+      target: runtime
+    command:
+      - python
+      - app.py
+    environment:
+      ENVIRONMENT: development
+      DEBUG_MODE: "true"
+      DB_USE_SQLITE: "true"
+    volumes:
+      - ./backend:/app
+      - app_data:/app/data
+
+  worker:
+    environment:
+      ENVIRONMENT: development
+    volumes:
+      - ./backend:/app
+      - app_data:/app/data
+
+  beat:
+    environment:
+      ENVIRONMENT: development
+    volumes:
+      - ./backend:/app
+      - app_data:/app/data
+
+  flower:
+    profiles: [] # always enable flower in dev

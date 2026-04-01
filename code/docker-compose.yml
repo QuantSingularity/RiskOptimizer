@@ -1,0 +1,220 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RiskOptimizer – Full-stack Docker Compose
+#
+# Services:
+#   api        – Flask API (gunicorn)
+#   worker     – Celery worker
+#   beat       – Celery beat scheduler
+#   redis      – Redis (cache + Celery broker)
+#   postgres   – PostgreSQL (optional; SQLite used by default)
+#   flower     – Celery monitoring UI
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  riskopt_net:
+    driver: bridge
+
+volumes:
+  redis_data:
+  postgres_data:
+  app_data:
+
+# ── Shared environment for all app services ──────────────────────────────────
+x-app-env: &app-env
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+  DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?DATA_ENCRYPTION_KEY is required}
+
+  # Database – defaults to SQLite inside the container
+  DB_USE_SQLITE: ${DB_USE_SQLITE:-true}
+  SQLITE_DB_PATH: /app/data/riskoptimizer.db
+
+  # PostgreSQL (uncomment & set DB_USE_SQLITE=false to use Postgres)
+  DB_HOST: ${DB_HOST:-postgres}
+  DB_PORT: ${DB_PORT:-5432}
+  DB_NAME: ${DB_NAME:-riskoptimizer}
+  DB_USER: ${DB_USER:-riskopt}
+  DB_PASSWORD: ${DB_PASSWORD:-riskopt_pass}
+  DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+  DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-20}
+
+  # Redis
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_DB: ${REDIS_DB:-0}
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+  REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+
+  # Celery
+  CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+  CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/1
+
+  # API
+  API_HOST: 0.0.0.0
+  API_PORT: 5000
+  DEBUG_MODE: ${DEBUG_MODE:-false}
+  CORS_ORIGINS: ${CORS_ORIGINS:-*}
+
+  # Security
+  JWT_ACCESS_TOKEN_EXPIRES: ${JWT_ACCESS_TOKEN_EXPIRES:-3600}
+  JWT_REFRESH_TOKEN_EXPIRES: ${JWT_REFRESH_TOKEN_EXPIRES:-2592000}
+  PASSWORD_HASH_ROUNDS: ${PASSWORD_HASH_ROUNDS:-12}
+  RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+  MAX_LOGIN_ATTEMPTS: ${MAX_LOGIN_ATTEMPTS:-5}
+  LOCKOUT_TIME: ${LOCKOUT_TIME:-300}
+
+services:
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: riskopt_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --save 60 1
+      --loglevel warning
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    volumes:
+      - redis_data:/data
+    networks:
+      - riskopt_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${REDIS_EXPOSE_PORT:-6379}:6379"
+
+  # ── PostgreSQL (optional) ──────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: riskopt_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-riskoptimizer}
+      POSTGRES_USER: ${DB_USER:-riskopt}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-riskopt_pass}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - riskopt_net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-riskopt} -d ${DB_NAME:-riskoptimizer}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${POSTGRES_EXPOSE_PORT:-5432}:5432"
+    profiles:
+      - postgres # only started when: docker compose --profile postgres up
+
+  # ── API ────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: riskopt_api
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+    volumes:
+      - app_data:/app/data
+    networks:
+      - riskopt_net
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "${API_EXPOSE_PORT:-5000}:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  # ── Celery Worker ──────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      target: runtime
+    container_name: riskopt_worker
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+    volumes:
+      - app_data:/app/data
+    networks:
+      - riskopt_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  # ── Celery Beat (Scheduler) ────────────────────────────────────────────────
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      target: runtime
+    container_name: riskopt_beat
+    restart: unless-stopped
+    command:
+      - celery
+      - -A
+      - riskoptimizer.tasks.celery_app:celery_app
+      - beat
+      - --loglevel=info
+      - --scheduler
+      - celery.beat:PersistentScheduler
+      - --schedule
+      - /app/data/celerybeat-schedule
+    environment:
+      <<: *app-env
+    volumes:
+      - app_data:/app/data
+    networks:
+      - riskopt_net
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── Flower (Celery monitoring) ─────────────────────────────────────────────
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      target: runtime
+    container_name: riskopt_flower
+    restart: unless-stopped
+    command:
+      - celery
+      - -A
+      - riskoptimizer.tasks.celery_app:celery_app
+      - flower
+      - --port=5555
+      - --loglevel=info
+    environment:
+      <<: *app-env
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:-admin:admin}
+    networks:
+      - riskopt_net
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "${FLOWER_EXPOSE_PORT:-5555}:5555"
+    profiles:
+      - monitoring

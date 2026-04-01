@@ -9,7 +9,7 @@ from typing import Generator
 
 from riskoptimizer.core.config import config
 from riskoptimizer.core.exceptions import DatabaseError
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -19,16 +19,34 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create SQLAlchemy engine with connection pooling
-engine = create_engine(
-    config.database.url,
-    pool_size=config.database.pool_size,
-    max_overflow=config.database.max_overflow,
-    pool_timeout=config.database.pool_timeout,
-    pool_recycle=config.database.pool_recycle,
-    pool_pre_ping=True,  # Verify connections before using them
-    echo=config.api.debug,  # Log SQL queries in debug mode
-)
+_db_url = config.database.url
+_is_sqlite = _db_url.startswith("sqlite")
+
+if _is_sqlite:
+    engine = create_engine(
+        _db_url,
+        connect_args={"check_same_thread": False},
+        pool_pre_ping=True,
+        echo=config.api.debug,
+    )
+
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+else:
+    engine = create_engine(
+        _db_url,
+        pool_size=config.database.pool_size,
+        max_overflow=config.database.max_overflow,
+        pool_timeout=config.database.pool_timeout,
+        pool_recycle=config.database.pool_recycle,
+        pool_pre_ping=True,
+        echo=config.api.debug,
+    )
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

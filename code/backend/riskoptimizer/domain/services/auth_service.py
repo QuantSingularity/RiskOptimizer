@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import bcrypt
 import jwt
+from flask import request as flask_request
 from riskoptimizer.core.config import config
 from riskoptimizer.core.exceptions import AuthenticationError, ValidationError
 from riskoptimizer.domain.services.audit_service import audit_service
@@ -301,7 +302,7 @@ class AuthService:
                 entity_type="USER",
                 details={
                     "email": email,
-                    "ip_address": request.remote_addr if request else "N/A",
+                    "ip_address": flask_request.remote_addr if flask_request else "N/A",
                 },
             )
             raise AuthenticationError(
@@ -318,7 +319,9 @@ class AuthService:
                     details={
                         "email": email,
                         "reason": "Invalid credentials",
-                        "ip_address": request.remote_addr if request else "N/A",
+                        "ip_address": (
+                            flask_request.remote_addr if flask_request else "N/A"
+                        ),
                     },
                 )
                 raise AuthenticationError("Invalid email or password")
@@ -331,7 +334,9 @@ class AuthService:
                     details={
                         "email": email,
                         "reason": "Account inactive",
-                        "ip_address": request.remote_addr if request else "N/A",
+                        "ip_address": (
+                            flask_request.remote_addr if flask_request else "N/A"
+                        ),
                     },
                 )
                 raise AuthenticationError("User account is inactive")
@@ -344,7 +349,9 @@ class AuthService:
                     details={
                         "email": email,
                         "reason": "Invalid credentials",
-                        "ip_address": request.remote_addr if request else "N/A",
+                        "ip_address": (
+                            flask_request.remote_addr if flask_request else "N/A"
+                        ),
                     },
                 )
                 raise AuthenticationError("Invalid email or password")
@@ -355,7 +362,7 @@ class AuthService:
                 entity_type="USER",
                 details={
                     "email": email,
-                    "ip_address": request.remote_addr if request else "N/A",
+                    "ip_address": flask_request.remote_addr if flask_request else "N/A",
                 },
             )
             tokens = self.generate_tokens(user.id, user.email, user.role)
@@ -430,7 +437,7 @@ class AuthService:
                 details={
                     "email": email,
                     "username": username,
-                    "ip_address": request.remote_addr if request else "N/A",
+                    "ip_address": flask_request.remote_addr if flask_request else "N/A",
                 },
             )
             return (user_data, tokens)

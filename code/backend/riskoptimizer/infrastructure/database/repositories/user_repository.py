@@ -36,7 +36,10 @@ class UserRepository:
                      methods will obtain a session internally.
         """
         self._session = session
-        self.fernet = Fernet(config.security.data_encryption_key.encode("utf-8"))
+        key = config.security.data_encryption_key
+        if isinstance(key, str):
+            key = key.encode("utf-8")
+        self.fernet = Fernet(key)
         self.audit_service = audit_service
 
     def _get_session(self, session: Optional[Session] = None) -> Session:

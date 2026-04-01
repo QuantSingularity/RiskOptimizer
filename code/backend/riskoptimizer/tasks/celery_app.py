@@ -3,13 +3,18 @@ Celery application configuration for RiskOptimizer.
 Handles asynchronous task processing for heavy computations.
 """
 
+import logging
 import os
+from datetime import datetime
+from functools import wraps
 from typing import Any
 
 import redis
 from celery import Celery
 from celery.schedules import crontab
 from kombu import Queue
+
+logger = logging.getLogger(__name__)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
@@ -77,7 +82,7 @@ celery_app.conf.update(
     worker_hijack_root_logger=False,
     worker_log_color=False,
 )
-redis_client = redis.Redis.from_url(REDIS_URL)
+redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 
 
 def get_task_status(task_id: Any) -> Any:
@@ -136,9 +141,21 @@ class TaskResultManager:
         key = f"task_metadata:{task_id}"
         return self.redis_client.hgetall(key)
 
-    def cleanup_expired_task_data(self) -> Any:
-        """Clean up expired task data."""
-        # Implementation placeholder - scans for expired task keys
+    def cleanup_expired_task_data(self) -> int:
+        """Clean up expired task data by scanning for orphaned task keys."""
+        deleted = 0
+        try:
+            for prefix in ("task_progress:*", "task_metadata:*"):
+                keys = self.redis_client.keys(prefix)
+                for key in keys:
+                    ttl = self.redis_client.ttl(key)
+                    if ttl == -1:
+                        self.redis_client.expire(key, 3600)
+                    elif ttl == -2:
+                        deleted += 1
+        except Exception as e:
+            logger.warning(f"Error during task data cleanup: {e}")
+        return deleted
 
 
 task_result_manager = TaskResultManager()
@@ -161,6 +178,7 @@ def task_with_progress(bind: Any = True, **kwargs) -> Any:
 
     def decorator(func):
 
+        @wraps(func)
         @celery_app.task(bind=bind, **kwargs)
         def wrapper(self, *args, **kwargs):
             try:
@@ -193,8 +211,6 @@ def task_with_progress(bind: Any = True, **kwargs) -> Any:
 
     return decorator
 
-
-from datetime import datetime
 
 if __name__ == "__main__":
     celery_app.start()
