@@ -11,18 +11,19 @@ Covers:
 7. Portfolio optimization utilities
 """
 
-import logging
 import os
-import shutil
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import logging
+import shutil
 import tempfile
 import unittest
 
 import numpy as np
 import pandas as pd
 from risk_engine.parallel_risk_engine import ParallelRiskEngine
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logging.basicConfig(
     level=logging.WARNING,
