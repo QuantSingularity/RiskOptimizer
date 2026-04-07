@@ -7,7 +7,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from flask import Blueprint, Response, jsonify, request
-from src.api.middleware.auth_middleware import jwt_required, optional_jwt
+from src.api.middleware.auth_middleware import jwt_required
 from src.api.schemas.portfolio_schema import (
     validate_portfolio_request,
     validate_portfolio_update_request,
@@ -80,7 +80,7 @@ def create_error_response(error: RiskOptimizerException) -> Dict[str, Any]:
 
 
 @portfolio_bp.route("/address/<user_address>", methods=["GET"])
-@optional_jwt
+@jwt_required()
 def get_portfolio(user_address: str) -> Response:
     """
     Get portfolio by user address.
@@ -243,7 +243,7 @@ def create_portfolio() -> Response:
         logger.info("Create portfolio request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 
@@ -355,7 +355,7 @@ def save_portfolio() -> Response:
         logger.info("Save portfolio request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 
@@ -469,7 +469,7 @@ def update_portfolio(portfolio_id: int) -> Response:
         logger.info(f"Update portfolio request for ID: {portfolio_id}")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 

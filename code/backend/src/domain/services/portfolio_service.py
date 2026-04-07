@@ -10,7 +10,6 @@ from src.infrastructure.database.repositories.portfolio_repository import (
 )
 from src.infrastructure.database.repositories.user_repository import user_repository
 from src.infrastructure.database.session import get_db_session
-from src.utils.cache_utils import cache_invalidate, cache_result
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,30 +24,19 @@ class PortfolioService:
     """
     Service for managing user portfolios and their allocations.
 
-    This service handles operations such as retrieving, saving, creating, updating,
-    and deleting portfolios. It integrates with the database repository for data
-    persistence, Redis for caching, and the audit service for logging financial actions.
+    Handles retrieving, saving, creating, updating, and deleting portfolios.
+    Integrates with the database repository, Redis caching, and audit service.
     """
 
     def __init__(self) -> None:
-        """
-        Initializes the PortfolioService with necessary repositories and services.
-        """
         self.portfolio_repo = portfolio_repository
         self.user_repo = user_repository
         self.cache = redis_cache
         self.audit_service = audit_service
 
-    @cache_result("portfolio", ttl=300)
     def get_portfolio_by_address(self, user_address: str) -> Dict[str, Any]:
         """
-        Retrieves a user's portfolio and its allocations by their wallet address.
-
-        Args:
-            user_address: The blockchain wallet address of the user.
-
-        Returns:
-            A dictionary containing the portfolio data, including total value and allocations.
+        Retrieves a user's portfolio and its allocations by wallet address.
 
         Raises:
             ValidationError: If the user address is invalid.
@@ -63,41 +51,37 @@ class PortfolioService:
         if cached_data:
             logger.debug(f"Portfolio cache hit for address {user_address}")
             if "total_value" in cached_data:
-                cached_data["total_value"] = Decimal(cached_data["total_value"])
+                cached_data["total_value"] = Decimal(str(cached_data["total_value"]))
             if "allocations" in cached_data:
                 for alloc in cached_data["allocations"]:
-                    alloc["percentage"] = Decimal(alloc["percentage"])
-                    if alloc["amount"] is not None:
-                        alloc["amount"] = Decimal(alloc["amount"])
-                    if alloc["current_price"] is not None:
-                        alloc["current_price"] = Decimal(alloc["current_price"])
+                    alloc["percentage"] = Decimal(str(alloc["percentage"]))
+                    if alloc.get("amount") is not None:
+                        alloc["amount"] = Decimal(str(alloc["amount"]))
+                    if alloc.get("current_price") is not None:
+                        alloc["current_price"] = Decimal(str(alloc["current_price"]))
             return cached_data
-        with get_db_session() as session:
-            try:
-                portfolio_data = self.portfolio_repo.get_portfolio_with_allocations(
-                    user_address, session
-                )
-                serializable_portfolio_data = portfolio_data.copy()
-                if "total_value" in serializable_portfolio_data:
-                    serializable_portfolio_data["total_value"] = str(
-                        serializable_portfolio_data["total_value"]
-                    )
-                if "allocations" in serializable_portfolio_data:
-                    serializable_portfolio_data["allocations"] = [
-                        {
-                            k: str(v) if isinstance(v, Decimal) else v
-                            for k, v in alloc.items()
-                        }
-                        for alloc in serializable_portfolio_data["allocations"]
-                    ]
-                self.cache.set(cache_key, serializable_portfolio_data, ttl=300)
-                logger.info(f"Retrieved portfolio for address {user_address}")
-                return portfolio_data
-            except NotFoundError:
-                logger.warning(f"Portfolio not found for address {user_address}")
-                raise
 
-    @cache_invalidate("portfolio")
+        with get_db_session() as session:
+            portfolio_data = self.portfolio_repo.get_portfolio_with_allocations(
+                user_address, session
+            )
+            serializable_portfolio_data = portfolio_data.copy()
+            if "total_value" in serializable_portfolio_data:
+                serializable_portfolio_data["total_value"] = str(
+                    serializable_portfolio_data["total_value"]
+                )
+            if "allocations" in serializable_portfolio_data:
+                serializable_portfolio_data["allocations"] = [
+                    {
+                        k: str(v) if isinstance(v, Decimal) else v
+                        for k, v in alloc.items()
+                    }
+                    for alloc in serializable_portfolio_data["allocations"]
+                ]
+            self.cache.set(cache_key, serializable_portfolio_data, ttl=300)
+            logger.info(f"Retrieved portfolio for address {user_address}")
+            return portfolio_data
+
     def save_portfolio(
         self,
         user_address: str,
@@ -107,20 +91,8 @@ class PortfolioService:
         """
         Saves or updates a user's portfolio allocations.
 
-        If a portfolio for the user address exists, it updates its allocations.
-        Otherwise, it creates a new portfolio.
-
-        Args:
-            user_address: The blockchain wallet address of the user.
-            allocations: A dictionary mapping asset symbols (e.g., "BTC") to their
-                         percentage allocations (e.g., 60.0 for 60%).
-            name: An optional name for the portfolio. Defaults to "Default Portfolio".
-
-        Returns:
-            A dictionary containing the saved or updated portfolio data.
-
         Raises:
-            ValidationError: If input data (user_address, allocations, name) is invalid.
+            ValidationError: If input data is invalid.
         """
         self._validate_portfolio_input(user_address, allocations, name)
         normalized_allocations = self._normalize_allocations(allocations)
@@ -144,6 +116,8 @@ class PortfolioService:
                     "allocations": {k: str(v) for k, v in decimal_allocations.items()},
                 },
             )
+            cache_key = f"portfolio:{user_address}"
+            self.cache.delete(cache_key)
             logger.info(
                 f"Saved portfolio for address {user_address} with {len(decimal_allocations)} assets"
             )
@@ -159,17 +133,8 @@ class PortfolioService:
         """
         Creates a new portfolio for a specified user.
 
-        Args:
-            user_id: The ID of the user for whom the portfolio is being created.
-            user_address: The blockchain wallet address to associate with the new portfolio.
-            name: The name of the new portfolio. Defaults to "Default Portfolio".
-            description: An optional description for the portfolio.
-
-        Returns:
-            A dictionary containing the newly created portfolio's data.
-
         Raises:
-            ValidationError: If input data (user_id, user_address, name) is invalid.
+            ValidationError: If input data is invalid.
             NotFoundError: If the specified user does not exist.
         """
         if not user_id or not isinstance(user_id, int):
@@ -227,16 +192,9 @@ class PortfolioService:
         """
         Updates an existing portfolio's details.
 
-        Args:
-            portfolio_id: The ID of the portfolio to update.
-            data: A dictionary containing the fields to update (e.g., "name", "description", "total_value").
-
-        Returns:
-            A dictionary containing the updated portfolio data.
-
         Raises:
-            ValidationError: If input data (portfolio_id or update data) is invalid.
-            NotFoundError: If the portfolio with the given ID is not found.
+            ValidationError: If input data is invalid.
+            NotFoundError: If the portfolio is not found.
         """
         if not portfolio_id or not isinstance(portfolio_id, int):
             raise ValidationError(
@@ -264,6 +222,7 @@ class PortfolioService:
                     )
             else:
                 processed_data[key] = value
+
         with get_db_session() as session:
             old_portfolio = self.portfolio_repo.get_by_id(portfolio_id, session)
             if not old_portfolio:
@@ -313,12 +272,6 @@ class PortfolioService:
         """
         Deletes a portfolio from the system.
 
-        Args:
-            portfolio_id: The ID of the portfolio to delete.
-
-        Returns:
-            True if the portfolio was successfully deleted, False if not found.
-
         Raises:
             ValidationError: If the portfolio ID is invalid.
         """
@@ -355,12 +308,6 @@ class PortfolioService:
         """
         Retrieves all portfolios associated with a specific user ID.
 
-        Args:
-            user_id: The ID of the user whose portfolios are to be retrieved.
-
-        Returns:
-            A list of dictionaries, each representing a portfolio belonging to the user.
-
         Raises:
             ValidationError: If the user ID is invalid.
         """
@@ -395,17 +342,7 @@ class PortfolioService:
     def _validate_portfolio_input(
         self, user_address: str, allocations: Dict[str, float], name: str
     ) -> None:
-        """
-        Internal helper method to validate common portfolio input parameters.
-
-        Args:
-            user_address: The user's wallet address.
-            allocations: The asset allocations dictionary.
-            name: The portfolio name.
-
-        Raises:
-            ValidationError: If any of the input parameters are invalid.
-        """
+        """Internal helper to validate common portfolio input parameters."""
         if not user_address or not isinstance(user_address, str):
             raise ValidationError(
                 "User address is required and must be a string.",
@@ -443,7 +380,7 @@ class PortfolioService:
                     "allocations",
                     allocations,
                 )
-        if not name or not isinstance(name, str) or (not name.strip()):
+        if not name or not isinstance(name, str) or not name.strip():
             raise ValidationError(
                 "Portfolio name is required and must be a non-empty string.",
                 "name",
@@ -451,18 +388,7 @@ class PortfolioService:
             )
 
     def _normalize_allocations(self, allocations: Dict[str, float]) -> Dict[str, float]:
-        """
-        Normalizes portfolio allocations so that their sum is 100%.
-
-        Args:
-            allocations: A dictionary of asset allocations.
-
-        Returns:
-            A new dictionary with normalized allocations.
-
-        Raises:
-            ValidationError: If the sum of allocations is zero, preventing normalization.
-        """
+        """Normalizes portfolio allocations so that their sum is 100%."""
         total_percentage = sum(allocations.values())
         if total_percentage == 0:
             raise ValidationError(

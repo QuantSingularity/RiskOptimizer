@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
-import pytest
 
 
 class TestAPIIntegration:
@@ -33,8 +32,7 @@ class TestAPIIntegration:
             {"type": "volatility_spike", "multiplier": 2.0},
         ]
 
-    @pytest.mark.asyncio
-    async def test_monte_carlo_api_workflow(self):
+    def test_monte_carlo_api_workflow(self):
         """Test complete Monte Carlo simulation API workflow."""
         task_response = {
             "status": "success",
@@ -69,8 +67,7 @@ class TestAPIIntegration:
         assert result["risk_metrics"]["var_95"] < 0
         assert result["risk_metrics"]["cvar_95"] <= result["risk_metrics"]["var_95"]
 
-    @pytest.mark.asyncio
-    async def test_portfolio_optimization_api_workflow(self):
+    def test_portfolio_optimization_api_workflow(self):
         """Test complete portfolio optimization API workflow."""
         task_response = {
             "status": "success",
@@ -108,8 +105,7 @@ class TestAPIIntegration:
         assert all((w >= 0 for w in weights.values()))
         assert all((w <= 0.4 for w in weights.values()))
 
-    @pytest.mark.asyncio
-    async def test_report_generation_api_workflow(self):
+    def test_report_generation_api_workflow(self):
         """Test complete report generation API workflow."""
         task_response = {
             "status": "success",
@@ -199,18 +195,20 @@ class TestWorkflowIntegration:
             "asset_names": list(asset_params.keys()),
         }
 
+    @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     @patch("src.tasks.portfolio_tasks.task_result_manager")
-    @patch("tasks.report_tasks.task_result_manager")
+    @patch("src.tasks.report_tasks.task_result_manager")
     def test_complete_risk_analysis_workflow(
         self,
         mock_report_manager: Any,
         mock_portfolio_manager: Any,
         mock_risk_manager: Any,
+        mock_celery_manager: Any,
     ) -> Any:
         """Test complete risk analysis workflow from start to finish."""
-        from src.tasks.risk_tasks import monte_carlo_simulation, stress_test_portfolio
         from src.tasks.report_tasks import generate_risk_report
+        from src.tasks.risk_tasks import monte_carlo_simulation, stress_test_portfolio
 
         portfolio_data = {
             "weights": [0.4, 0.25, 0.2, 0.1, 0.05],

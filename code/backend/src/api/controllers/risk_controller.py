@@ -130,7 +130,7 @@ def calculate_var() -> Response:
         logger.info("VaR calculation request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 
@@ -239,7 +239,7 @@ def calculate_cvar() -> Response:
         logger.info("CVaR calculation request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 
@@ -348,7 +348,7 @@ def calculate_sharpe_ratio() -> Response:
         logger.info("Sharpe ratio calculation request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 
@@ -452,7 +452,7 @@ def calculate_max_drawdown() -> Response:
         logger.info("Max drawdown calculation request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 
@@ -586,7 +586,7 @@ def calculate_risk_metrics() -> Response:
         logger.info("Risk metrics calculation request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 
@@ -725,7 +725,7 @@ def calculate_efficient_frontier() -> Response:
         logger.info("Efficient frontier calculation request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 

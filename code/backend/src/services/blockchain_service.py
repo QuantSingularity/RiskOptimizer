@@ -184,8 +184,8 @@ class BlockchainService:
             raise ValueError("Invalid Ethereum address")
         if len(assets) != len(allocations_pct):
             raise ValueError("Assets and allocations must have the same length")
-        allocations_bp = [int(pct * 100) for pct in allocations_pct]
-        if sum(allocations_bp) != 10000:
+        allocations_bp = [int(round(pct * 10000)) for pct in allocations_pct]
+        if abs(sum(allocations_bp) - 10000) > 10:
             raise ValueError("Allocations must sum to 100%")
         try:
             tx = self.portfolio_tracker.functions.updatePortfolio(

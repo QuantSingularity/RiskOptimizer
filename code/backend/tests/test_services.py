@@ -64,22 +64,18 @@ def test_calculate_volatility() -> Any:
 
 def test_efficient_frontier_delegates_correctly() -> Any:
     """Test the efficient frontier calculation delegates to PyPortfolioOpt."""
-    mock_ef_instance = MagicMock()
-    mock_ef_instance.max_sharpe.return_value = None
-    mock_ef_instance.clean_weights.return_value = {"A": 0.6, "B": 0.4}
-
     mock_returns = pd.Series([0.1, 0.2], index=["A", "B"])
     mock_cov = pd.DataFrame(
         [[0.1, 0.05], [0.05, 0.2]], index=["A", "B"], columns=["A", "B"]
     )
 
-    with patch(
-        "src.services.quant_analysis.EfficientFrontier",
-        mock_ef_instance.__class__,
-    ) as mock_ef_cls:
-        mock_ef_cls.return_value = mock_ef_instance
-        try:
+    mock_ef_instance = MagicMock()
+    mock_ef_instance.max_sharpe.return_value = None
+    mock_ef_instance.clean_weights.return_value = {"A": 0.6, "B": 0.4}
+
+    try:
+        with patch("pypfopt.EfficientFrontier", return_value=mock_ef_instance):
             weights = RiskMetrics.efficient_frontier(mock_returns, mock_cov)
             assert isinstance(weights, dict)
-        except ImportError:
-            pytest.skip("PyPortfolioOpt not available")
+    except ImportError:
+        pytest.skip("PyPortfolioOpt not available")

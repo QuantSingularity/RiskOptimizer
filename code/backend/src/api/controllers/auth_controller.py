@@ -152,7 +152,7 @@ def register() -> Response:
         logger.info("User registration request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 
@@ -273,7 +273,7 @@ def login() -> Response:
         logger.info("User login request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 
@@ -364,7 +364,7 @@ def refresh_token() -> Response:
         logger.info("Token refresh request received")
 
         # Get request data
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             raise ValidationError("Request body is required")
 
@@ -458,7 +458,7 @@ def logout() -> Response:
         access_token = auth_header.split(" ")[1]
 
         # Get refresh token from request body
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data or "refresh_token" not in data:
             raise ValidationError("Refresh token is required", "refresh_token")
 

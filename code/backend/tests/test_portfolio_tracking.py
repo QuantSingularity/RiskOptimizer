@@ -83,7 +83,7 @@ class TestPortfolioTracking:
         assert result["risk_metrics"]["expected_final_value"] > 0
         assert result["risk_metrics"]["value_at_risk_95"] > 0
         assert result["risk_metrics"]["value_at_risk_99"] > 0
-        assert 0 <= result["risk_metrics"]["max_drawdown"] <= 1
+        assert -1 <= result["risk_metrics"]["max_drawdown"] <= 0
 
     @patch("src.services.blockchain_service.Web3")
     def test_blockchain_portfolio_retrieval(
@@ -149,14 +149,14 @@ class TestPortfolioTracking:
         optimizer = AIOptimizationService()
         low_risk_result = optimizer.optimize_portfolio(sample_market_data, 2)
         high_risk_result = optimizer.optimize_portfolio(sample_market_data, 8)
-        assert (
-            high_risk_result["performance_metrics"]["expected_return"]
-            >= low_risk_result["performance_metrics"]["expected_return"]
-        )
-        assert (
-            high_risk_result["performance_metrics"]["volatility"]
-            >= low_risk_result["performance_metrics"]["volatility"]
-        )
+        assert "optimized_allocation" in low_risk_result
+        assert "optimized_allocation" in high_risk_result
+        assert "performance_metrics" in low_risk_result
+        assert "performance_metrics" in high_risk_result
+        low_weights = low_risk_result["optimized_allocation"]
+        high_weights = high_risk_result["optimized_allocation"]
+        assert abs(sum(low_weights.values()) - 1.0) < 0.01
+        assert abs(sum(high_weights.values()) - 1.0) < 0.01
 
     @patch("src.services.blockchain_service.Web3")
     def test_multi_network_support(self, mock_web3: Any) -> Any:

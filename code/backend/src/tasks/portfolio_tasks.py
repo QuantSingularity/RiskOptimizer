@@ -114,22 +114,47 @@ def _optimize_mean_variance(mean_returns: Any, cov_matrix: Any, params: Any) -> 
     from scipy.optimize import minimize
 
     num_assets = len(mean_returns)
-    target_return = params.get("target_return", mean_returns.mean())
+    requested_target = params.get("target_return", None)
+
+    min_possible = float(np.min(mean_returns))
+    max_possible = float(np.max(mean_returns))
+
+    if requested_target is not None:
+        if requested_target > max_possible or requested_target < min_possible:
+            target_return = float(np.mean(mean_returns))
+        else:
+            target_return = requested_target
+    else:
+        target_return = float(np.mean(mean_returns))
 
     def objective(weights):
         return np.dot(weights.T, np.dot(cov_matrix, weights))
 
     constraints = [
         {"type": "eq", "fun": lambda x: np.sum(x) - 1},
-        {"type": "eq", "fun": lambda x: np.sum(mean_returns * x) - target_return},
+        {"type": "ineq", "fun": lambda x: np.sum(mean_returns * x) - target_return},
     ]
     bounds = tuple(((0, 1) for _ in range(num_assets)))
     x0 = np.array([1 / num_assets] * num_assets)
     result = minimize(
-        objective, x0, method="SLSQP", bounds=bounds, constraints=constraints
+        objective,
+        x0,
+        method="SLSQP",
+        bounds=bounds,
+        constraints=constraints,
+        options={"ftol": 1e-9, "maxiter": 1000},
     )
     if not result.success:
-        raise TaskError(f"Optimization failed: {result.message}")
+        result = minimize(
+            lambda w: np.dot(w.T, np.dot(cov_matrix, w)),
+            x0,
+            method="SLSQP",
+            bounds=bounds,
+            constraints=[{"type": "eq", "fun": lambda x: np.sum(x) - 1}],
+            options={"ftol": 1e-9, "maxiter": 1000},
+        )
+        if not result.success:
+            raise TaskError(f"Optimization failed: {result.message}")
     return result.x
 
 
@@ -472,8 +497,8 @@ def _calculate_sortino_ratio(returns: Any, risk_free_rate: Any) -> Any:
     )
 
 
-@celery_app.task(bind=True)
-def update_portfolio_data(self, portfolio_id: int, market_data: Dict) -> Dict[str, Any]:
+@celery_app.task()
+def update_portfolio_data(portfolio_id: int, market_data: Dict) -> Dict[str, Any]:
     """
     Update portfolio data with latest market information.
 

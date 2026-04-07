@@ -101,10 +101,10 @@ def monte_carlo_simulation(
                 "portfolio_volatility": float(volatility),
             },
             "risk_metrics": {
-                "var_95": float(var_95),
-                "var_99": float(var_99),
-                "cvar_95": float(cvar_95),
-                "cvar_99": float(cvar_99),
+                "var_95": float(var_95 - 1),
+                "var_99": float(var_99 - 1),
+                "cvar_95": float(cvar_95 - 1),
+                "cvar_99": float(cvar_99 - 1),
                 "probability_of_loss": float(probability_of_loss),
             },
             "statistics": {
@@ -451,9 +451,9 @@ def stress_test_portfolio(
         raise
 
 
-@celery_app.task(bind=True)
+@celery_app.task()
 def calculate_portfolio_metrics(
-    self, portfolio_id: int, metrics: List[str]
+    portfolio_id: int, metrics: List[str]
 ) -> Dict[str, Any]:
     """
     Calculate various portfolio metrics asynchronously.

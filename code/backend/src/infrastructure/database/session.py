@@ -8,10 +8,15 @@ from contextlib import contextmanager
 from typing import Generator
 
 from sqlalchemy import create_engine, event, text
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
+
+try:
+    from sqlalchemy.orm import declarative_base
+except ImportError:
+    from sqlalchemy.ext.declarative import declarative_base
+
 from src.core.config import config
-from src.core.exceptions import DatabaseError
+from src.core.exceptions import DatabaseError, RiskOptimizerException
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,10 +53,8 @@ else:
         echo=config.api.debug,
     )
 
-# Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base class for all SQLAlchemy models
 Base = declarative_base()
 
 
@@ -64,7 +67,8 @@ def get_db_session() -> Generator[Session, None, None]:
         SQLAlchemy session
 
     Raises:
-        DatabaseError: If database operations fail
+        DatabaseError: If underlying database operations fail
+        RiskOptimizerException: Application exceptions are re-raised unchanged
     """
     session = SessionLocal()
     try:
@@ -72,6 +76,9 @@ def get_db_session() -> Generator[Session, None, None]:
         yield session
         session.commit()
         logger.debug("Database session committed")
+    except RiskOptimizerException:
+        session.rollback()
+        raise
     except Exception as e:
         session.rollback()
         logger.error(f"Database error: {str(e)}", exc_info=True)
@@ -88,7 +95,6 @@ def init_db() -> None:
     This should be called during application startup.
     """
     try:
-        # Create all tables
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created successfully")
     except Exception as e:
@@ -104,7 +110,6 @@ def check_db_connection() -> bool:
         True if connection is successful, False otherwise
     """
     try:
-        # Execute a simple query to check connection
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
         logger.info("Database connection successful")

@@ -138,7 +138,7 @@ class TestEfficientFrontierCalculation:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_efficient_frontier_calculation_success(
-        self, mock_task_manager: Any
+        self, mock_task_manager: Any, mock_celery_manager: Any
     ) -> Any:
         """Test successful efficient frontier calculation."""
         mock_self = MagicMock()
@@ -222,7 +222,6 @@ class TestCalculatePortfolioMetrics:
         mock_self = MagicMock()
         mock_self.request.id = "test-task-id"
         result = calculate_portfolio_metrics(
-            mock_self,
             portfolio_id=1,
             metrics=["sharpe_ratio", "sortino_ratio", "max_drawdown"],
         )
@@ -282,7 +281,7 @@ class TestRiskTasksIntegration:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_efficient_frontier_with_realistic_data(
-        self, mock_task_manager: Any
+        self, mock_task_manager: Any, mock_celery_manager: Any
     ) -> Any:
         """Test efficient frontier calculation with realistic market data."""
         mock_self = MagicMock()

@@ -150,8 +150,8 @@ def test_cvar_endpoint_requires_auth(client) -> Any:
 
 
 def test_portfolio_endpoint_requires_auth(client) -> Any:
-    """GET /api/v1/portfolio without token returns 401."""
-    response = client.get("/api/v1/portfolio/0x1234")
+    """GET /api/v1/portfolios/address/0x1234 without token returns 401."""
+    response = client.get("/api/v1/portfolios/address/0x1234")
     assert response.status_code == 401
 
 

@@ -1,43 +1,23 @@
 """
 AI Optimization Service for RiskOptimizer Backend
 
-This service integrates the advanced portfolio optimization models with the backend API.
-It provides methods for:
-1. Loading the trained model
-2. Processing market data
-3. Generating optimized portfolios based on user risk tolerance
-4. Running risk simulations
+Provides portfolio optimization using quantitative methods with an optional
+AI/ML model layer for enhanced performance.
 """
 
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
 from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import minimize
 
 try:
     from ai_models.optimization_model import AdvancedPortfolioOptimizer
 except ImportError:
-    try:
-        import os
-        import sys
-
-        _ai_models_path = os.path.join(
-            os.path.dirname(
-                os.path.dirname(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                )
-            ),
-            "ai_models",
-        )
-        if _ai_models_path not in sys.path:
-            sys.path.insert(0, os.path.dirname(_ai_models_path))
-        from ai_models.optimization_model import AdvancedPortfolioOptimizer
-    except ImportError:
-        AdvancedPortfolioOptimizer = None
+    AdvancedPortfolioOptimizer = None
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,51 +36,108 @@ MODEL_DIR = os.path.join(
 DEFAULT_MODEL_PATH = os.path.join(MODEL_DIR, "trained_model.joblib")
 
 
+class FallbackPortfolioOptimizer:
+    """Fallback optimizer using classical Markowitz mean-variance optimization."""
+
+    def __init__(self) -> None:
+        self.risk_tolerance = 5
+
+    def optimize_portfolio(self, market_data: pd.DataFrame) -> Any:
+        """Optimize portfolio weights using minimum variance approach."""
+        price_cols = [c for c in market_data.columns if c != "market_index"]
+        prices = market_data[price_cols]
+        returns = prices.pct_change().dropna()
+
+        n = len(price_cols)
+        mean_ret = returns.mean()
+        cov = returns.cov()
+
+        def neg_sharpe(w):
+            port_ret = np.dot(w, mean_ret) * 252
+            port_vol = np.sqrt(np.dot(w.T, np.dot(cov, w)) * 252)
+            return -port_ret / (port_vol + 1e-8)
+
+        constraints = [{"type": "eq", "fun": lambda x: np.sum(x) - 1}]
+        bounds = [(0, 1)] * n
+        x0 = np.array([1 / n] * n)
+        res = minimize(
+            neg_sharpe, x0, method="SLSQP", bounds=bounds, constraints=constraints
+        )
+        weights_arr = res.x if res.success else x0
+        weights = {asset: float(w) for asset, w in zip(price_cols, weights_arr)}
+
+        port_ret = float(np.dot(weights_arr, mean_ret) * 252)
+        port_vol = float(np.sqrt(np.dot(weights_arr.T, np.dot(cov, weights_arr)) * 252))
+        sharpe = port_ret / (port_vol + 1e-8)
+
+        metrics = {
+            "expected_return": port_ret,
+            "volatility": port_vol,
+            "sharpe_ratio": sharpe,
+        }
+        return weights, metrics
+
+    def monte_carlo_simulation(
+        self,
+        market_data: pd.DataFrame,
+        weights: Any,
+        num_simulations: int = 1000,
+        time_horizon: int = 252,
+    ) -> Any:
+        """Run Monte Carlo simulation for portfolio risk assessment."""
+        price_cols = [c for c in market_data.columns if c != "market_index"]
+        prices = market_data[price_cols]
+        returns = prices.pct_change().dropna()
+
+        weight_arr = np.array([weights.get(c, 0) for c in price_cols])
+        port_returns = returns.values @ weight_arr
+        mu = float(np.mean(port_returns))
+        sigma = float(np.std(port_returns))
+
+        np.random.seed(42)
+        sim_returns = np.random.normal(mu, sigma, (num_simulations, time_horizon))
+        sim_paths = np.cumprod(1 + sim_returns, axis=1) * 10000
+        final_values = sim_paths[:, -1]
+
+        running_max = np.maximum.accumulate(sim_paths, axis=1)
+        drawdowns = (sim_paths - running_max) / running_max
+        max_dd = float(np.mean(np.min(drawdowns, axis=1)))
+
+        simulation_df = pd.DataFrame(sim_paths.T)
+        risk_metrics = {
+            "expected_final_value": float(np.mean(final_values)),
+            "var_95": float(np.percentile(final_values, 5)),
+            "var_99": float(np.percentile(final_values, 1)),
+            "max_drawdown": max_dd,
+        }
+        return simulation_df, risk_metrics
+
+
 class AIOptimizationService:
-    """Service for AI-driven portfolio optimization"""
+    """Service for AI-driven portfolio optimization."""
 
     def __init__(self, model_path: Any = None) -> None:
-        """
-        Initialize the optimization service
-
-        Args:
-            model_path: Path to the trained model file (optional)
-        """
         self.model_path = model_path or DEFAULT_MODEL_PATH
         self.optimizer = None
         self.load_model()
 
     def load_model(self) -> Any:
-        """Load the trained model"""
+        """Load the trained model, falling back to the classical optimizer."""
         try:
-            if AdvancedPortfolioOptimizer is None:
-                logger.warning(
-                    "AdvancedPortfolioOptimizer not available; AI features disabled."
-                )
-                self.optimizer = None
-                return
-            if os.path.exists(self.model_path):
+            if AdvancedPortfolioOptimizer is not None and os.path.exists(
+                self.model_path
+            ):
                 self.optimizer = AdvancedPortfolioOptimizer.load_model(self.model_path)
                 logger.info(f"Loaded optimization model from {self.model_path}")
             else:
-                logger.info(
-                    f"Model file not found at {self.model_path}. Creating new model."
-                )
-                self.optimizer = AdvancedPortfolioOptimizer()
+                logger.info("AI model unavailable; using fallback optimizer.")
+                self.optimizer = FallbackPortfolioOptimizer()
         except Exception as e:
-            logger.info(f"Error loading model: {e}")
-            self.optimizer = AdvancedPortfolioOptimizer()
+            logger.warning(f"Error loading AI model ({e}); using fallback optimizer.")
+            self.optimizer = FallbackPortfolioOptimizer()
 
     def process_market_data(self, data: Any) -> Any:
-        """
-        Process market data for optimization
-
-        Args:
-            data: Dictionary or DataFrame with market data
-
-        Returns:
-            Processed DataFrame
-        """
+        """Process market data for optimization."""
         if isinstance(data, dict):
             df = pd.DataFrame(data)
         else:
@@ -110,20 +147,11 @@ class AIOptimizationService:
         return df
 
     def optimize_portfolio(self, market_data: Any, risk_tolerance: Any = 5) -> Any:
-        """
-        Generate optimized portfolio allocation
-
-        Args:
-            market_data: Dictionary or DataFrame with market data
-            risk_tolerance: User's risk tolerance (1-10)
-
-        Returns:
-            Dictionary with optimized weights and performance metrics
-        """
+        """Generate optimized portfolio allocation."""
         df = self.process_market_data(market_data)
         self.optimizer.risk_tolerance = risk_tolerance
         weights, metrics = self.optimizer.optimize_portfolio(df)
-        result = {
+        return {
             "optimized_allocation": {k: float(v) for k, v in weights.items()},
             "performance_metrics": {
                 "expected_return": float(metrics["expected_return"]),
@@ -131,7 +159,6 @@ class AIOptimizationService:
                 "sharpe_ratio": float(metrics["sharpe_ratio"]),
             },
         }
-        return result
 
     def run_risk_simulation(
         self,
@@ -140,25 +167,14 @@ class AIOptimizationService:
         num_simulations: Any = 1000,
         time_horizon: Any = 252,
     ) -> Any:
-        """
-        Run Monte Carlo simulation for risk assessment
-
-        Args:
-            market_data: Dictionary or DataFrame with market data
-            weights: Dictionary of portfolio weights
-            num_simulations: Number of simulations to run
-            time_horizon: Time horizon in trading days
-
-        Returns:
-            Dictionary with risk metrics and simulation summary
-        """
+        """Run Monte Carlo simulation for risk assessment."""
         df = self.process_market_data(market_data)
         simulation, risk_metrics = self.optimizer.monte_carlo_simulation(
             df, weights, num_simulations, time_horizon
         )
         percentiles = [5, 25, 50, 75, 95]
         percentile_values = np.percentile(simulation.iloc[-1], percentiles)
-        result = {
+        return {
             "risk_metrics": {
                 "expected_final_value": float(risk_metrics["expected_final_value"]),
                 "value_at_risk_95": float(risk_metrics["var_95"]),
@@ -174,81 +190,11 @@ class AIOptimizationService:
                 },
             },
         }
-        return result
 
-    def get_market_data(
-        self, symbols: Any, start_date: Any = None, end_date: Any = None
-    ) -> Any:
-        """
-        Get historical market data for specified symbols
-
-        In production, this would fetch from a market data API
-        For demonstration, we generate synthetic data
-
-        Args:
-            symbols: List of asset symbols
-            start_date: Start date for historical data
-            end_date: End date for historical data
-
-        Returns:
-            DataFrame with historical price data
-        """
-        if end_date is None:
-            end_date = datetime.now()
-        if start_date is None:
-            start_date = end_date - timedelta(days=365 * 3)
-        dates = pd.date_range(start=start_date, end=end_date, freq="B")
-        df = pd.DataFrame(index=dates)
-        np.random.seed(42)
-        for symbol in symbols:
-            if symbol in ["BTC", "ETH"]:
-                base_price = 10000 if symbol == "BTC" else 1000
-                volatility = 0.03
-            else:
-                base_price = 100
-                volatility = 0.015
-            prices = [base_price]
-            for _ in range(1, len(dates)):
-                daily_return = np.random.normal(0.0005, volatility)
-                new_price = prices[-1] * (1 + daily_return)
-                prices.append(new_price)
-            df[symbol] = prices
-        market_returns = np.random.normal(0.0004, 0.01, size=len(dates))
-        market_prices = 100 * np.cumprod(1 + market_returns)
-        df["market_index"] = market_prices
-        return df
-
-    def train_model_if_needed(self, market_data: Any = None) -> Any:
-        """
-        Train the model if it hasn't been trained
-
-        Args:
-            market_data: Optional market data for training
-
-        Returns:
-            True if training was successful, False otherwise
-        """
-        if not hasattr(self.optimizer, "trained") or not self.optimizer.trained:
-            try:
-                if market_data is None:
-                    symbols = [
-                        "BTC",
-                        "ETH",
-                        "AAPL",
-                        "MSFT",
-                        "GOOGL",
-                        "AMZN",
-                        "TSLA",
-                        "SPY",
-                    ]
-                    market_data = self.get_market_data(symbols)
-                self.optimizer.train_return_prediction_model(market_data)
-                self.optimizer.save_model(self.model_path)
-                return True
-            except Exception as e:
-                logger.info(f"Error training model: {e}")
-                return False
-        return True
-
-
-optimization_service = AIOptimizationService()
+    def get_model_info(self) -> Any:
+        """Get information about the loaded model."""
+        return {
+            "model_path": self.model_path,
+            "model_loaded": self.optimizer is not None,
+            "model_type": type(self.optimizer).__name__ if self.optimizer else None,
+        }

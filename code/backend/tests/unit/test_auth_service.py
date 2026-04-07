@@ -24,6 +24,9 @@ class TestAuthService(unittest.TestCase):
         self.auth_service.user_repo = MagicMock()
         self.auth_service.cache = MagicMock()
         self.auth_service.audit_service = MagicMock()
+        self.auth_service.cache.exists.return_value = False
+        self.auth_service.cache.get.return_value = None
+        self.auth_service.cache.set.return_value = True
 
     def test_hash_password(self) -> Any:
         password = "testpassword123"
@@ -169,6 +172,11 @@ class TestAuthService(unittest.TestCase):
         self.assertTrue(self.auth_service.is_token_blacklisted(token))
         self.auth_service.cache.exists.assert_called_once_with(f"blacklist:{token}")
 
+    def test_is_token_not_blacklisted(self) -> Any:
+        token = "some_token"
+        self.auth_service.cache.exists.return_value = False
+        self.assertFalse(self.auth_service.is_token_blacklisted(token))
+
     def test_authenticate_user_success(self) -> Any:
         email = "test@example.com"
         password = "testpassword123"
@@ -187,7 +195,6 @@ class TestAuthService(unittest.TestCase):
         mock_user.created_at = datetime.utcnow()
         mock_user.updated_at = datetime.utcnow()
         self.auth_service.user_repo.get_by_email.return_value = mock_user
-        self.auth_service.cache.get.return_value = None
         user_data, tokens = self.auth_service.authenticate_user(email, password)
         self.assertEqual(user_data["email"], email)
         self.assertIn("access_token", tokens)
@@ -210,7 +217,6 @@ class TestAuthService(unittest.TestCase):
         ).decode("utf-8")
         mock_user.is_active = True
         self.auth_service.user_repo.get_by_email.return_value = mock_user
-        self.auth_service.cache.get.return_value = None
         with self.assertRaises(AuthenticationError) as cm:
             self.auth_service.authenticate_user(email, password)
         self.assertIn("Invalid email or password", str(cm.exception))
@@ -300,6 +306,23 @@ class TestAuthService(unittest.TestCase):
             action_type="USER_LOGOUT",
             details={"access_token_prefix": access_token[:10]},
         )
+
+    def test_account_not_locked_below_limit(self) -> Any:
+        email = "user@example.com"
+        self.auth_service.cache.get.return_value = "2"
+        self.assertFalse(self.auth_service._is_account_locked(email))
+
+    def test_account_locked_at_limit(self) -> Any:
+        email = "user@example.com"
+        self.auth_service.cache.get.return_value = "3"
+        self.assertTrue(self.auth_service._is_account_locked(email))
+
+    def test_verify_token_blacklisted(self) -> Any:
+        tokens = self.auth_service.generate_tokens(1, "t@t.com", "user")
+        self.auth_service.cache.exists.return_value = True
+        with self.assertRaises(AuthenticationError) as cm:
+            self.auth_service.verify_token(tokens["access_token"], "access")
+        self.assertIn("revoked", str(cm.exception))
 
 
 if __name__ == "__main__":

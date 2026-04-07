@@ -23,15 +23,12 @@ class AuthService:
     """
     Service for authentication and JWT token management.
 
-    This service handles user registration, login, password hashing and verification,
-    JWT token generation and validation, token blacklisting, and manages login attempts
-    to prevent brute-force attacks.
+    Handles user registration, login, password hashing/verification,
+    JWT token generation and validation, token blacklisting, and
+    brute-force protection via login attempt tracking.
     """
 
     def __init__(self) -> None:
-        """
-        Initialize authentication service with configurations and dependencies.
-        """
         self.user_repo = user_repository
         self.cache = redis_cache
         self.audit_service = audit_service
@@ -46,12 +43,6 @@ class AuthService:
         """
         Hashes a plain text password using bcrypt.
 
-        Args:
-            password: The plain text password to hash.
-
-        Returns:
-            The hashed password as a UTF-8 string.
-
         Raises:
             ValidationError: If the password is empty or not a string.
         """
@@ -62,16 +53,7 @@ class AuthService:
         return hashed.decode("utf-8")
 
     def verify_password(self, password: str, hashed_password: str) -> bool:
-        """
-        Verifies a plain text password against a hashed password.
-
-        Args:
-            password: The plain text password to verify.
-            hashed_password: The hashed password to compare against.
-
-        Returns:
-            True if the password matches the hash, False otherwise.
-        """
+        """Verifies a plain text password against a hashed password."""
         try:
             return bcrypt.checkpw(
                 password.encode("utf-8"), hashed_password.encode("utf-8")
@@ -81,18 +63,7 @@ class AuthService:
             return False
 
     def generate_tokens(self, user_id: int, email: str, role: str) -> Dict[str, str]:
-        """
-        Generates access and refresh JWT tokens for a given user.
-
-        Args:
-            user_id: The ID of the user.
-            email: The email of the user.
-            role: The role of the user (e.g., "user", "admin").
-
-        Returns:
-            A dictionary containing the access token, refresh token, token type (Bearer),
-            and the expiration time of the access token.
-        """
+        """Generates access and refresh JWT tokens for a given user."""
         now = datetime.utcnow()
         access_payload = {
             "user_id": user_id,
@@ -122,16 +93,8 @@ class AuthService:
         """
         Verifies and decodes a JWT token.
 
-        Args:
-            token: The JWT token string.
-            token_type: The expected type of the token ("access" or "refresh").
-
-        Returns:
-            The decoded token payload.
-
         Raises:
-            AuthenticationError: If the token is invalid, expired, or blacklisted,
-                                 or if the token type does not match the expected type.
+            AuthenticationError: If the token is invalid, expired, or blacklisted.
         """
         try:
             if self.is_token_blacklisted(token):
@@ -140,6 +103,8 @@ class AuthService:
             if payload.get("type") != token_type:
                 raise AuthenticationError(f"Invalid token type: expected {token_type}")
             return payload
+        except AuthenticationError:
+            raise
         except jwt.ExpiredSignatureError:
             raise AuthenticationError("Token has expired")
         except jwt.InvalidTokenError as e:
@@ -149,14 +114,8 @@ class AuthService:
         """
         Generates a new access token using a valid refresh token.
 
-        Args:
-            refresh_token: The valid refresh token.
-
-        Returns:
-            A dictionary containing the new access token, token type, and expiration time.
-
         Raises:
-            AuthenticationError: If the refresh token is invalid or the user is not found/inactive.
+            AuthenticationError: If the refresh token is invalid or user not found/inactive.
         """
         payload = self.verify_token(refresh_token, "refresh")
         with get_db_session() as session:
@@ -171,13 +130,7 @@ class AuthService:
             }
 
     def blacklist_token(self, token: str) -> None:
-        """
-        Adds a JWT token to a blacklist in Redis, effectively revoking it.
-        The token will remain blacklisted until its original expiration time.
-
-        Args:
-            token: The JWT token string to blacklist.
-        """
+        """Adds a JWT token to a blacklist in Redis, revoking it."""
         try:
             payload = jwt.decode(
                 token,
@@ -197,15 +150,7 @@ class AuthService:
             logger.error(f"Error blacklisting token: {str(e)}", exc_info=True)
 
     def is_token_blacklisted(self, token: str) -> bool:
-        """
-        Checks if a given JWT token is present in the blacklist.
-
-        Args:
-            token: The JWT token string to check.
-
-        Returns:
-            True if the token is blacklisted, False otherwise.
-        """
+        """Checks if a given JWT token is present in the blacklist."""
         try:
             cache_key = f"blacklist:{token}"
             return self.cache.exists(cache_key)
@@ -214,25 +159,9 @@ class AuthService:
             return False
 
     def _get_login_attempt_key(self, email: str) -> str:
-        """
-        Generates a unique cache key for tracking login attempts for a given email.
-
-        Args:
-            email: The email address of the user.
-
-        Returns:
-            A string representing the cache key.
-        """
         return f"login_attempts:{email}"
 
     def _record_failed_login_attempt(self, email: str) -> None:
-        """
-        Records a failed login attempt for a user and increments the attempt count.
-        If it's the first attempt, sets an expiration for the lockout period.
-
-        Args:
-            email: The email address of the user who failed to log in.
-        """
         key = self._get_login_attempt_key(email)
         attempts = self.cache.incr(key)
         if attempts == 1:
@@ -240,27 +169,11 @@ class AuthService:
         logger.warning(f"Failed login attempt for {email}. Attempts: {attempts}")
 
     def _reset_login_attempts(self, email: str) -> None:
-        """
-        Resets the failed login attempt count for a user.
-        This should be called upon successful login.
-
-        Args:
-            email: The email address of the user.
-        """
         key = self._get_login_attempt_key(email)
         self.cache.delete(key)
         logger.info(f"Login attempts reset for {email}")
 
     def _is_account_locked(self, email: str) -> bool:
-        """
-        Checks if a user's account is currently locked due to too many failed login attempts.
-
-        Args:
-            email: The email address of the user.
-
-        Returns:
-            True if the account is locked, False otherwise.
-        """
         key = self._get_login_attempt_key(email)
         attempts = self.cache.get(key)
         if attempts and int(attempts) >= self.max_login_attempts:
@@ -275,24 +188,16 @@ class AuthService:
     ) -> Tuple[Dict[str, Any], Dict[str, str]]:
         """
         Authenticates a user by verifying their email and password.
-        Manages login attempts and account lockout.
-
-        Args:
-            email: The user's email address.
-            password: The user's plain text password.
-
-        Returns:
-            A tuple containing the user's data (dict) and generated JWT tokens (dict).
 
         Raises:
             ValidationError: If email or password input is invalid.
-            AuthenticationError: If authentication fails due to incorrect credentials,
-                                 inactive account, or account lockout.
+            AuthenticationError: If authentication fails.
         """
         if not email or not isinstance(email, str):
             raise ValidationError("Email is required", "email")
         if not password or not isinstance(password, str):
             raise ValidationError("Password is required", "password")
+
         if self._is_account_locked(email):
             self.audit_service.log_action(
                 user_id=None,
@@ -306,6 +211,7 @@ class AuthService:
             raise AuthenticationError(
                 f"Account locked. Please try again in {self.lockout_time // 60} minutes."
             )
+
         with get_db_session() as session:
             user = self.user_repo.get_by_email(email, session)
             if not user:
@@ -323,6 +229,7 @@ class AuthService:
                     },
                 )
                 raise AuthenticationError("Invalid email or password")
+
             if not user.is_active:
                 self._record_failed_login_attempt(email)
                 self.audit_service.log_action(
@@ -338,6 +245,7 @@ class AuthService:
                     },
                 )
                 raise AuthenticationError("User account is inactive")
+
             if not self.verify_password(password, user.hashed_password):
                 self._record_failed_login_attempt(email)
                 self.audit_service.log_action(
@@ -353,6 +261,7 @@ class AuthService:
                     },
                 )
                 raise AuthenticationError("Invalid email or password")
+
             self._reset_login_attempts(email)
             self.audit_service.log_action(
                 user_id=user.id,
@@ -387,18 +296,9 @@ class AuthService:
         """
         Registers a new user in the system.
 
-        Args:
-            email: The new user's email address.
-            username: The new user's chosen username.
-            password: The new user's plain text password.
-            wallet_address: An optional blockchain wallet address for the user.
-
-        Returns:
-            A tuple containing the newly created user's data (dict) and generated JWT tokens (dict).
-
         Raises:
             ValidationError: If any input is invalid.
-            ConflictError: If a user with the provided email, username, or wallet address already exists.
+            ConflictError: If a user with the provided email or username already exists.
         """
         if not email or not isinstance(email, str):
             raise ValidationError("Email is required", "email")
@@ -406,15 +306,32 @@ class AuthService:
             raise ValidationError("Username is required", "username")
         if not password or not isinstance(password, str):
             raise ValidationError("Password is required", "password")
+
         hashed_password = self.hash_password(password)
+
         with get_db_session() as session:
-            user = self.user_repo.create(
-                email=email,
-                username=username,
-                hashed_password=hashed_password,
-                wallet_address=wallet_address,
-                session=session,
-            )
+            try:
+                user = self.user_repo.create(
+                    email=email,
+                    username=username,
+                    hashed_password=hashed_password,
+                    wallet_address=wallet_address,
+                    session=session,
+                )
+            except Exception as e:
+                self.audit_service.log_action(
+                    user_id=None,
+                    action_type="DB_ERROR",
+                    entity_type="USER",
+                    details={
+                        "action": "create",
+                        "email": email,
+                        "username": username,
+                        "error": str(e),
+                    },
+                )
+                raise
+
             tokens = self.generate_tokens(user.id, user.email, user.role)
             user_data = {
                 "id": user.id,
@@ -441,13 +358,7 @@ class AuthService:
             return (user_data, tokens)
 
     def logout_user(self, access_token: str, refresh_token: str) -> None:
-        """
-        Logs out a user by blacklisting their access and refresh tokens.
-
-        Args:
-            access_token: The user's current access token.
-            refresh_token: The user's current refresh token.
-        """
+        """Logs out a user by blacklisting their access and refresh tokens."""
         self.blacklist_token(access_token)
         self.blacklist_token(refresh_token)
         self.audit_service.log_action(

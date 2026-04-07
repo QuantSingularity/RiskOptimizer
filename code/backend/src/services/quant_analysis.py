@@ -6,7 +6,7 @@ from scipy.stats import norm
 
 
 def _decimal_to_float(values: List) -> List[float]:
-    """Convert list of Decimal to float for numpy operations."""
+    """Convert list of Decimal or other numeric types to float for numpy operations."""
     return [float(v) for v in values]
 
 
@@ -19,46 +19,46 @@ class RiskMetrics:
     def calculate_var(returns: Any, confidence: Any = 0.95) -> Any:
         """
         Calculate Value at Risk (VaR) using the parametric method.
-        This method assumes returns are normally distributed.
+        Returns a positive Decimal representing the magnitude of potential loss.
 
         Args:
-            returns (list or np.ndarray): A list or array of portfolio returns.
-            confidence (float): The confidence level for VaR calculation (e.g., 0.95 for 95%).
+            returns: A list or array of portfolio returns.
+            confidence: The confidence level (e.g., 0.95 for 95% VaR).
 
         Returns:
-            Decimal: The calculated Value at Risk.
+            Decimal: The calculated Value at Risk (positive value).
         """
         if not isinstance(returns, (list, np.ndarray)) or len(returns) == 0:
             raise ValueError("Returns must be a non-empty list or numpy array.")
-        decimal_returns = [Decimal(str(r)) for r in returns]
-        mean = np.mean(_decimal_to_float(decimal_returns))
-        std = np.std(_decimal_to_float(decimal_returns))
-        z_score = Decimal(str(norm.ppf(1 - confidence)))
-        var = Decimal(str(mean)) + z_score * Decimal(str(std))
-        return abs(var)
+        float_returns = [float(r) for r in returns]
+        mean = np.mean(float_returns)
+        std = np.std(float_returns)
+        z_score = norm.ppf(1 - confidence)
+        var = mean + z_score * std
+        return Decimal(str(abs(var)))
 
     @staticmethod
     def calculate_cvar(returns: Any, confidence: Any = 0.95) -> Any:
         """
-        Calculate Conditional Value at Risk (CVaR), also known as Expected Shortfall (ES).
-        CVaR is the expected loss given that the loss is greater than or equal to VaR.
+        Calculate Conditional Value at Risk (CVaR), also known as Expected Shortfall.
+        Returns a positive Decimal representing the expected loss beyond the VaR threshold.
 
         Args:
-            returns (list or np.ndarray): A list or array of portfolio returns.
-            confidence (float): The confidence level for CVaR calculation.
+            returns: A list or array of portfolio returns.
+            confidence: The confidence level for CVaR calculation.
 
         Returns:
-            Decimal: The calculated Conditional Value at Risk.
+            Decimal: The calculated Conditional Value at Risk (positive value).
         """
         if not isinstance(returns, (list, np.ndarray)) or len(returns) == 0:
             raise ValueError("Returns must be a non-empty list or numpy array.")
-        decimal_returns = [Decimal(str(r)) for r in returns]
-        var = RiskMetrics.calculate_var(decimal_returns, confidence)
-        tail_losses = [r for r in decimal_returns if r <= var]
+        float_returns = [float(r) for r in returns]
+        var_threshold = np.percentile(float_returns, (1 - confidence) * 100)
+        tail_losses = [r for r in float_returns if r <= var_threshold]
         if not tail_losses:
-            return var
-        cvar = Decimal(str(np.mean([float(x) for x in tail_losses])))
-        return abs(cvar)
+            return Decimal(str(abs(var_threshold)))
+        cvar = abs(float(np.mean(tail_losses)))
+        return Decimal(str(cvar))
 
     @staticmethod
     def efficient_frontier(returns: Any, cov_matrix: Any) -> Any:
@@ -67,8 +67,8 @@ class RiskMetrics:
         Uses the PyPortfolioOpt library.
 
         Args:
-            returns (pd.Series): A pandas Series of expected returns for each asset.
-            cov_matrix (pd.DataFrame): A pandas DataFrame of the covariance matrix of asset returns.
+            returns: A pandas Series of expected returns for each asset.
+            cov_matrix: A pandas DataFrame of the covariance matrix of asset returns.
 
         Returns:
             dict: A dictionary of asset tickers and their optimal weights.
@@ -90,8 +90,8 @@ class RiskMetrics:
         Calculate the Sharpe Ratio of a portfolio.
 
         Args:
-            returns (list or np.ndarray): A list or array of portfolio returns.
-            risk_free_rate (float): The risk-free rate of return.
+            returns: A list or array of portfolio returns.
+            risk_free_rate: The risk-free rate of return.
 
         Returns:
             Decimal: The calculated Sharpe Ratio.
@@ -100,19 +100,21 @@ class RiskMetrics:
             raise ValueError(
                 "Returns must be a list or numpy array with at least two elements."
             )
-        decimal_returns = [Decimal(str(r)) for r in returns]
-        excess_returns = [r - Decimal(str(risk_free_rate)) for r in decimal_returns]
-        mean_excess_return = np.mean(_decimal_to_float(excess_returns))
-        std_dev_excess_return = np.std(_decimal_to_float(excess_returns))
-        if std_dev_excess_return == 0:
+        float_returns = [float(r) for r in returns]
+        rf = float(risk_free_rate)
+        excess_returns = [r - rf for r in float_returns]
+        mean_excess = float(np.mean(excess_returns))
+        std_excess = float(np.std(excess_returns, ddof=1))
+        if std_excess == 0:
             return Decimal("0.0")
-        sharpe_ratio = mean_excess_return / std_dev_excess_return
-        return sharpe_ratio
+        sharpe_ratio = mean_excess / std_excess
+        return Decimal(str(sharpe_ratio))
 
     @staticmethod
     def calculate_max_drawdown(returns: Any) -> Any:
         """
         Calculate Maximum Drawdown of a portfolio.
+        Returns a non-negative Decimal representing the magnitude of the worst drawdown.
 
         Args:
             returns: A list or array of portfolio returns.

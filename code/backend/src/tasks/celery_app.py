@@ -82,7 +82,11 @@ celery_app.conf.update(
     worker_hijack_root_logger=False,
     worker_log_color=False,
 )
-redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+
+try:
+    redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+except Exception:
+    redis_client = None
 
 
 def get_task_status(task_id: Any) -> Any:
@@ -121,28 +125,50 @@ class TaskResultManager:
 
     def store_task_progress(self, task_id: Any, progress_data: Any) -> Any:
         """Store task progress information."""
-        key = f"task_progress:{task_id}"
-        self.redis_client.hset(key, mapping=progress_data)
-        self.redis_client.expire(key, 3600)
+        if not self.redis_client:
+            return
+        try:
+            key = f"task_progress:{task_id}"
+            self.redis_client.hset(key, mapping=progress_data)
+            self.redis_client.expire(key, 3600)
+        except Exception as e:
+            logger.warning(f"Could not store task progress: {e}")
 
     def get_task_progress(self, task_id: Any) -> Any:
         """Get task progress information."""
-        key = f"task_progress:{task_id}"
-        return self.redis_client.hgetall(key)
+        if not self.redis_client:
+            return {}
+        try:
+            key = f"task_progress:{task_id}"
+            return self.redis_client.hgetall(key)
+        except Exception:
+            return {}
 
     def store_task_metadata(self, task_id: Any, metadata: Any) -> Any:
         """Store task metadata."""
-        key = f"task_metadata:{task_id}"
-        self.redis_client.hset(key, mapping=metadata)
-        self.redis_client.expire(key, 86400)
+        if not self.redis_client:
+            return
+        try:
+            key = f"task_metadata:{task_id}"
+            self.redis_client.hset(key, mapping=metadata)
+            self.redis_client.expire(key, 86400)
+        except Exception as e:
+            logger.warning(f"Could not store task metadata: {e}")
 
     def get_task_metadata(self, task_id: Any) -> Any:
         """Get task metadata."""
-        key = f"task_metadata:{task_id}"
-        return self.redis_client.hgetall(key)
+        if not self.redis_client:
+            return {}
+        try:
+            key = f"task_metadata:{task_id}"
+            return self.redis_client.hgetall(key)
+        except Exception:
+            return {}
 
     def cleanup_expired_task_data(self) -> int:
         """Clean up expired task data by scanning for orphaned task keys."""
+        if not self.redis_client:
+            return 0
         deleted = 0
         try:
             for prefix in ("task_progress:*", "task_metadata:*"):
@@ -173,32 +199,41 @@ class TaskValidationError(TaskError):
     """Exception raised when task input validation fails."""
 
 
-def task_with_progress(bind: Any = True, **kwargs) -> Any:
-    """Decorator for tasks that report progress."""
+def task_with_progress(**kwargs) -> Any:
+    """
+    Decorator for Celery tasks that report progress via TaskResultManager.
+
+    The decorated function must accept ``self`` as its first argument (a Celery
+    task instance or a mock for testing).  The decorator registers the function
+    as a plain (non-bound) Celery task; the ``self`` argument is passed by the
+    caller or by the Celery worker via ``Task.apply()``.
+    """
 
     def decorator(func):
-
+        @celery_app.task(**kwargs)
         @wraps(func)
-        @celery_app.task(bind=bind, **kwargs)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(*args, **kw):
+            # args[0] is the task self (mock in tests, Celery task in prod)
+            bound_self = args[0] if args else None
+            task_id = getattr(getattr(bound_self, "request", None), "id", "unknown")
             try:
                 task_result_manager.store_task_metadata(
-                    self.request.id,
+                    task_id,
                     {
                         "task_name": func.__name__,
                         "started_at": str(datetime.utcnow()),
                         "status": "STARTED",
                     },
                 )
-                result = func(self, *args, **kwargs)
+                result = func(*args, **kw)
                 task_result_manager.store_task_metadata(
-                    self.request.id,
+                    task_id,
                     {"completed_at": str(datetime.utcnow()), "status": "SUCCESS"},
                 )
                 return result
             except Exception as exc:
                 task_result_manager.store_task_metadata(
-                    self.request.id,
+                    task_id,
                     {
                         "failed_at": str(datetime.utcnow()),
                         "status": "FAILURE",

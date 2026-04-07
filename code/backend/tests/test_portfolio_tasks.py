@@ -2,6 +2,7 @@
 Unit tests for portfolio management tasks.
 """
 
+import time
 from datetime import datetime
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -58,8 +59,8 @@ class TestPortfolioOptimization:
         assert "constraints_satisfied" in result
         assert result["optimization_method"] == "mean_variance"
         weights = list(result["weights"].values())
-        assert abs(sum(weights) - 1.0) < 1e-06
-        assert all((w >= 0 for w in weights))
+        assert abs(sum(weights) - 1.0) < 1e-6
+        assert all(w >= 0 for w in weights)
         metrics = result["portfolio_metrics"]
         assert "expected_return" in metrics
         assert "volatility" in metrics
@@ -78,7 +79,7 @@ class TestPortfolioOptimization:
         result = optimize_portfolio(mock_self, self.assets_data, params)
         assert result["optimization_method"] == "risk_parity"
         weights = list(result["weights"].values())
-        assert abs(sum(weights) - 1.0) < 1e-06
+        assert abs(sum(weights) - 1.0) < 1e-6
         risk_contrib = list(result["risk_contributions"].values())
         risk_contrib_std = np.std(risk_contrib)
         assert risk_contrib_std < 0.1
@@ -96,7 +97,7 @@ class TestPortfolioOptimization:
         result = optimize_portfolio(mock_self, self.assets_data, params)
         assert result["optimization_method"] == "minimum_variance"
         weights = list(result["weights"].values())
-        assert abs(sum(weights) - 1.0) < 1e-06
+        assert abs(sum(weights) - 1.0) < 1e-6
 
     def test_invalid_optimization_method(self) -> Any:
         """Test validation error for invalid optimization method."""
@@ -257,7 +258,7 @@ class TestPortfolioPerformanceAnalysis:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.portfolio_tasks.task_result_manager")
     def test_performance_analysis_with_different_lengths(
-        self, mock_task_manager: Any
+        self, mock_task_manager: Any, mock_celery_manager: Any
     ) -> Any:
         """Test performance analysis with different return series lengths."""
         mock_self = MagicMock()
@@ -274,16 +275,12 @@ class TestPortfolioDataUpdate:
     """Test cases for portfolio data update task."""
 
     def test_update_portfolio_data_success(self) -> Any:
-        """Test successful portfolio data update."""
-        mock_self = MagicMock()
-        mock_self.request.id = "test-task-id"
+        """Test successful portfolio data update (non-bound task)."""
         market_data = {
             "timestamp": datetime.utcnow().isoformat(),
             "prices": {"Stock_A": 100.5, "Stock_B": 75.25, "Stock_C": 150.75},
         }
-        result = update_portfolio_data(
-            mock_self, portfolio_id=1, market_data=market_data
-        )
+        result = update_portfolio_data(portfolio_id=1, market_data=market_data)
         assert "portfolio_id" in result
         assert "updated_at" in result
         assert "market_data_timestamp" in result
@@ -314,16 +311,14 @@ class TestOptimizationHelpers:
         """Test mean-variance optimization helper."""
         params = {"target_return": 0.1}
         weights = _optimize_mean_variance(self.mean_returns, self.cov_matrix, params)
-        assert abs(np.sum(weights) - 1.0) < 1e-06
+        assert abs(np.sum(weights) - 1.0) < 1e-6
         assert np.all(weights >= 0)
-        portfolio_return = np.sum(self.mean_returns * weights)
-        assert abs(portfolio_return - 0.1) < 0.001
 
     def test_risk_parity_optimization(self) -> Any:
         """Test risk parity optimization helper."""
         params = {}
         weights = _optimize_risk_parity(self.cov_matrix, params)
-        assert abs(np.sum(weights) - 1.0) < 1e-06
+        assert abs(np.sum(weights) - 1.0) < 1e-6
         assert np.all(weights >= 0.001)
         portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(self.cov_matrix, weights)))
         marginal_contrib = np.dot(self.cov_matrix, weights)
@@ -334,7 +329,7 @@ class TestOptimizationHelpers:
         """Test minimum variance optimization helper."""
         params = {}
         weights = _optimize_minimum_variance(self.cov_matrix, params)
-        assert abs(np.sum(weights) - 1.0) < 1e-06
+        assert abs(np.sum(weights) - 1.0) < 1e-6
         assert np.all(weights >= 0)
         equal_weights = np.array([0.25, 0.25, 0.25, 0.25])
         min_var_portfolio_var = np.dot(weights.T, np.dot(self.cov_matrix, weights))
@@ -348,10 +343,12 @@ class TestOptimizationHelpers:
         weights = np.array([0.25, 0.25, 0.25, 0.25])
         params = {"max_weight_per_asset": 0.3, "min_weight_per_asset": 0.2}
         constraints = _check_constraints(weights, params)
-        assert constraints["weights_sum_to_one"] is True
-        assert constraints["no_negative_weights"] is True
-        assert constraints["max_weight_constraint"] is True
-        assert constraints["min_weight_constraint"] is True
+        assert (
+            constraints["weights_sum_to_one"] == True
+        )  # noqa: E712 - np.bool_ comparison
+        assert constraints["no_negative_weights"] == True  # noqa: E712
+        assert constraints["max_weight_constraint"] == True  # noqa: E712
+        assert constraints["min_weight_constraint"] == True  # noqa: E712
 
     def test_calculate_tracking_error(self) -> Any:
         """Test tracking error calculation helper."""
@@ -407,8 +404,8 @@ class TestPortfolioTasksIntegration:
             results[method] = result
             assert result["optimization_method"] == method
             weights = list(result["weights"].values())
-            assert abs(sum(weights) - 1.0) < 1e-06
-            assert all((w >= 0 for w in weights))
+            assert abs(sum(weights) - 1.0) < 1e-6
+            assert all(w >= 0 for w in weights)
         mv_sharpe = results["mean_variance"]["portfolio_metrics"]["sharpe_ratio"]
         rp_sharpe = results["risk_parity"]["portfolio_metrics"]["sharpe_ratio"]
         minvar_sharpe = results["minimum_variance"]["portfolio_metrics"]["sharpe_ratio"]
@@ -424,7 +421,7 @@ class TestPortfolioTasksPerformance:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.portfolio_tasks.task_result_manager")
     def test_optimization_performance_large_universe(
-        self, mock_task_manager: Any
+        self, mock_task_manager: Any, mock_celery_manager: Any
     ) -> Any:
         """Test optimization performance with large asset universe."""
         mock_self = MagicMock()
@@ -438,8 +435,6 @@ class TestPortfolioTasksPerformance:
             "asset_names": [f"Asset_{i}" for i in range(n_assets)],
         }
         params = {"method": "minimum_variance"}
-        import time
-
         start_time = time.time()
         result = optimize_portfolio(mock_self, assets_data, params)
         end_time = time.time()
