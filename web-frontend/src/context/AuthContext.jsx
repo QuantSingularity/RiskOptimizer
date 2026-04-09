@@ -1,68 +1,108 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
+import apiService from "../services/apiService";
 
-// Create context
 const AuthContext = createContext();
 
-// Provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Login function
-  const login = async (address) => {
+  const login = useCallback(async (credentials) => {
     setLoading(true);
     setError(null);
     try {
-      // In a real app, this would connect to a backend authentication endpoint
-      // For now, we'll simulate a successful login
-      const userData = {
-        address,
-        name: "Demo User",
-        isAuthenticated: true,
-        profileImage: null,
-      };
-
-      setUser(userData);
-      localStorage.setItem("user", JSON.stringify(userData));
-      return true;
+      const response = await apiService.auth.login(credentials);
+      if (response?.data) {
+        const userData = {
+          ...response.data.user,
+          token: response.data.token,
+          isAuthenticated: true,
+        };
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+        return true;
+      }
+      setError("Login failed. Please check your credentials.");
+      return false;
     } catch (err) {
-      setError(err.message || "An error occurred during login");
-      console.error("Login error:", err);
+      const message = err.message || "An error occurred during login";
+      setError(message);
       return false;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Logout function
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-  };
+  const register = useCallback(async (userData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiService.auth.register(userData);
+      if (response?.data) {
+        const newUser = {
+          ...response.data.user,
+          token: response.data.token,
+          isAuthenticated: true,
+        };
+        setUser(newUser);
+        localStorage.setItem("user", JSON.stringify(newUser));
+        return true;
+      }
+      setError("Registration failed.");
+      return false;
+    } catch (err) {
+      setError(err.message || "An error occurred during registration");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  // Check if user is already logged in from localStorage on app initialization
-  const checkAuthState = () => {
+  const logout = useCallback(async () => {
+    try {
+      await apiService.auth.logout();
+    } catch {
+      // ignore logout API errors - still clear local state
+    } finally {
+      setUser(null);
+      setError(null);
+      localStorage.removeItem("user");
+    }
+  }, []);
+
+  const checkAuthState = useCallback(() => {
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed && parsed.isAuthenticated) {
+          setUser(parsed);
+        } else {
+          localStorage.removeItem("user");
+        }
+      } catch {
+        localStorage.removeItem("user");
+      }
     }
-  };
+  }, []);
 
-  // Context value
+  const clearError = useCallback(() => setError(null), []);
+
   const value = {
     user,
     loading,
     error,
     login,
+    register,
     logout,
     checkAuthState,
+    clearError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook to use the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

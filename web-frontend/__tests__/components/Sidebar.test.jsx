@@ -1,66 +1,59 @@
-// code/web-frontend/__tests__/components/Sidebar.test.jsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import { vi } from "vitest";
+import Sidebar from "../../src/components/navigation/Sidebar";
 
-import { render } from "@testing-library/react";
+const renderSidebar = (props = {}) =>
+  render(
+    <MemoryRouter initialEntries={["/"]}>
+      <Sidebar
+        mobileOpen={false}
+        onClose={vi.fn()}
+        isMobile={false}
+        {...props}
+      />
+    </MemoryRouter>,
+  );
 
-// import { MemoryRouter } from "react-router-dom"; // Needed if using Link or NavLink
-// import Sidebar from "../../src/components/navigation/Sidebar"; // Adjust path
-
-// Mock component for testing
-const MockSidebar = () => (
-  <aside>
-    <nav>
-      <ul>
-        <li>
-          <a href="/dashboard">Dashboard</a>
-        </li>
-        <li>
-          <a href="/portfolios">Portfolios</a>
-        </li>
-        <li>
-          <a href="/optimize">Optimize</a>
-        </li>
-        <li>
-          <a href="/risk">Risk Analysis</a>
-        </li>
-        <li>
-          <a href="/settings">Settings</a>
-        </li>
-      </ul>
-    </nav>
-  </aside>
-);
-
-describe("Sidebar Component", () => {
-  const renderSidebar = () => {
-    // return render(
-    //   <MemoryRouter>
-    //     <Sidebar />
-    //   </MemoryRouter>
-    // );
-    return render(<MockSidebar />); // Render mock for now
-  };
-
-  it("should render navigation links", () => {
+describe("Sidebar", () => {
+  it("renders all navigation items", () => {
     renderSidebar();
-    // expect(screen.getByRole("link", { name: /dashboard/i })).toBeInTheDocument();
-    // expect(screen.getByRole("link", { name: /portfolios/i })).toBeInTheDocument();
-    // expect(screen.getByRole("link", { name: /optimize/i })).toBeInTheDocument();
-    // expect(screen.getByRole("link", { name: /risk analysis/i })).toBeInTheDocument();
-    // expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
-    expect(true).toBe(true); // Placeholder assertion
+    expect(screen.getByText("Dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Portfolio")).toBeInTheDocument();
+    expect(screen.getByText("Risk Analysis")).toBeInTheDocument();
+    expect(screen.getByText("Optimization")).toBeInTheDocument();
+    expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 
-  it("should highlight the active link based on the current route", () => {
-    // // Example: Test if Dashboard link is active on "/dashboard" route
-    // render(
-    //   <MemoryRouter initialEntries={["/dashboard"]}>
-    //     <Sidebar />
-    //   </MemoryRouter>
-    // );
-    // const dashboardLink = screen.getByRole("link", { name: /dashboard/i });
-    // expect(dashboardLink).toHaveClass("active"); // Assuming an "active" class is used
-    expect(true).toBe(true); // Placeholder assertion
+  it("renders Help & Support item", () => {
+    renderSidebar();
+    expect(screen.getByText("Help & Support")).toBeInTheDocument();
   });
 
-  // Add tests for responsiveness (e.g., collapsing on smaller screens) if applicable
+  it("highlights the active route", () => {
+    render(
+      <MemoryRouter initialEntries={["/portfolio"]}>
+        <Sidebar mobileOpen={false} onClose={vi.fn()} isMobile={false} />
+      </MemoryRouter>,
+    );
+    const portfolioBtn = screen.getByText("Portfolio").closest("li");
+    expect(portfolioBtn).toHaveClass("Mui-selected");
+  });
+
+  it("closes mobile drawer on navigation when isMobile=true", async () => {
+    const user = userEvent.setup();
+    const handleClose = vi.fn();
+    renderSidebar({ isMobile: true, onClose: handleClose });
+    await user.click(screen.getByText("Portfolio"));
+    expect(handleClose).toHaveBeenCalledOnce();
+  });
+
+  it("does not close drawer on navigation when isMobile=false", async () => {
+    const user = userEvent.setup();
+    const handleClose = vi.fn();
+    renderSidebar({ isMobile: false, onClose: handleClose });
+    await user.click(screen.getByText("Portfolio"));
+    expect(handleClose).not.toHaveBeenCalled();
+  });
 });

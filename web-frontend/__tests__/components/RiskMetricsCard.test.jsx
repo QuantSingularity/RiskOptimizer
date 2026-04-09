@@ -1,49 +1,37 @@
-// code/web-frontend/__tests__/components/RiskMetricsCard.test.jsx
+import { render, screen } from "@testing-library/react";
+import RiskMetricsCard from "../../src/components/dashboard/RiskMetricsCard";
 
-import { render } from "@testing-library/react";
-
-// import RiskMetricsCard from "../../src/components/dashboard/RiskMetricsCard"; // Adjust path
-
-// Mock component for testing
-const MockRiskMetricsCard = ({ title, value, description }) => (
-  <div className="card">
-    <h5>{title}</h5>
-    <p className="metric-value">{value}</p>
-    <p className="metric-description">{description}</p>
-  </div>
-);
-
-describe("RiskMetricsCard Component", () => {
-  const mockProps = {
-    title: "Volatility (Std Dev)",
-    value: "15.2%",
-    description: "Annualized standard deviation",
+describe("RiskMetricsCard", () => {
+  const mockMetrics = {
+    valueAtRisk: "$5,000.00",
+    maxDrawdown: "-15.0%",
+    volatility: "18.5%",
+    beta: "1.10",
   };
 
-  const renderCard = (props = mockProps) => {
-    // return render(<RiskMetricsCard {...props} />);
-    return render(<MockRiskMetricsCard {...props} />); // Render mock for now
-  };
-
-  it("should display the metric title", () => {
-    renderCard();
-    // expect(screen.getByRole("heading", { name: mockProps.title })).toBeInTheDocument();
-    expect(true).toBe(true); // Placeholder assertion
+  it("renders heading", () => {
+    render(<RiskMetricsCard />);
+    expect(screen.getByText("Risk Metrics")).toBeInTheDocument();
   });
 
-  it("should display the metric value", () => {
-    renderCard();
-    // expect(screen.getByText(mockProps.value)).toBeInTheDocument();
-    // expect(screen.getByText(mockProps.value)).toHaveClass("metric-value"); // Check for specific styling if needed
-    expect(true).toBe(true); // Placeholder assertion
+  it("renders all four metric labels", () => {
+    render(<RiskMetricsCard />);
+    expect(screen.getByText(/value at risk/i)).toBeInTheDocument();
+    expect(screen.getByText(/max drawdown/i)).toBeInTheDocument();
+    expect(screen.getByText(/volatility/i)).toBeInTheDocument();
+    expect(screen.getByText(/beta/i)).toBeInTheDocument();
   });
 
-  it("should display the metric description", () => {
-    renderCard();
-    // expect(screen.getByText(mockProps.description)).toBeInTheDocument();
-    // expect(screen.getByText(mockProps.description)).toHaveClass("metric-description");
-    expect(true).toBe(true); // Placeholder assertion
+  it("renders provided metric values", () => {
+    render(<RiskMetricsCard riskMetrics={mockMetrics} />);
+    expect(screen.getByText("$5,000.00")).toBeInTheDocument();
+    expect(screen.getByText("-15.0%")).toBeInTheDocument();
+    expect(screen.getByText("18.5%")).toBeInTheDocument();
+    expect(screen.getByText("1.10")).toBeInTheDocument();
   });
 
-  // Add tests for different types of metrics or conditional rendering if applicable
+  it("renders default values when no prop provided", () => {
+    render(<RiskMetricsCard />);
+    expect(screen.getByText("$4,532.12")).toBeInTheDocument();
+  });
 });

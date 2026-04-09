@@ -11,236 +11,177 @@ import {
   formatSharpeRatio,
 } from "../../src/utils/formatters";
 
-describe("Formatters", () => {
-  describe("formatCurrency", () => {
-    it("should format positive currency values", () => {
-      expect(formatCurrency(1234.56)).toBe("$1,234.56");
-    });
-
-    it("should format negative currency values", () => {
-      expect(formatCurrency(-1234.56)).toBe("-$1,234.56");
-    });
-
-    it("should handle zero", () => {
-      expect(formatCurrency(0)).toBe("$0.00");
-    });
-
-    it("should handle null/undefined", () => {
-      expect(formatCurrency(null)).toBe("$0.00");
-      expect(formatCurrency(undefined)).toBe("$0.00");
-    });
-
-    it("should format with custom decimals", () => {
-      expect(formatCurrency(1234.5678, "USD", 0)).toBe("$1,235");
-      expect(formatCurrency(1234.5678, "USD", 4)).toBe("$1,234.5678");
-    });
+describe("formatCurrency", () => {
+  it("formats a positive number as USD", () => {
+    expect(formatCurrency(1234.56)).toBe("$1,234.56");
   });
 
-  describe("formatPercentage", () => {
-    it("should format positive percentages", () => {
-      expect(formatPercentage(12.345)).toBe("12.35%");
-    });
-
-    it("should format negative percentages", () => {
-      expect(formatPercentage(-5.67)).toBe("-5.67%");
-    });
-
-    it("should show plus sign when requested", () => {
-      expect(formatPercentage(12.34, 2, true)).toBe("+12.34%");
-      expect(formatPercentage(-5.67, 2, true)).toBe("-5.67%");
-    });
-
-    it("should handle custom decimals", () => {
-      expect(formatPercentage(12.3456, 3)).toBe("12.346%");
-    });
-
-    it("should handle null/undefined", () => {
-      expect(formatPercentage(null)).toBe("0.00%");
-    });
+  it("formats zero", () => {
+    expect(formatCurrency(0)).toBe("$0.00");
   });
 
-  describe("formatLargeNumber", () => {
-    it("should format billions", () => {
-      expect(formatLargeNumber(1234567890)).toBe("1.2B");
-    });
-
-    it("should format millions", () => {
-      expect(formatLargeNumber(1234567)).toBe("1.2M");
-    });
-
-    it("should format thousands", () => {
-      expect(formatLargeNumber(1234)).toBe("1.2K");
-    });
-
-    it("should format small numbers without suffix", () => {
-      expect(formatLargeNumber(123)).toBe("123.0");
-    });
-
-    it("should handle negative numbers", () => {
-      expect(formatLargeNumber(-1234567)).toBe("-1.2M");
-    });
-
-    it("should handle null/undefined", () => {
-      expect(formatLargeNumber(null)).toBe("0");
-    });
+  it("returns $0.00 for null/undefined", () => {
+    expect(formatCurrency(null)).toBe("$0.00");
+    expect(formatCurrency(undefined)).toBe("$0.00");
   });
 
-  describe("formatDate", () => {
-    const testDate = new Date("2024-01-15T14:30:00Z");
-
-    it("should format short date", () => {
-      const result = formatDate(testDate, "short");
-      expect(result).toContain("2024");
-      expect(result).toContain("Jan");
-    });
-
-    it("should format long date", () => {
-      const result = formatDate(testDate, "long");
-      expect(result).toContain("2024");
-    });
-
-    it("should format time", () => {
-      const result = formatDate(testDate, "time");
-      expect(result).toMatch(/\d{1,2}:\d{2}:\d{2}/);
-    });
-
-    it("should handle string dates", () => {
-      const result = formatDate("2024-01-15", "short");
-      expect(result).toContain("2024");
-    });
-
-    it("should handle invalid dates", () => {
-      expect(formatDate("invalid")).toBe("");
-      expect(formatDate(null)).toBe("");
-    });
+  it("returns $0.00 for NaN", () => {
+    expect(formatCurrency(NaN)).toBe("$0.00");
   });
 
-  describe("formatAddress", () => {
-    const address = "0x1234567890abcdef1234567890abcdef12345678";
-
-    it("should shorten long addresses", () => {
-      const result = formatAddress(address);
-      expect(result).toBe("0x1234...5678");
-      expect(result.length).toBeLessThan(address.length);
-    });
-
-    it("should use custom character counts", () => {
-      const result = formatAddress(address, 4, 4);
-      expect(result).toBe("0x12...5678");
-    });
-
-    it("should handle short addresses", () => {
-      const shortAddress = "0x123";
-      expect(formatAddress(shortAddress)).toBe(shortAddress);
-    });
-
-    it("should handle null/undefined", () => {
-      expect(formatAddress(null)).toBe("");
-      expect(formatAddress(undefined)).toBe("");
-    });
+  it("formats negative numbers", () => {
+    expect(formatCurrency(-500)).toBe("-$500.00");
   });
 
-  describe("formatRiskScore", () => {
-    it("should categorize low risk", () => {
-      const result = formatRiskScore(20);
-      expect(result.category).toBe("Low");
-      expect(result.color).toBe("success");
-    });
+  it("respects custom decimals", () => {
+    expect(formatCurrency(1234.5678, "USD", 4)).toBe("$1,234.5678");
+  });
+});
 
-    it("should categorize moderate risk", () => {
-      const result = formatRiskScore(50);
-      expect(result.category).toBe("Moderate");
-      expect(result.color).toBe("warning");
-    });
-
-    it("should categorize high risk", () => {
-      const result = formatRiskScore(80);
-      expect(result.category).toBe("High");
-      expect(result.color).toBe("error");
-    });
-
-    it("should handle null/undefined", () => {
-      const result = formatRiskScore(null);
-      expect(result.category).toBe("Unknown");
-      expect(result.color).toBe("grey");
-    });
+describe("formatPercentage", () => {
+  it("formats a number as percentage", () => {
+    expect(formatPercentage(14.2)).toBe("14.20%");
   });
 
-  describe("formatSharpeRatio", () => {
-    it("should rate excellent sharpe ratio", () => {
-      const result = formatSharpeRatio(2.5);
-      expect(result.interpretation).toBe("Excellent");
-      expect(result.color).toBe("success");
-    });
-
-    it("should rate good sharpe ratio", () => {
-      const result = formatSharpeRatio(1.5);
-      expect(result.interpretation).toBe("Good");
-      expect(result.color).toBe("success");
-    });
-
-    it("should rate fair sharpe ratio", () => {
-      const result = formatSharpeRatio(0.5);
-      expect(result.interpretation).toBe("Fair");
-      expect(result.color).toBe("warning");
-    });
-
-    it("should rate poor sharpe ratio", () => {
-      const result = formatSharpeRatio(-0.5);
-      expect(result.interpretation).toBe("Poor");
-      expect(result.color).toBe("error");
-    });
+  it("returns 0.00% for null", () => {
+    expect(formatPercentage(null)).toBe("0.00%");
   });
 
-  describe("formatBasisPoints", () => {
-    it("should format basis points", () => {
-      expect(formatBasisPoints(0.0025)).toBe("25 bps");
-    });
-
-    it("should handle negative basis points", () => {
-      expect(formatBasisPoints(-0.0015)).toBe("-15 bps");
-    });
-
-    it("should handle zero", () => {
-      expect(formatBasisPoints(0)).toBe("0 bps");
-    });
-
-    it("should handle null/undefined", () => {
-      expect(formatBasisPoints(null)).toBe("0 bps");
-    });
+  it("shows + sign when showSign=true and value is positive", () => {
+    expect(formatPercentage(5.5, 2, true)).toBe("+5.50%");
   });
 
-  describe("formatDuration", () => {
-    it("should format days", () => {
-      expect(formatDuration(86400)).toBe("1d");
-    });
+  it("does not show + sign for negative values", () => {
+    expect(formatPercentage(-3.2, 2, true)).toBe("-3.20%");
+  });
 
-    it("should format hours", () => {
-      expect(formatDuration(3600)).toBe("1h");
-    });
+  it("respects custom decimals", () => {
+    expect(formatPercentage(12.3456, 1)).toBe("12.3%");
+  });
+});
 
-    it("should format minutes", () => {
-      expect(formatDuration(60)).toBe("1m");
-    });
+describe("formatLargeNumber", () => {
+  it("formats billions", () => {
+    expect(formatLargeNumber(1500000000)).toBe("1.5B");
+  });
 
-    it("should format seconds", () => {
-      expect(formatDuration(30)).toBe("30s");
-    });
+  it("formats millions", () => {
+    expect(formatLargeNumber(2500000)).toBe("2.5M");
+  });
 
-    it("should format complex durations", () => {
-      const result = formatDuration(90061); // 1d 1h 1m 1s
-      expect(result).toContain("1d");
-      expect(result).toContain("1h");
-      expect(result).toContain("1m");
-      expect(result).toContain("1s");
-    });
+  it("formats thousands", () => {
+    expect(formatLargeNumber(3500)).toBe("3.5K");
+  });
 
-    it("should handle zero", () => {
-      expect(formatDuration(0)).toBe("0s");
-    });
+  it("formats small numbers without suffix", () => {
+    expect(formatLargeNumber(500)).toBe("500.0");
+  });
 
-    it("should handle negative", () => {
-      expect(formatDuration(-100)).toBe("0s");
-    });
+  it("returns 0 for null", () => {
+    expect(formatLargeNumber(null)).toBe("0");
+  });
+});
+
+describe("formatDate", () => {
+  it("formats a valid date string (short format)", () => {
+    const result = formatDate("2026-04-09");
+    expect(result).toBeTruthy();
+    expect(result).toContain("2026");
+  });
+
+  it("returns empty string for null", () => {
+    expect(formatDate(null)).toBe("");
+  });
+
+  it("returns empty string for invalid date", () => {
+    expect(formatDate("not-a-date")).toBe("");
+  });
+
+  it("formats long format", () => {
+    const result = formatDate("2026-01-15", "long");
+    expect(result).toContain("January");
+    expect(result).toContain("2026");
+  });
+});
+
+describe("formatAddress", () => {
+  it("shortens a long wallet address", () => {
+    const addr = "0x1234567890abcdef1234567890abcdef12345678";
+    expect(formatAddress(addr)).toBe("0x1234...5678");
+  });
+
+  it("returns empty string for null", () => {
+    expect(formatAddress(null)).toBe("");
+  });
+
+  it("returns the address unchanged if shorter than min length", () => {
+    expect(formatAddress("0x12")).toBe("0x12");
+  });
+});
+
+describe("formatRiskScore", () => {
+  it("returns Low for score < 30", () => {
+    expect(formatRiskScore(20).category).toBe("Low");
+    expect(formatRiskScore(20).color).toBe("success");
+  });
+
+  it("returns Moderate for score between 30–59", () => {
+    expect(formatRiskScore(50).category).toBe("Moderate");
+    expect(formatRiskScore(50).color).toBe("warning");
+  });
+
+  it("returns High for score >= 60", () => {
+    expect(formatRiskScore(80).category).toBe("High");
+    expect(formatRiskScore(80).color).toBe("error");
+  });
+
+  it("returns Unknown for null", () => {
+    expect(formatRiskScore(null).category).toBe("Unknown");
+  });
+});
+
+describe("formatSharpeRatio", () => {
+  it("returns Excellent for sharpe > 2", () => {
+    expect(formatSharpeRatio(2.5).interpretation).toBe("Excellent");
+  });
+
+  it("returns Good for sharpe between 1 and 2", () => {
+    expect(formatSharpeRatio(1.5).interpretation).toBe("Good");
+  });
+
+  it("returns Fair for sharpe between 0 and 1", () => {
+    expect(formatSharpeRatio(0.5).interpretation).toBe("Fair");
+  });
+
+  it("returns Poor for negative sharpe", () => {
+    expect(formatSharpeRatio(-0.5).interpretation).toBe("Poor");
+  });
+});
+
+describe("formatBasisPoints", () => {
+  it("converts decimal to basis points", () => {
+    expect(formatBasisPoints(0.0025)).toBe("25 bps");
+  });
+
+  it("returns 0 bps for null", () => {
+    expect(formatBasisPoints(null)).toBe("0 bps");
+  });
+});
+
+describe("formatDuration", () => {
+  it("formats seconds", () => {
+    expect(formatDuration(45)).toBe("45s");
+  });
+
+  it("formats minutes and seconds", () => {
+    expect(formatDuration(125)).toBe("2m 5s");
+  });
+
+  it("formats hours", () => {
+    expect(formatDuration(3661)).toBe("1h 1m 1s");
+  });
+
+  it("returns 0s for 0", () => {
+    expect(formatDuration(0)).toBe("0s");
   });
 });

@@ -9,13 +9,54 @@ import {
   Card,
   CardContent,
   CardHeader,
+  CircularProgress,
   Divider,
   Grid,
   IconButton,
   Typography,
 } from "@mui/material";
+import { useCallback } from "react";
+import { Link } from "react-router-dom";
+import AssetAllocation from "../components/dashboard/AssetAllocation";
+import PerformanceChart from "../components/dashboard/PerformanceChart";
+import RecentTransactions from "../components/dashboard/RecentTransactions";
+import { useDashboardData } from "../hooks/useDashboardData";
+import { formatCurrency, formatPercentage } from "../utils/formatters";
 
 const Dashboard = () => {
+  const { loading, error, dashboardData, reload } = useDashboardData();
+
+  const handleRefresh = useCallback(() => {
+    reload();
+  }, [reload]);
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "60vh",
+        }}
+      >
+        <CircularProgress size={48} />
+      </Box>
+    );
+  }
+
+  const {
+    portfolioValue,
+    dailyChange,
+    dailyChangePercent,
+    riskScore,
+    sharpeRatio,
+    performanceData,
+    assetAllocation,
+    riskMetrics,
+    recentTransactions,
+  } = dashboardData;
+
   return (
     <Box className="fade-in">
       <Box
@@ -29,10 +70,23 @@ const Dashboard = () => {
         <Typography variant="h4" component="h1" gutterBottom>
           Dashboard
         </Typography>
-        <Button variant="contained" startIcon={<RefreshIcon />} size="small">
+        <Button
+          variant="contained"
+          startIcon={<RefreshIcon />}
+          size="small"
+          onClick={handleRefresh}
+        >
           Refresh Data
         </Button>
       </Box>
+
+      {error && (
+        <Box sx={{ mb: 2 }}>
+          <Typography color="error" variant="body2">
+            {error}
+          </Typography>
+        </Box>
+      )}
 
       {/* Portfolio Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -54,16 +108,28 @@ const Dashboard = () => {
                 </IconButton>
               </Box>
               <Typography variant="h4" sx={{ my: 1, fontWeight: 600 }}>
-                $124,532.89
+                {formatCurrency(portfolioValue)}
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                <TrendingUpIcon
-                  color="success"
-                  fontSize="small"
-                  sx={{ mr: 0.5 }}
-                />
-                <Typography variant="body2" color="success.main">
-                  +2.45% ($3,012.34)
+                {dailyChange >= 0 ? (
+                  <TrendingUpIcon
+                    color="success"
+                    fontSize="small"
+                    sx={{ mr: 0.5 }}
+                  />
+                ) : (
+                  <TrendingDownIcon
+                    color="error"
+                    fontSize="small"
+                    sx={{ mr: 0.5 }}
+                  />
+                )}
+                <Typography
+                  variant="body2"
+                  color={dailyChange >= 0 ? "success.main" : "error.main"}
+                >
+                  {formatPercentage(dailyChangePercent, 2, true)} (
+                  {formatCurrency(Math.abs(dailyChange))})
                 </Typography>
               </Box>
             </CardContent>
@@ -87,17 +153,36 @@ const Dashboard = () => {
                   <MoreVertIcon fontSize="small" />
                 </IconButton>
               </Box>
-              <Typography variant="h4" sx={{ my: 1, fontWeight: 600 }}>
-                +$1,245.67
+              <Typography
+                variant="h4"
+                sx={{
+                  my: 1,
+                  fontWeight: 600,
+                  color: dailyChange >= 0 ? "success.main" : "error.main",
+                }}
+              >
+                {dailyChange >= 0 ? "+" : ""}
+                {formatCurrency(dailyChange)}
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                <TrendingUpIcon
-                  color="success"
-                  fontSize="small"
-                  sx={{ mr: 0.5 }}
-                />
-                <Typography variant="body2" color="success.main">
-                  +1.02% today
+                {dailyChange >= 0 ? (
+                  <TrendingUpIcon
+                    color="success"
+                    fontSize="small"
+                    sx={{ mr: 0.5 }}
+                  />
+                ) : (
+                  <TrendingDownIcon
+                    color="error"
+                    fontSize="small"
+                    sx={{ mr: 0.5 }}
+                  />
+                )}
+                <Typography
+                  variant="body2"
+                  color={dailyChange >= 0 ? "success.main" : "error.main"}
+                >
+                  {formatPercentage(dailyChangePercent, 2, true)} today
                 </Typography>
               </Box>
             </CardContent>
@@ -122,7 +207,7 @@ const Dashboard = () => {
                 </IconButton>
               </Box>
               <Typography variant="h4" sx={{ my: 1, fontWeight: 600 }}>
-                65/100
+                {riskScore}/100
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 <TrendingDownIcon
@@ -131,7 +216,11 @@ const Dashboard = () => {
                   sx={{ mr: 0.5 }}
                 />
                 <Typography variant="body2" color="warning.main">
-                  Moderate Risk
+                  {riskScore < 30
+                    ? "Low Risk"
+                    : riskScore < 60
+                      ? "Moderate Risk"
+                      : "High Risk"}
                 </Typography>
               </Box>
             </CardContent>
@@ -156,7 +245,7 @@ const Dashboard = () => {
                 </IconButton>
               </Box>
               <Typography variant="h4" sx={{ my: 1, fontWeight: 600 }}>
-                1.87
+                {sharpeRatio?.toFixed(2) ?? "—"}
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 <TrendingUpIcon
@@ -165,7 +254,11 @@ const Dashboard = () => {
                   sx={{ mr: 0.5 }}
                 />
                 <Typography variant="body2" color="success.main">
-                  Good Performance
+                  {sharpeRatio > 2
+                    ? "Excellent"
+                    : sharpeRatio > 1
+                      ? "Good Performance"
+                      : "Fair"}
                 </Typography>
               </Box>
             </CardContent>
@@ -175,81 +268,12 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <Grid container spacing={3}>
-        {/* Performance Chart */}
         <Grid item xs={12} lg={8}>
-          <Card sx={{ height: "100%" }}>
-            <CardHeader
-              title="Portfolio Performance"
-              action={
-                <Box sx={{ display: "flex" }}>
-                  <Button size="small" sx={{ mr: 1 }}>
-                    1D
-                  </Button>
-                  <Button size="small" sx={{ mr: 1 }}>
-                    1W
-                  </Button>
-                  <Button size="small" sx={{ mr: 1 }}>
-                    1M
-                  </Button>
-                  <Button size="small" sx={{ mr: 1 }}>
-                    3M
-                  </Button>
-                  <Button size="small" variant="contained">
-                    1Y
-                  </Button>
-                  <Button size="small" sx={{ ml: 1 }}>
-                    All
-                  </Button>
-                </Box>
-              }
-            />
-            <Divider />
-            <CardContent sx={{ height: 300, p: 2 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  height: "100%",
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  Performance chart will be implemented with real data
-                  integration
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
+          <PerformanceChart performanceData={performanceData} />
         </Grid>
 
-        {/* Asset Allocation */}
         <Grid item xs={12} md={6} lg={4}>
-          <Card sx={{ height: "100%" }}>
-            <CardHeader
-              title="Asset Allocation"
-              action={
-                <IconButton>
-                  <MoreVertIcon />
-                </IconButton>
-              }
-            />
-            <Divider />
-            <CardContent sx={{ height: 300, p: 2 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  height: "100%",
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  Asset allocation chart will be implemented with real data
-                  integration
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
+          <AssetAllocation allocation={assetAllocation} />
         </Grid>
 
         {/* Risk Metrics */}
@@ -270,25 +294,33 @@ const Dashboard = () => {
                   <Typography variant="subtitle2" color="text.secondary">
                     Value at Risk (VaR)
                   </Typography>
-                  <Typography variant="h6">$4,532.12</Typography>
+                  <Typography variant="h6">
+                    {formatCurrency(riskMetrics?.valueAtRisk)}
+                  </Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="subtitle2" color="text.secondary">
                     Max Drawdown
                   </Typography>
-                  <Typography variant="h6">-12.4%</Typography>
+                  <Typography variant="h6">
+                    {formatPercentage(riskMetrics?.maxDrawdown)}
+                  </Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="subtitle2" color="text.secondary">
                     Volatility
                   </Typography>
-                  <Typography variant="h6">14.2%</Typography>
+                  <Typography variant="h6">
+                    {formatPercentage(riskMetrics?.volatility)}
+                  </Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="subtitle2" color="text.secondary">
                     Beta
                   </Typography>
-                  <Typography variant="h6">0.85</Typography>
+                  <Typography variant="h6">
+                    {riskMetrics?.beta?.toFixed(2) ?? "—"}
+                  </Typography>
                 </Grid>
               </Grid>
               <Box sx={{ mt: 2 }}>
@@ -296,7 +328,8 @@ const Dashboard = () => {
                   variant="outlined"
                   fullWidth
                   size="small"
-                  href="/risk-analysis"
+                  component={Link}
+                  to="/risk-analysis"
                 >
                   View Detailed Analysis
                 </Button>
@@ -305,38 +338,8 @@ const Dashboard = () => {
           </Card>
         </Grid>
 
-        {/* Recent Transactions */}
         <Grid item xs={12} lg={8}>
-          <Card>
-            <CardHeader
-              title="Recent Transactions"
-              action={
-                <Button
-                  variant="text"
-                  size="small"
-                  endIcon={<AccountBalanceWalletIcon />}
-                >
-                  View All
-                </Button>
-              }
-            />
-            <Divider />
-            <CardContent sx={{ p: 0 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  height: 200,
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  Transaction history will be implemented with real data
-                  integration
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
+          <RecentTransactions transactions={recentTransactions} />
         </Grid>
 
         {/* Optimization Suggestions */}
@@ -380,7 +383,8 @@ const Dashboard = () => {
                 variant="contained"
                 fullWidth
                 size="small"
-                href="/optimization"
+                component={Link}
+                to="/optimization"
               >
                 Run Optimization
               </Button>

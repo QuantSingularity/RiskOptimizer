@@ -28,14 +28,11 @@
     "build": "vite build",
     "serve": "vite preview",
     "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
     "dev": "vite",
-    "preview": "vite preview"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "preview": "vite preview",
+    "lint": "eslint src --ext .js,.jsx"
   },
   "browserslist": {
     "production": [

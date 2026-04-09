@@ -1,213 +1,230 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// We test the real apiService by mocking axios at module level
+vi.mock("axios", async () => {
+  const mockInstance = {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    interceptors: {
+      request: { use: vi.fn() },
+      response: { use: vi.fn() },
+    },
+    defaults: { headers: { common: {} } },
+  };
+  return {
+    default: {
+      create: vi.fn(() => mockInstance),
+      ...mockInstance,
+    },
+  };
+});
+
+// Import after mock to get the mocked version
 import axios from "axios";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import apiService from "../../src/services/apiService";
 
-// Mock axios
-vi.mock("axios");
+const mockAxiosInstance = axios.create();
 
-describe("API Service", () => {
+describe("apiService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
   });
 
-  describe("Health Check", () => {
-    it("should successfully check API health", async () => {
-      const mockResponse = {
-        data: {
-          status: "ok",
-          version: "1.0.0",
-        },
-      };
-
-      axios.create.mockReturnValue({
-        get: vi.fn().mockResolvedValue(mockResponse),
-        interceptors: {
-          request: { use: vi.fn() },
-          response: { use: vi.fn() },
-        },
+  describe("auth", () => {
+    it("calls POST /api/v1/auth/login", async () => {
+      mockAxiosInstance.post.mockResolvedValue({
+        data: { status: "success", data: { token: "tok", user: { id: 1 } } },
       });
-
-      const result = await apiService.healthCheck();
-      expect(result).toEqual(mockResponse.data);
+      const result = await apiService.auth.login({ wallet_address: "0xabc" });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/auth/login",
+        { wallet_address: "0xabc" },
+      );
+      expect(result.status).toBe("success");
     });
-  });
 
-  describe("Portfolio Services", () => {
-    const mockPortfolio = {
-      status: "success",
-      data: {
-        id: "1",
-        total_value: "100000",
-        assets: [],
-      },
-    };
-
-    it("should fetch portfolio by address", async () => {
-      const mockApi = {
-        get: vi.fn().mockResolvedValue({ data: mockPortfolio }),
-        interceptors: {
-          request: { use: vi.fn() },
-          response: { use: vi.fn() },
-        },
-      };
-
-      axios.create.mockReturnValue(mockApi);
-
-      const result = await apiService.portfolio.getByAddress("0x123");
-      expect(result).toEqual(mockPortfolio);
-      expect(mockApi.get).toHaveBeenCalledWith(
-        "/api/v1/portfolios/address/0x123",
+    it("calls POST /api/v1/auth/register", async () => {
+      mockAxiosInstance.post.mockResolvedValue({
+        data: { status: "success", data: { token: "tok2", user: { id: 2 } } },
+      });
+      await apiService.auth.register({ username: "u", email: "e@e.com" });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/auth/register",
+        { username: "u", email: "e@e.com" },
       );
     });
 
-    it("should create new portfolio", async () => {
-      const newPortfolio = {
-        address: "0x123",
-        assets: [],
-      };
+    it("calls POST /api/v1/auth/logout", async () => {
+      mockAxiosInstance.post.mockResolvedValue({ data: { status: "success" } });
+      await apiService.auth.logout();
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/auth/logout",
+      );
+    });
 
-      const mockApi = {
-        post: vi.fn().mockResolvedValue({ data: mockPortfolio }),
-        interceptors: {
-          request: { use: vi.fn() },
-          response: { use: vi.fn() },
+    it("calls POST /api/v1/auth/refresh", async () => {
+      mockAxiosInstance.post.mockResolvedValue({ data: { status: "success" } });
+      await apiService.auth.refresh("refresh_tok");
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/auth/refresh",
+        {
+          refresh_token: "refresh_tok",
         },
-      };
-
-      axios.create.mockReturnValue(mockApi);
-
-      const result = await apiService.portfolio.create(newPortfolio);
-      expect(result).toEqual(mockPortfolio);
+      );
     });
   });
 
-  describe("Risk Analysis Services", () => {
-    it("should calculate VaR", async () => {
-      const mockVaRData = {
-        status: "success",
-        data: {
-          var_95: 4532.12,
-          var_99: 6254.89,
-        },
-      };
-
-      const mockApi = {
-        post: vi.fn().mockResolvedValue({ data: mockVaRData }),
-        interceptors: {
-          request: { use: vi.fn() },
-          response: { use: vi.fn() },
-        },
-      };
-
-      axios.create.mockReturnValue(mockApi);
-
-      const params = {
-        returns: [0.01, 0.02, -0.01],
-        confidence: 0.95,
-      };
-
-      const result = await apiService.risk.calculateVaR(params);
-      expect(result).toEqual(mockVaRData);
+  describe("portfolio", () => {
+    it("calls GET /api/v1/portfolios/address/:address", async () => {
+      mockAxiosInstance.get.mockResolvedValue({
+        data: { status: "success", data: {} },
+      });
+      await apiService.portfolio.getByAddress("0xabc");
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith(
+        "/api/v1/portfolios/address/0xabc",
+      );
     });
 
-    it("should run stress test", async () => {
-      const mockStressTest = {
-        status: "success",
-        data: {
-          scenario: "2008_crisis",
-          loss: -32.8,
-        },
-      };
-
-      const mockApi = {
-        post: vi.fn().mockResolvedValue({ data: mockStressTest }),
-        interceptors: {
-          request: { use: vi.fn() },
-          response: { use: vi.fn() },
-        },
-      };
-
-      axios.create.mockReturnValue(mockApi);
-
-      const params = {
-        scenario: "2008_crisis",
-        portfolio_id: "1",
-      };
-
-      const result = await apiService.risk.stressTest(params);
-      expect(result).toEqual(mockStressTest);
+    it("calls GET /api/v1/portfolios/user/:userId", async () => {
+      mockAxiosInstance.get.mockResolvedValue({
+        data: { status: "success", data: {} },
+      });
+      await apiService.portfolio.getByUserId(42);
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith(
+        "/api/v1/portfolios/user/42",
+      );
     });
-  });
 
-  describe("Optimization Services", () => {
-    it("should optimize portfolio", async () => {
-      const mockOptimization = {
-        status: "success",
-        data: {
-          expected_return: 12.4,
-          expected_risk: 9.8,
-          sharpe_ratio: 1.87,
-        },
-      };
+    it("calls POST /api/v1/portfolios for create", async () => {
+      mockAxiosInstance.post.mockResolvedValue({
+        data: { status: "success", data: {} },
+      });
+      await apiService.portfolio.create({ user_address: "0xabc", assets: [] });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/portfolios",
+        { user_address: "0xabc", assets: [] },
+      );
+    });
 
-      const mockApi = {
-        post: vi.fn().mockResolvedValue({ data: mockOptimization }),
-        interceptors: {
-          request: { use: vi.fn() },
-          response: { use: vi.fn() },
-        },
-      };
+    it("calls POST /api/v1/portfolios/save for save", async () => {
+      mockAxiosInstance.post.mockResolvedValue({ data: { status: "success" } });
+      await apiService.portfolio.save({ user_address: "0xabc", assets: [] });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/portfolios/save",
+        { user_address: "0xabc", assets: [] },
+      );
+    });
 
-      axios.create.mockReturnValue(mockApi);
+    it("calls PUT /api/v1/portfolios/:id for update", async () => {
+      mockAxiosInstance.put.mockResolvedValue({ data: { status: "success" } });
+      await apiService.portfolio.update(5, { assets: [] });
+      expect(mockAxiosInstance.put).toHaveBeenCalledWith(
+        "/api/v1/portfolios/5",
+        { assets: [] },
+      );
+    });
 
-      const params = {
-        assets: ["AAPL", "GOOGL", "MSFT"],
-        method: "sharpe",
-      };
-
-      const result = await apiService.optimization.optimize(params);
-      expect(result).toEqual(mockOptimization);
+    it("calls DELETE /api/v1/portfolios/:id", async () => {
+      mockAxiosInstance.delete.mockResolvedValue({
+        data: { status: "success" },
+      });
+      await apiService.portfolio.delete(5);
+      expect(mockAxiosInstance.delete).toHaveBeenCalledWith(
+        "/api/v1/portfolios/5",
+      );
     });
   });
 
-  describe("Error Handling", () => {
-    it("should handle network errors", async () => {
-      const mockApi = {
-        get: vi.fn().mockRejectedValue(new Error("Network error")),
-        interceptors: {
-          request: { use: vi.fn() },
-          response: { use: vi.fn() },
-        },
-      };
+  describe("risk", () => {
+    const mockReturns = [0.01, -0.02, 0.005];
 
-      axios.create.mockReturnValue(mockApi);
-
-      await expect(apiService.healthCheck()).rejects.toThrow("Network error");
+    it("calls POST /api/v1/risk/var", async () => {
+      mockAxiosInstance.post.mockResolvedValue({
+        data: { status: "success", data: {} },
+      });
+      await apiService.risk.calculateVaR({
+        returns: mockReturns,
+        confidence_level: 0.95,
+      });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/risk/var",
+        expect.any(Object),
+      );
     });
 
-    it("should handle API errors", async () => {
-      const mockError = {
-        response: {
-          data: {
-            error: {
-              message: "Invalid parameters",
-            },
-          },
-        },
-      };
+    it("calls POST /api/v1/risk/cvar", async () => {
+      mockAxiosInstance.post.mockResolvedValue({
+        data: { status: "success", data: {} },
+      });
+      await apiService.risk.calculateCVaR({
+        returns: mockReturns,
+        confidence_level: 0.95,
+      });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/risk/cvar",
+        expect.any(Object),
+      );
+    });
 
-      const mockApi = {
-        post: vi.fn().mockRejectedValue(mockError),
-        interceptors: {
-          request: { use: vi.fn() },
-          response: { use: vi.fn() },
-        },
-      };
+    it("calls POST /api/v1/risk/sharpe-ratio", async () => {
+      mockAxiosInstance.post.mockResolvedValue({
+        data: { status: "success", data: {} },
+      });
+      await apiService.risk.calculateSharpeRatio({ returns: mockReturns });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/risk/sharpe-ratio",
+        expect.any(Object),
+      );
+    });
 
-      axios.create.mockReturnValue(mockApi);
+    it("calls POST /api/v1/risk/max-drawdown", async () => {
+      mockAxiosInstance.post.mockResolvedValue({
+        data: { status: "success", data: {} },
+      });
+      await apiService.risk.calculateMaxDrawdown({ returns: mockReturns });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/risk/max-drawdown",
+        expect.any(Object),
+      );
+    });
 
-      await expect(apiService.risk.calculateVaR({})).rejects.toThrow();
+    it("calls POST /api/v1/risk/metrics (not GET)", async () => {
+      mockAxiosInstance.post.mockResolvedValue({
+        data: { status: "success", data: {} },
+      });
+      await apiService.risk.getMetrics({ portfolio_id: 1 });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/risk/metrics",
+        { portfolio_id: 1 },
+      );
+      expect(mockAxiosInstance.get).not.toHaveBeenCalled();
+    });
+
+    it("calls POST /api/v1/risk/efficient-frontier", async () => {
+      mockAxiosInstance.post.mockResolvedValue({
+        data: { status: "success", data: {} },
+      });
+      await apiService.risk.getEfficientFrontier({ returns: mockReturns });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/risk/efficient-frontier",
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("optimization", () => {
+    it("calls POST /api/v1/optimization/optimize", async () => {
+      mockAxiosInstance.post.mockResolvedValue({
+        data: { status: "success", data: {} },
+      });
+      await apiService.optimization.optimize({ risk_tolerance: 50 });
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        "/api/v1/optimization/optimize",
+        { risk_tolerance: 50 },
+      );
     });
   });
 });

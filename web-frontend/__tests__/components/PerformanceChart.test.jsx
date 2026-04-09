@@ -1,65 +1,48 @@
-// code/web-frontend/__tests__/components/PerformanceChart.test.jsx
-
 import { render, screen } from "@testing-library/react";
+import { vi } from "vitest";
+import PerformanceChart from "../../src/components/dashboard/PerformanceChart";
 
-// import PerformanceChart from "../../src/components/dashboard/PerformanceChart"; // Adjust path
-// Mock charting library used (e.g., Chart.js, Recharts)
-// jest.mock("recharts", () => ({
-//   ResponsiveContainer: ({ children }) => <div>{children}</div>,
-//   LineChart: ({ children }) => <svg>{children}</svg>,
-//   Line: () => <path />,
-//   XAxis: () => <g />,
-//   YAxis: () => <g />,
-//   CartesianGrid: () => <g />,
-//   Tooltip: () => <div />,
-//   Legend: () => <div />,
-// }));
+vi.mock("@mui/x-charts/LineChart", () => ({
+  LineChart: ({ series, xAxis }) => (
+    <div data-testid="line-chart">
+      <span data-testid="series-count">{series.length}</span>
+      <span data-testid="x-labels-count">{xAxis[0].data.length}</span>
+    </div>
+  ),
+}));
 
-// Mock component for testing
-const MockPerformanceChart = ({ data }) => (
-  <div>
-    <h3>Performance Chart</h3>
-    {/* Basic representation of chart data for testing */}
-    <div data-testid="chart-data">{JSON.stringify(data)}</div>
-  </div>
-);
+describe("PerformanceChart", () => {
+  const mockData = Array.from({ length: 30 }, (_, i) => ({
+    date: `2026-01-${String(i + 1).padStart(2, "0")}`,
+    value: 100000 + i * 500,
+  }));
 
-describe("PerformanceChart Component", () => {
-  const mockData = [
-    { name: "Jan", value: 10000 },
-    { name: "Feb", value: 10500 },
-    { name: "Mar", value: 10200 },
-    { name: "Apr", value: 11000 },
-  ];
-
-  const renderChart = (props = { data: mockData }) => {
-    // return render(<PerformanceChart {...props} />);
-    return render(<MockPerformanceChart {...props} />); // Render mock for now
-  };
-
-  it("should render the chart container", () => {
-    renderChart();
-    // Check if the chart container or a specific element rendered by the chart library exists
-    // expect(screen.getByRole("graphics-document")).toBeInTheDocument(); // Example for SVG
-    expect(screen.getByTestId("chart-data")).toBeInTheDocument(); // Check mock data rendering
-    expect(true).toBe(true); // Placeholder assertion
+  it("renders the heading", () => {
+    render(<PerformanceChart performanceData={mockData} />);
+    expect(screen.getByText("Portfolio Performance")).toBeInTheDocument();
   });
 
-  it("should display axes (X and Y)", () => {
-    renderChart();
-    // Check for elements representing axes (might depend on chart library)
-    // expect(screen.getByText(/Jan/)).toBeInTheDocument(); // Check if X-axis labels are present
-    // expect(screen.getByText(/10000/)).toBeInTheDocument(); // Check if Y-axis labels are present (approximate)
-    expect(true).toBe(true); // Placeholder assertion
+  it("renders the line chart", () => {
+    render(<PerformanceChart performanceData={mockData} />);
+    expect(screen.getByTestId("line-chart")).toBeInTheDocument();
   });
 
-  it("should render chart lines/bars based on data", () => {
-    renderChart();
-    // This is harder to test precisely without inspecting SVG paths or canvas
-    // A snapshot test might be useful here, or checking if the chart library component received the correct data prop.
-    // expect(screen.getByTestId("chart-data")).toHaveTextContent(JSON.stringify(mockData));
-    expect(true).toBe(true); // Placeholder assertion
+  it("renders with exactly one series", () => {
+    render(<PerformanceChart performanceData={mockData} />);
+    expect(screen.getByTestId("series-count").textContent).toBe("1");
   });
 
-  // Add tests for tooltips, legends, different timeframes, loading states etc. if applicable
+  it("uses default data when no prop provided", () => {
+    render(<PerformanceChart />);
+    expect(screen.getByTestId("line-chart")).toBeInTheDocument();
+  });
+
+  it("renders at most 30 x-axis labels", () => {
+    render(<PerformanceChart performanceData={mockData} />);
+    const count = parseInt(
+      screen.getByTestId("x-labels-count").textContent,
+      10,
+    );
+    expect(count).toBeLessThanOrEqual(30);
+  });
 });

@@ -1,127 +1,209 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import apiService from "../services/apiService";
 
-// Create context
 const RiskAnalysisContext = createContext();
 
-// Provider component
 export const RiskAnalysisProvider = ({ children }) => {
   const [riskMetrics, setRiskMetrics] = useState(null);
   const [varData, setVarData] = useState(null);
+  const [cvarData, setCvarData] = useState(null);
+  const [sharpeData, setSharpeData] = useState(null);
+  const [maxDrawdownData, setMaxDrawdownData] = useState(null);
   const [stressTestResults, setStressTestResults] = useState(null);
   const [correlationData, setCorrelationData] = useState(null);
+  const [efficientFrontierData, setEfficientFrontierData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Calculate Value at Risk
-  const calculateVaR = async (params) => {
+  const calculateVaR = useCallback(async (params) => {
     setLoading(true);
     setError(null);
     try {
       const response = await apiService.risk.calculateVaR(params);
-      if (response.status === "success") {
+      if (response?.status === "success") {
         setVarData(response.data);
         return response.data;
-      } else {
-        setError(response.message || "Failed to calculate VaR");
-        return null;
       }
+      setError(response?.message || "Failed to calculate VaR");
+      return null;
     } catch (err) {
       setError(err.message || "An error occurred while calculating VaR");
-      console.error("VaR calculation error:", err);
       return null;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Run stress test
-  const runStressTest = async (params) => {
+  const calculateCVaR = useCallback(async (params) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiService.risk.stressTest(params);
-      if (response.status === "success") {
-        setStressTestResults(response.data);
+      const response = await apiService.risk.calculateCVaR(params);
+      if (response?.status === "success") {
+        setCvarData(response.data);
         return response.data;
-      } else {
-        setError(response.message || "Failed to run stress test");
-        return null;
       }
+      setError(response?.message || "Failed to calculate CVaR");
+      return null;
     } catch (err) {
-      setError(err.message || "An error occurred while running stress test");
-      console.error("Stress test error:", err);
+      setError(err.message || "An error occurred while calculating CVaR");
       return null;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Analyze correlation
-  const analyzeCorrelation = async (params) => {
+  const calculateSharpeRatio = useCallback(async (params) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiService.risk.correlationAnalysis(params);
-      if (response.status === "success") {
-        setCorrelationData(response.data);
+      const response = await apiService.risk.calculateSharpeRatio(params);
+      if (response?.status === "success") {
+        setSharpeData(response.data);
         return response.data;
-      } else {
-        setError(response.message || "Failed to analyze correlation");
-        return null;
       }
+      setError(response?.message || "Failed to calculate Sharpe Ratio");
+      return null;
     } catch (err) {
-      setError(err.message || "An error occurred while analyzing correlation");
-      console.error("Correlation analysis error:", err);
+      setError(
+        err.message || "An error occurred while calculating Sharpe Ratio",
+      );
       return null;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Fetch risk metrics for a portfolio
-  const fetchRiskMetrics = async (portfolioId) => {
+  const calculateMaxDrawdown = useCallback(async (params) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiService.risk.getMetrics(portfolioId);
-      if (response.status === "success") {
+      const response = await apiService.risk.calculateMaxDrawdown(params);
+      if (response?.status === "success") {
+        setMaxDrawdownData(response.data);
+        return response.data;
+      }
+      setError(response?.message || "Failed to calculate Max Drawdown");
+      return null;
+    } catch (err) {
+      setError(
+        err.message || "An error occurred while calculating Max Drawdown",
+      );
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchRiskMetrics = useCallback(async (params) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiService.risk.getMetrics(params);
+      if (response?.status === "success") {
         setRiskMetrics(response.data);
         return response.data;
-      } else {
-        setError(response.message || "Failed to fetch risk metrics");
-        return null;
       }
+      setError(response?.message || "Failed to fetch risk metrics");
+      return null;
     } catch (err) {
       setError(err.message || "An error occurred while fetching risk metrics");
-      console.error("Risk metrics fetch error:", err);
       return null;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Clear all risk data
-  const clearRiskData = () => {
+  const getEfficientFrontier = useCallback(async (params) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiService.risk.getEfficientFrontier(params);
+      if (response?.status === "success") {
+        setEfficientFrontierData(response.data);
+        return response.data;
+      }
+      setError(response?.message || "Failed to calculate efficient frontier");
+      return null;
+    } catch (err) {
+      setError(
+        err.message || "An error occurred while calculating efficient frontier",
+      );
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const runStressTest = useCallback(async (params) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiService.risk.calculateVaR(params);
+      if (response?.status === "success") {
+        setStressTestResults(response.data);
+        return response.data;
+      }
+      setError(response?.message || "Failed to run stress test");
+      return null;
+    } catch (err) {
+      setError(err.message || "An error occurred while running stress test");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const analyzeCorrelation = useCallback(async (params) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiService.risk.calculateVaR(params);
+      if (response?.status === "success") {
+        setCorrelationData(response.data);
+        return response.data;
+      }
+      setError(response?.message || "Failed to analyze correlation");
+      return null;
+    } catch (err) {
+      setError(err.message || "An error occurred while analyzing correlation");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const clearRiskData = useCallback(() => {
     setRiskMetrics(null);
     setVarData(null);
+    setCvarData(null);
+    setSharpeData(null);
+    setMaxDrawdownData(null);
     setStressTestResults(null);
     setCorrelationData(null);
+    setEfficientFrontierData(null);
     setError(null);
-  };
+  }, []);
 
-  // Context value
   const value = {
     riskMetrics,
     varData,
+    cvarData,
+    sharpeData,
+    maxDrawdownData,
     stressTestResults,
     correlationData,
+    efficientFrontierData,
     loading,
     error,
     calculateVaR,
+    calculateCVaR,
+    calculateSharpeRatio,
+    calculateMaxDrawdown,
+    fetchRiskMetrics,
+    getEfficientFrontier,
     runStressTest,
     analyzeCorrelation,
-    fetchRiskMetrics,
     clearRiskData,
   };
 
@@ -132,7 +214,6 @@ export const RiskAnalysisProvider = ({ children }) => {
   );
 };
 
-// Custom hook to use the risk analysis context
 export const useRiskAnalysis = () => {
   const context = useContext(RiskAnalysisContext);
   if (context === undefined) {

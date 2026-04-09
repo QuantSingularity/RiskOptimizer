@@ -1,67 +1,43 @@
-// code/web-frontend/__tests__/components/Header.test.jsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { vi } from "vitest";
+import Header from "../../src/components/navigation/Header";
 
-import { render } from "@testing-library/react";
-
-// import userEvent from "@testing-library/user-event";
-// import Header from "../../src/components/navigation/Header"; // Adjust path
-// import { AuthContext } from "../../src/context/AuthContext"; // If auth context is used
-
-// Mock component for testing
-const MockHeader = () => (
-  <header>
-    <div>RiskOptimizer</div>
-    <nav>
-      <a href="/dashboard">Dashboard</a>
-      <button>Logout</button>
-    </nav>
-  </header>
-);
-
-describe("Header Component", () => {
-  // const mockAuthContext = {
-  //   user: { username: "testuser" },
-  //   logout: jest.fn(),
-  // };
-
-  const renderHeader = () => {
-    // return render(
-    //   <AuthContext.Provider value={mockAuthContext}>
-    //     <Header />
-    //   </AuthContext.Provider>
-    // );
-    return render(<MockHeader />); // Render mock for now
+vi.mock("@mui/material/styles", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useTheme: () => ({ palette: { mode: "dark" } }),
   };
+});
 
-  it("should render the application title", () => {
-    renderHeader();
-    // expect(screen.getByText(/RiskOptimizer/i)).toBeInTheDocument();
-    expect(true).toBe(true); // Placeholder assertion
+describe("Header", () => {
+  it("renders the brand name", () => {
+    render(<Header onMenuClick={vi.fn()} />);
+    expect(screen.getByText("RiskOptimizer")).toBeInTheDocument();
   });
 
-  it("should render navigation links", () => {
-    renderHeader();
-    // expect(screen.getByRole("link", { name: /dashboard/i })).toBeInTheDocument();
-    expect(true).toBe(true); // Placeholder assertion
+  it("renders the logo image", () => {
+    render(<Header onMenuClick={vi.fn()} />);
+    expect(screen.getByAltText("RiskOptimizer Logo")).toBeInTheDocument();
   });
 
-  it("should render user information or login/signup if applicable", () => {
-    renderHeader();
-    // If user is logged in:
-    // expect(screen.getByText(/testuser/i)).toBeInTheDocument(); // Assuming username is displayed
-    // expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
-    // If user is logged out:
-    // expect(screen.getByRole("link", { name: /login/i })).toBeInTheDocument();
-    expect(true).toBe(true); // Placeholder assertion
+  it("calls onMenuClick when menu button is clicked", async () => {
+    const user = userEvent.setup();
+    const handleMenuClick = vi.fn();
+    render(<Header onMenuClick={handleMenuClick} />);
+    const menuBtn = screen.getByRole("button", { name: /open drawer/i });
+    await user.click(menuBtn);
+    expect(handleMenuClick).toHaveBeenCalledOnce();
   });
 
-  it("should call logout function when logout button is clicked", async () => {
-    // const user = userEvent.setup();
-    renderHeader();
-    // const logoutButton = screen.getByRole("button", { name: /logout/i });
-    // await user.click(logoutButton);
-    // expect(mockAuthContext.logout).toHaveBeenCalledTimes(1);
-    expect(true).toBe(true); // Placeholder assertion
+  it("renders notification badge", () => {
+    render(<Header onMenuClick={vi.fn()} />);
+    expect(screen.getByTestId("NotificationsIcon")).toBeInTheDocument();
   });
 
-  // Add more tests for responsiveness, themes, etc., if applicable
+  it("renders account/avatar button", () => {
+    render(<Header onMenuClick={vi.fn()} />);
+    expect(screen.getByTestId("AccountCircleIcon")).toBeInTheDocument();
+  });
 });

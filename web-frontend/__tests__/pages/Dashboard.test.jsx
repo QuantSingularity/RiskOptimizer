@@ -1,101 +1,146 @@
-import { createTheme, ThemeProvider } from "@mui/material/styles";
-import { render, screen } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import { vi } from "vitest";
+import { AuthProvider } from "../../src/context/AuthContext";
+import { PortfolioProvider } from "../../src/context/PortfolioContext";
+import { RiskAnalysisProvider } from "../../src/context/RiskAnalysisContext";
 import Dashboard from "../../src/pages/Dashboard";
 
-const theme = createTheme();
+vi.mock("../../src/services/apiService", () => ({
+  default: {
+    auth: { login: vi.fn(), logout: vi.fn(), register: vi.fn() },
+    portfolio: {
+      getByAddress: vi
+        .fn()
+        .mockResolvedValue({ status: "success", data: { assets: [] } }),
+      save: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      getByUserId: vi.fn(),
+      getAll: vi.fn(),
+    },
+    risk: {
+      calculateVaR: vi.fn(),
+      calculateCVaR: vi.fn(),
+      calculateSharpeRatio: vi.fn(),
+      calculateMaxDrawdown: vi.fn(),
+      getMetrics: vi.fn(),
+      getEfficientFrontier: vi.fn(),
+    },
+    optimization: {
+      optimize: vi.fn(),
+      efficientFrontier: vi.fn(),
+      getConstraints: vi.fn(),
+    },
+  },
+}));
 
-const renderWithProviders = (component) => {
-  return render(
-    <BrowserRouter>
-      <ThemeProvider theme={theme}>{component}</ThemeProvider>
-    </BrowserRouter>,
+vi.mock("@mui/x-charts/PieChart", () => ({
+  PieChart: () => <div data-testid="pie-chart" />,
+}));
+
+vi.mock("@mui/x-charts/LineChart", () => ({
+  LineChart: () => <div data-testid="line-chart" />,
+}));
+
+const renderDashboard = () =>
+  render(
+    <MemoryRouter>
+      <AuthProvider>
+        <PortfolioProvider>
+          <RiskAnalysisProvider>
+            <Dashboard />
+          </RiskAnalysisProvider>
+        </PortfolioProvider>
+      </AuthProvider>
+    </MemoryRouter>,
   );
-};
 
-describe("Dashboard", () => {
-  it("should render dashboard heading", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Dashboard")).toBeInTheDocument();
+describe("Dashboard Page", () => {
+  it("renders loading spinner initially", () => {
+    renderDashboard();
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
-  it("should display portfolio value card", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Total Portfolio Value")).toBeInTheDocument();
+  it("renders the Dashboard heading after loading", async () => {
+    renderDashboard();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /dashboard/i }),
+      ).toBeInTheDocument(),
+    );
   });
 
-  it("should display daily change card", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Daily Change")).toBeInTheDocument();
+  it("renders portfolio value card", async () => {
+    renderDashboard();
+    await waitFor(() =>
+      expect(screen.getByText(/total portfolio value/i)).toBeInTheDocument(),
+    );
   });
 
-  it("should display risk score card", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Risk Score")).toBeInTheDocument();
+  it("renders daily change card", async () => {
+    renderDashboard();
+    await waitFor(() =>
+      expect(screen.getByText(/daily change/i)).toBeInTheDocument(),
+    );
   });
 
-  it("should display sharpe ratio card", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Sharpe Ratio")).toBeInTheDocument();
+  it("renders risk score card", async () => {
+    renderDashboard();
+    await waitFor(() =>
+      expect(screen.getByText(/risk score/i)).toBeInTheDocument(),
+    );
   });
 
-  it("should display portfolio performance section", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Portfolio Performance")).toBeInTheDocument();
+  it("renders sharpe ratio card", async () => {
+    renderDashboard();
+    await waitFor(() =>
+      expect(screen.getByText(/sharpe ratio/i)).toBeInTheDocument(),
+    );
   });
 
-  it("should display asset allocation section", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Asset Allocation")).toBeInTheDocument();
+  it("renders performance chart component", async () => {
+    renderDashboard();
+    await waitFor(() =>
+      expect(screen.getByTestId("line-chart")).toBeInTheDocument(),
+    );
   });
 
-  it("should display risk metrics section", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Risk Metrics")).toBeInTheDocument();
+  it("renders asset allocation pie chart", async () => {
+    renderDashboard();
+    await waitFor(() =>
+      expect(screen.getByTestId("pie-chart")).toBeInTheDocument(),
+    );
   });
 
-  it("should display recent transactions section", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Recent Transactions")).toBeInTheDocument();
+  it("renders Refresh Data button", async () => {
+    renderDashboard();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /refresh data/i }),
+      ).toBeInTheDocument(),
+    );
   });
 
-  it("should display optimization suggestions", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Optimization Suggestions")).toBeInTheDocument();
+  it("uses Link for navigation (no full page reload)", async () => {
+    renderDashboard();
+    await waitFor(() => screen.getByText(/view detailed analysis/i));
+    const link = screen.getByText(/view detailed analysis/i).closest("a");
+    expect(link).toHaveAttribute("href", "/risk-analysis");
   });
 
-  it("should have refresh data button", () => {
-    renderWithProviders(<Dashboard />);
-    const refreshButton = screen.getByRole("button", { name: /refresh data/i });
-    expect(refreshButton).toBeInTheDocument();
-  });
-
-  it("should display mock portfolio values", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("$124,532.89")).toBeInTheDocument();
-  });
-
-  it("should display positive performance indicators", () => {
-    renderWithProviders(<Dashboard />);
-    const positiveIndicators = screen.getAllByText(/\+/);
-    expect(positiveIndicators.length).toBeGreaterThan(0);
-  });
-
-  it("should display percentage changes", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("+2.45% ($3,012.34)")).toBeInTheDocument();
-  });
-
-  it("should render VaR metric", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Value at Risk (VaR)")).toBeInTheDocument();
-    expect(screen.getByText("$4,532.12")).toBeInTheDocument();
-  });
-
-  it("should render volatility metric", () => {
-    renderWithProviders(<Dashboard />);
-    expect(screen.getByText("Volatility")).toBeInTheDocument();
-    expect(screen.getByText("14.2%")).toBeInTheDocument();
+  it("Refresh Data button triggers reload", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    await waitFor(() => screen.getByRole("button", { name: /refresh data/i }));
+    await user.click(screen.getByRole("button", { name: /refresh data/i }));
+    // Should not crash, reload runs again
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /dashboard/i }),
+      ).toBeInTheDocument(),
+    );
   });
 });

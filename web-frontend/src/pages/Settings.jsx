@@ -41,7 +41,6 @@ const Settings = () => {
   };
 
   const handleSave = () => {
-    // Save settings logic here
     setSnackbar({
       open: true,
       message: "Settings saved successfully!",
@@ -60,7 +59,6 @@ const Settings = () => {
       </Typography>
 
       <Grid container spacing={3}>
-        {/* Account Settings */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardHeader title="Account Settings" />
@@ -77,7 +75,7 @@ const Settings = () => {
               <TextField
                 fullWidth
                 label="Wallet Address"
-                value={user?.address || ""}
+                value={user?.wallet_address || user?.address || ""}
                 margin="normal"
                 disabled
                 helperText="Your connected wallet address"
@@ -99,7 +97,6 @@ const Settings = () => {
           </Card>
         </Grid>
 
-        {/* Preferences */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardHeader title="Preferences" />
@@ -149,7 +146,6 @@ const Settings = () => {
           </Card>
         </Grid>
 
-        {/* Security Settings */}
         <Grid item xs={12}>
           <Card>
             <CardHeader title="Security" />
@@ -160,7 +156,8 @@ const Settings = () => {
                 authentication.
               </Alert>
               <Typography variant="body2" color="text.secondary">
-                Connected Wallet: {user?.address || "Not connected"}
+                Connected Wallet:{" "}
+                {user?.wallet_address || user?.address || "Not connected"}
               </Typography>
             </CardContent>
           </Card>
@@ -171,7 +168,7 @@ const Settings = () => {
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "bottom", right: "right" }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
           {snackbar.message}

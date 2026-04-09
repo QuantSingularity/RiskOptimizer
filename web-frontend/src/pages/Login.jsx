@@ -6,36 +6,91 @@ import {
   Button,
   CircularProgress,
   Container,
+  Divider,
   Paper,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
-  const [address, setAddress] = useState("");
-  const [error, setError] = useState("");
-  const { login, loading } = useAuth();
+  const [tab, setTab] = useState(0);
+  const [formData, setFormData] = useState({
+    wallet_address: "",
+    email: "",
+    password: "",
+    username: "",
+  });
+  const [localError, setLocalError] = useState("");
+  const { login, register, loading, error, user, clearError } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+  useEffect(() => {
+    if (user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, navigate]);
 
-    if (!address) {
-      setError("Please enter your wallet address");
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
+
+  const handleTabChange = (_, newValue) => {
+    setTab(newValue);
+    setLocalError("");
+    clearError();
+  };
+
+  const handleChange = (field) => (e) => {
+    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+    setLocalError("");
+  };
+
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setLocalError("");
+
+    if (!formData.wallet_address) {
+      setLocalError("Please enter your wallet address");
       return;
     }
 
-    const success = await login(address);
+    const success = await login({ wallet_address: formData.wallet_address });
     if (success) {
       navigate("/");
-    } else {
-      setError("Login failed. Please check your wallet address and try again.");
     }
   };
+
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    setLocalError("");
+
+    if (
+      !formData.username ||
+      !formData.email ||
+      !formData.password ||
+      !formData.wallet_address
+    ) {
+      setLocalError("All fields are required");
+      return;
+    }
+
+    const success = await register({
+      username: formData.username,
+      email: formData.email,
+      password: formData.password,
+      wallet_address: formData.wallet_address,
+    });
+    if (success) {
+      navigate("/");
+    }
+  };
+
+  const displayError = localError || error;
 
   return (
     <Container component="main" maxWidth="xs">
@@ -64,54 +119,122 @@ const Login = () => {
           <Avatar sx={{ m: 1, bgcolor: "primary.main" }}>
             <LockOutlinedIcon />
           </Avatar>
-          <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
-            RiskOptimizer Login
+          <Typography component="h1" variant="h5" sx={{ mb: 2 }}>
+            RiskOptimizer
           </Typography>
 
-          {error && (
+          <Tabs
+            value={tab}
+            onChange={handleTabChange}
+            sx={{ mb: 2, width: "100%" }}
+          >
+            <Tab label="Sign In" sx={{ flex: 1 }} />
+            <Tab label="Register" sx={{ flex: 1 }} />
+          </Tabs>
+
+          {displayError && (
             <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
-              {error}
+              {displayError}
             </Alert>
           )}
 
-          <Box
-            component="form"
-            onSubmit={handleSubmit}
-            noValidate
-            sx={{ mt: 1, width: "100%" }}
-          >
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="address"
-              label="Wallet Address"
-              name="address"
-              autoComplete="address"
-              autoFocus
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              disabled={loading}
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2, py: 1.5 }}
-              disabled={loading}
+          {tab === 0 && (
+            <Box
+              component="form"
+              onSubmit={handleLoginSubmit}
+              noValidate
+              sx={{ width: "100%" }}
             >
-              {loading ? <CircularProgress size={24} /> : "Sign In"}
-            </Button>
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                label="Wallet Address"
+                autoComplete="off"
+                autoFocus
+                value={formData.wallet_address}
+                onChange={handleChange("wallet_address")}
+                disabled={loading}
+                placeholder="0x..."
+              />
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                sx={{ mt: 3, mb: 2, py: 1.5 }}
+                disabled={loading}
+              >
+                {loading ? <CircularProgress size={24} /> : "Sign In"}
+              </Button>
+              <Divider sx={{ my: 1 }} />
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                align="center"
+                sx={{ mt: 1 }}
+              >
+                For demo, use any wallet address.
+              </Typography>
+            </Box>
+          )}
 
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              align="center"
-              sx={{ mt: 2 }}
+          {tab === 1 && (
+            <Box
+              component="form"
+              onSubmit={handleRegisterSubmit}
+              noValidate
+              sx={{ width: "100%" }}
             >
-              For demo purposes, you can use any wallet address.
-            </Typography>
-          </Box>
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                label="Username"
+                value={formData.username}
+                onChange={handleChange("username")}
+                disabled={loading}
+              />
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange("email")}
+                disabled={loading}
+              />
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                label="Password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange("password")}
+                disabled={loading}
+              />
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                label="Wallet Address"
+                value={formData.wallet_address}
+                onChange={handleChange("wallet_address")}
+                disabled={loading}
+                placeholder="0x..."
+              />
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                sx={{ mt: 3, mb: 2, py: 1.5 }}
+                disabled={loading}
+              >
+                {loading ? <CircularProgress size={24} /> : "Create Account"}
+              </Button>
+            </Box>
+          )}
         </Paper>
       </Box>
     </Container>

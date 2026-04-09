@@ -1,150 +1,130 @@
-// code/web-frontend/__tests__/pages/Login.test.jsx
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import { vi } from "vitest";
+import { AuthProvider } from "../../src/context/AuthContext";
+import Login from "../../src/pages/Login";
+import apiService from "../../src/services/apiService";
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import React from "react";
+vi.mock("../../src/services/apiService", () => ({
+  default: {
+    auth: {
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+    },
+  },
+}));
 
-// import userEvent from "@testing-library/user-event"; // Alternative for simulating user interactions
-// import Login from "../../src/pages/Login"; // Adjust path
-// import { AuthContext } from "../../src/context/AuthContext";
-// import { MemoryRouter } from "react-router-dom"; // If using react-router for redirects
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, useNavigate: () => vi.fn() };
+});
 
-// Mock context
-// const mockLogin = jest.fn();
-// const mockAuthContext = {
-//   login: mockLogin,
-//   loading: false,
-//   error: null,
-//   user: null,
-// };
-
-// Mock Page component
-const MockLogin = () => {
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [error, setError] = React.useState(null);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!email || !password) {
-      setError("Email and password are required");
-      return;
-    }
-    // Simulate login attempt
-    // mockLogin(email, password);
-    console.log("Login attempt:", email, password);
-    setError(null);
-  };
-
-  return (
-    <div>
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="email">Email:</label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="password">Password:</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        {error && <p style={{ color: "red" }}>{error}</p>}
-        <button type="submit">Login</button>
-      </form>
-    </div>
+const renderLogin = () =>
+  render(
+    <MemoryRouter>
+      <AuthProvider>
+        <Login />
+      </AuthProvider>
+    </MemoryRouter>,
   );
-};
 
 describe("Login Page", () => {
-  const renderLogin = () => {
-    // return render(
-    //   <MemoryRouter>
-    //     <AuthContext.Provider value={mockAuthContext}>
-    //       <Login />
-    //     </AuthContext.Provider>
-    //   </MemoryRouter>
-    // );
-    return render(<MockLogin />); // Render mock for now
-  };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
 
-  // beforeEach(() => {
-  //   mockLogin.mockClear();
-  // });
-
-  it("should render login form with email and password fields", () => {
+  it("renders the brand heading", () => {
     renderLogin();
-    // expect(screen.getByRole("heading", { name: /login/i })).toBeInTheDocument();
-    // expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    // expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-    // expect(screen.getByRole("button", { name: /login/i })).toBeInTheDocument();
-    expect(true).toBe(true); // Placeholder assertion
+    expect(screen.getByText("RiskOptimizer")).toBeInTheDocument();
   });
 
-  it("should allow typing into email and password fields", async () => {
-    // const user = userEvent.setup();
+  it("renders Sign In and Register tabs", () => {
     renderLogin();
-    const emailInput = screen.getByLabelText(/email/i);
-    const passwordInput = screen.getByLabelText(/password/i);
-
-    // await user.type(emailInput, "test@example.com");
-    // await user.type(passwordInput, "password123");
-    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
-    fireEvent.change(passwordInput, { target: { value: "password123" } });
-
-    // expect(emailInput).toHaveValue("test@example.com");
-    // expect(passwordInput).toHaveValue("password123");
-    expect(true).toBe(true); // Placeholder assertion
+    expect(screen.getByRole("tab", { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /register/i })).toBeInTheDocument();
   });
 
-  it("should call login function from context on form submission", async () => {
-    // const user = userEvent.setup();
+  it("renders wallet address field on Sign In tab", () => {
     renderLogin();
-    const emailInput = screen.getByLabelText(/email/i);
-    const passwordInput = screen.getByLabelText(/password/i);
-    const loginButton = screen.getByRole("button", { name: /login/i });
-
-    // await user.type(emailInput, "test@example.com");
-    // await user.type(passwordInput, "password123");
-    // await user.click(loginButton);
-    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
-    fireEvent.change(passwordInput, { target: { value: "password123" } });
-    fireEvent.click(loginButton);
-
-    // await waitFor(() => {
-    //   expect(mockLogin).toHaveBeenCalledWith("test@example.com", "password123");
-    //   expect(mockLogin).toHaveBeenCalledTimes(1);
-    // });
-    expect(true).toBe(true); // Placeholder assertion
+    expect(screen.getByLabelText(/wallet address/i)).toBeInTheDocument();
   });
 
-  it("should display error message if login fails", async () => {
-    // // Mock context to simulate login error
-    // mockAuthContext.error = "Invalid credentials";
-    // renderLogin();
-
-    // // Simulate form submission (or just check if error is displayed)
-    // expect(await screen.findByText(/invalid credentials/i)).toBeInTheDocument();
-    expect(true).toBe(true); // Placeholder assertion
+  it("shows validation error when submitting empty Sign In form", async () => {
+    const user = userEvent.setup();
+    renderLogin();
+    await user.click(screen.getByRole("button", { name: /sign in/i }));
+    expect(
+      await screen.findByText(/please enter your wallet address/i),
+    ).toBeInTheDocument();
   });
 
-  it("should display loading indicator while logging in", () => {
-    // // Mock context to simulate loading state
-    // mockAuthContext.loading = true;
-    // renderLogin();
-    // expect(screen.getByRole("button", { name: /logging in.../i })).toBeDisabled(); // Or check for a spinner
-    expect(true).toBe(true); // Placeholder assertion
+  it("calls apiService.auth.login on valid Sign In submission", async () => {
+    apiService.auth.login.mockResolvedValue({
+      status: "success",
+      data: { token: "tok", user: { id: 1, wallet_address: "0xabc" } },
+    });
+    const user = userEvent.setup();
+    renderLogin();
+    await user.type(screen.getByLabelText(/wallet address/i), "0xabc123");
+    await user.click(screen.getByRole("button", { name: /sign in/i }));
+    await waitFor(() =>
+      expect(apiService.auth.login).toHaveBeenCalledWith({
+        wallet_address: "0xabc123",
+      }),
+    );
   });
 
-  // Add test for successful login redirect if applicable
+  it("shows error alert on failed login", async () => {
+    apiService.auth.login.mockRejectedValue(new Error("Invalid wallet"));
+    const user = userEvent.setup();
+    renderLogin();
+    await user.type(screen.getByLabelText(/wallet address/i), "0xbad");
+    await user.click(screen.getByRole("button", { name: /sign in/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+  });
+
+  it("switches to Register tab and shows registration fields", async () => {
+    const user = userEvent.setup();
+    renderLogin();
+    await user.click(screen.getByRole("tab", { name: /register/i }));
+    expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+  });
+
+  it("shows validation error on incomplete Register form", async () => {
+    const user = userEvent.setup();
+    renderLogin();
+    await user.click(screen.getByRole("tab", { name: /register/i }));
+    await user.click(screen.getByRole("button", { name: /create account/i }));
+    expect(
+      await screen.findByText(/all fields are required/i),
+    ).toBeInTheDocument();
+  });
+
+  it("calls apiService.auth.register with correct payload", async () => {
+    apiService.auth.register.mockResolvedValue({
+      status: "success",
+      data: { token: "tok2", user: { id: 2, email: "a@a.com" } },
+    });
+    const user = userEvent.setup();
+    renderLogin();
+    await user.click(screen.getByRole("tab", { name: /register/i }));
+    await user.type(screen.getByLabelText(/username/i), "alice");
+    await user.type(screen.getByLabelText(/email/i), "alice@test.com");
+    await user.type(screen.getByLabelText(/password/i), "secret123");
+    await user.type(screen.getAllByLabelText(/wallet address/i)[0], "0xdef456");
+    await user.click(screen.getByRole("button", { name: /create account/i }));
+    await waitFor(() =>
+      expect(apiService.auth.register).toHaveBeenCalledWith({
+        username: "alice",
+        email: "alice@test.com",
+        password: "secret123",
+        wallet_address: "0xdef456",
+      }),
+    );
+  });
 });

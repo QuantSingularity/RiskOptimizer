@@ -1,13 +1,11 @@
-import {
-  Home as HomeIcon,
-  TrendingUp as OptimizeIcon,
-  Analytics as RiskIcon,
-  Settings as SettingsIcon,
-} from "@mui/icons-material";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import AssessmentIcon from "@mui/icons-material/Assessment";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import SettingsIcon from "@mui/icons-material/Settings";
 import {
   AppBar,
   Box,
-  Button,
   Divider,
   Drawer,
   List,
@@ -18,21 +16,23 @@ import {
   Toolbar,
   Typography,
 } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 
 const drawerWidth = 240;
 
 const navItems = [
-  { name: "Dashboard", icon: <HomeIcon />, path: "/" },
-  { name: "Portfolio Optimization", icon: <OptimizeIcon />, path: "/optimize" },
-  { name: "Risk Analysis", icon: <RiskIcon />, path: "/risk" },
+  { name: "Dashboard", icon: <DashboardIcon />, path: "/" },
+  { name: "Portfolio", icon: <AccountBalanceWalletIcon />, path: "/portfolio" },
+  { name: "Risk Analysis", icon: <AssessmentIcon />, path: "/risk-analysis" },
+  { name: "Optimization", icon: <TrendingUpIcon />, path: "/optimization" },
   { name: "Settings", icon: <SettingsIcon />, path: "/settings" },
 ];
 
-const MainLayout = ({ children }) => {
+const MainLayout = () => {
+  const location = useLocation();
+
   return (
     <Box sx={{ display: "flex" }}>
-      {/* App Bar */}
       <AppBar
         position="fixed"
         sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
@@ -41,11 +41,9 @@ const MainLayout = ({ children }) => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             RiskOptimizer
           </Typography>
-          <Button color="inherit">Connect Wallet (Placeholder)</Button>
         </Toolbar>
       </AppBar>
 
-      {/* Side Drawer */}
       <Drawer
         variant="permanent"
         sx={{
@@ -57,12 +55,16 @@ const MainLayout = ({ children }) => {
           },
         }}
       >
-        <Toolbar /> {/* Spacer for the AppBar */}
+        <Toolbar />
         <Box sx={{ overflow: "auto" }}>
           <List>
             {navItems.map((item) => (
               <ListItem key={item.name} disablePadding>
-                <ListItemButton component={Link} to={item.path}>
+                <ListItemButton
+                  component={Link}
+                  to={item.path}
+                  selected={location.pathname === item.path}
+                >
                   <ListItemIcon>{item.icon}</ListItemIcon>
                   <ListItemText primary={item.name} />
                 </ListItemButton>
@@ -80,7 +82,6 @@ const MainLayout = ({ children }) => {
         </Box>
       </Drawer>
 
-      {/* Main Content */}
       <Box
         component="main"
         sx={{
@@ -89,8 +90,8 @@ const MainLayout = ({ children }) => {
           width: { sm: `calc(100% - ${drawerWidth}px)` },
         }}
       >
-        <Toolbar /> {/* Spacer for the AppBar */}
-        {children}
+        <Toolbar />
+        <Outlet />
       </Box>
     </Box>
   );

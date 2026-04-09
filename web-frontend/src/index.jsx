@@ -10,21 +10,19 @@ import { AuthProvider } from "./context/AuthContext";
 import { PortfolioProvider } from "./context/PortfolioContext";
 import { RiskAnalysisProvider } from "./context/RiskAnalysisContext";
 
-// Initialize React Query client with proper configuration
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
       retry: 1,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
     },
     mutations: {
-      retry: 1,
+      retry: 0,
     },
   },
 });
 
-// Create a comprehensive Material-UI theme
 const theme = createTheme({
   palette: {
     mode: "dark",
@@ -38,15 +36,9 @@ const theme = createTheme({
       light: "#ffb74d",
       dark: "#f57c00",
     },
-    error: {
-      main: "#f44336",
-    },
-    warning: {
-      main: "#ff9800",
-    },
-    success: {
-      main: "#4caf50",
-    },
+    error: { main: "#f44336" },
+    warning: { main: "#ff9800" },
+    success: { main: "#4caf50" },
     background: {
       default: "#0a1929",
       paper: "#132f4c",
@@ -66,15 +58,9 @@ const theme = createTheme({
       "Arial",
       "sans-serif",
     ].join(","),
-    h4: {
-      fontWeight: 600,
-    },
-    h5: {
-      fontWeight: 600,
-    },
-    h6: {
-      fontWeight: 500,
-    },
+    h4: { fontWeight: 600 },
+    h5: { fontWeight: 600 },
+    h6: { fontWeight: 500 },
   },
   components: {
     MuiAppBar: {
@@ -87,9 +73,7 @@ const theme = createTheme({
     },
     MuiDrawer: {
       styleOverrides: {
-        paper: {
-          backgroundColor: "#132f4c",
-        },
+        paper: { backgroundColor: "#132f4c" },
       },
     },
     MuiCard: {

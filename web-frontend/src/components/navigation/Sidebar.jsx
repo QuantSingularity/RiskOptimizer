@@ -9,10 +9,9 @@ import {
   Divider,
   Drawer,
   List,
-  ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
-  useTheme,
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -27,7 +26,6 @@ const menuItems = [
 ];
 
 const Sidebar = ({ mobileOpen, onClose, isMobile }) => {
-  const _theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -57,58 +55,57 @@ const Sidebar = ({ mobileOpen, onClose, isMobile }) => {
         />
       </Box>
       <List sx={{ pt: 2 }}>
-        {menuItems.map((item) => (
-          <ListItem
-            button
-            key={item.text}
-            onClick={() => handleNavigation(item.path)}
-            sx={{
-              mb: 1,
-              mx: 1,
-              borderRadius: 1,
-              backgroundColor:
-                location.pathname === item.path
-                  ? "rgba(97, 218, 251, 0.1)"
-                  : "transparent",
-              "&:hover": {
-                backgroundColor: "rgba(97, 218, 251, 0.05)",
-              },
-            }}
-          >
-            <ListItemIcon
+        {menuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <ListItemButton
+              key={item.text}
+              onClick={() => handleNavigation(item.path)}
+              selected={isActive}
               sx={{
-                color:
-                  location.pathname === item.path
-                    ? "primary.main"
-                    : "text.secondary",
-                minWidth: 40,
-              }}
-            >
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText
-              primary={item.text}
-              sx={{
-                color:
-                  location.pathname === item.path
-                    ? "primary.main"
-                    : "text.primary",
-                "& .MuiTypography-root": {
-                  fontWeight: location.pathname === item.path ? 600 : 400,
+                mb: 1,
+                mx: 1,
+                borderRadius: 1,
+                "&.Mui-selected": {
+                  backgroundColor: "rgba(97, 218, 251, 0.1)",
+                  "&:hover": {
+                    backgroundColor: "rgba(97, 218, 251, 0.15)",
+                  },
+                },
+                "&:hover": {
+                  backgroundColor: "rgba(97, 218, 251, 0.05)",
                 },
               }}
-            />
-          </ListItem>
-        ))}
+            >
+              <ListItemIcon
+                sx={{
+                  color: isActive ? "primary.main" : "text.secondary",
+                  minWidth: 40,
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.text}
+                sx={{
+                  color: isActive ? "primary.main" : "text.primary",
+                  "& .MuiTypography-root": {
+                    fontWeight: isActive ? 600 : 400,
+                  },
+                }}
+              />
+            </ListItemButton>
+          );
+        })}
       </List>
       <Divider sx={{ my: 2, backgroundColor: "rgba(255, 255, 255, 0.1)" }} />
       <List>
-        <ListItem button sx={{ mx: 1, borderRadius: 1 }}>
+        <ListItemButton sx={{ mx: 1, borderRadius: 1 }}>
           <ListItemIcon sx={{ color: "text.secondary", minWidth: 40 }}>
             <HelpOutlineIcon />
           </ListItemIcon>
           <ListItemText primary="Help & Support" />
-        </ListItem>
+        </ListItemButton>
       </List>
     </div>
   );
@@ -118,14 +115,11 @@ const Sidebar = ({ mobileOpen, onClose, isMobile }) => {
       component="nav"
       sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
     >
-      {/* Mobile drawer */}
       <Drawer
         variant="temporary"
         open={mobileOpen}
         onClose={onClose}
-        ModalProps={{
-          keepMounted: true, // Better open performance on mobile
-        }}
+        ModalProps={{ keepMounted: true }}
         sx={{
           display: { xs: "block", sm: "none" },
           "& .MuiDrawer-paper": {
@@ -138,7 +132,6 @@ const Sidebar = ({ mobileOpen, onClose, isMobile }) => {
         {drawer}
       </Drawer>
 
-      {/* Desktop drawer */}
       <Drawer
         variant="permanent"
         sx={{
