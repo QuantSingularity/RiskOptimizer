@@ -123,6 +123,19 @@ class PortfolioService:
             )
             return portfolio_data
 
+    def save_portfolio_allocations(
+        self,
+        user_address: str,
+        allocations: Dict[str, float],
+        name: str = "Default Portfolio",
+    ) -> Dict[str, Any]:
+        """
+        Alias for save_portfolio for API compatibility.
+
+        Saves or updates a user's portfolio allocations.
+        """
+        return self.save_portfolio(user_address, allocations, name)
+
     def create_portfolio(
         self,
         user_id: int,

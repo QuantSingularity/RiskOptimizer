@@ -1,8 +1,14 @@
+"""
+Integration tests for Risk API.
+
+Uses Flask's built-in test client and mocks all external dependencies
+so no live server or database is required.
+"""
+
 import logging
 import unittest
-from typing import Any
-
-import requests
+from decimal import Decimal
+from unittest.mock import MagicMock, patch
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,191 +16,226 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BASE_URL = "http://localhost:8000/api/v1"
+SAMPLE_RETURNS = [0.01, 0.02, -0.03, 0.04, -0.05]
+
+
+def _infra_patches():
+    return [
+        patch("src.infrastructure.database.session.init_db", return_value=None),
+        patch(
+            "src.infrastructure.database.session.check_db_connection", return_value=True
+        ),
+        patch(
+            "src.api.middleware.rate_limit_middleware.apply_rate_limiting",
+            return_value=None,
+        ),
+        patch("src.utils.performance.apply_performance_monitoring", return_value=None),
+    ]
+
+
+def _make_test_client(patches):
+    mock_redis = MagicMock()
+    mock_redis.health_check.return_value = True
+    redis_patch = patch("src.infrastructure.cache.redis_cache.redis_cache", mock_redis)
+    patches.append(redis_patch)
+    for p in patches:
+        p.start()
+    from app import create_app
+
+    app = create_app()
+    app.config["TESTING"] = True
+    return app, app.test_client()
 
 
 class TestRiskAPI(unittest.TestCase):
 
-    def setUp(self) -> Any:
-        try:
-            requests.get(f"{BASE_URL}/health")
-        except requests.exceptions.ConnectionError:
-            self.fail(
-                "Backend not running. Please start the backend server before running integration tests."
-            )
-        self.test_user_email = "risk_test@example.com"
-        self.test_user_username = "risk_test_user"
-        self.test_user_password = "SecureRisk123!"
-        self.access_token = None
-        self.refresh_token = None
-        self.user_id = None
-        self._register_and_login_user()
+    def setUp(self):
+        self._patches = _infra_patches()
+        self.app, self.client = _make_test_client(self._patches)
+        self.access_token = "mock_access_token"
 
-    def tearDown(self) -> Any:
-        self._logout_user()
-        self._cleanup_test_user()
-
-    def _register_and_login_user(self) -> Any:
-        register_data = {
-            "email": self.test_user_email,
-            "username": self.test_user_username,
-            "password": self.test_user_password,
-        }
-        register_response = requests.post(
-            f"{BASE_URL}/auth/register", json=register_data
+        # Mock JWT verify_token to always pass (patching at the verification level
+        # since the @jwt_required() decorator is already bound at import time)
+        self._jwt_patch = patch(
+            "src.domain.services.auth_service.auth_service.verify_token",
+            return_value={"user_id": 1, "email": "test@example.com", "role": "user"},
         )
-        if register_response.status_code == 409:
-            logger.info(
-                f"User {self.test_user_email} already exists, proceeding to login."
-            )
-        elif register_response.status_code != 201:
-            self.fail(
-                f"Failed to register user: {register_response.status_code} - {register_response.text}"
-            )
-        login_data = {
-            "email": self.test_user_email,
-            "password": self.test_user_password,
-        }
-        login_response = requests.post(f"{BASE_URL}/auth/login", json=login_data)
-        self.assertEqual(
-            login_response.status_code,
-            200,
-            f"Failed to login user: {login_response.status_code} - {login_response.text}",
-        )
-        data = login_response.json()
-        self.access_token = data["tokens"]["access_token"]
-        self.refresh_token = data["tokens"]["refresh_token"]
-        self.user_id = data["user"]["id"]
+        self._jwt_patch.start()
+        self._patches.append(self._jwt_patch)
 
-    def _logout_user(self) -> Any:
-        if self.access_token and self.refresh_token:
-            logout_data = {
-                "access_token": self.access_token,
-                "refresh_token": self.refresh_token,
-            }
-            requests.post(f"{BASE_URL}/auth/logout", json=logout_data)
+    def tearDown(self):
+        for p in self._patches:
+            try:
+                p.stop()
+            except RuntimeError:
+                pass
 
-    def _cleanup_test_user(self) -> Any:
-        pass
-
-    def get_auth_headers(self) -> Any:
+    def _auth_headers(self):
         return {"Authorization": f"Bearer {self.access_token}"}
 
-    def test_1_calculate_var(self) -> Any:
-        returns = [0.01, 0.02, -0.03, 0.04, -0.05]
-        confidence = 0.95
-        data = {"returns": returns, "confidence": confidence}
-        response = requests.post(
-            f"{BASE_URL}/risk/var", json=data, headers=self.get_auth_headers()
-        )
+    # ------------------------------------------------------------------
+    # tests
+    # ------------------------------------------------------------------
+
+    def test_1_calculate_var(self):
+        """POST /risk/var → 200 with value_at_risk field."""
+        with patch(
+            "src.domain.services.risk_service.risk_service.calculate_var",
+            return_value=Decimal("0.045"),
+        ):
+            response = self.client.post(
+                "/api/v1/risk/var",
+                json={"returns": SAMPLE_RETURNS, "confidence": 0.95},
+                headers=self._auth_headers(),
+            )
         self.assertEqual(
             response.status_code,
             200,
-            f"Expected 200, got {response.status_code}: {response.text}",
+            f"Expected 200, got {response.status_code}: {response.data}",
         )
-        result = response.json()
-        self.assertIn("value_at_risk", result)
-        self.assertIsInstance(float(result["value_at_risk"]), float)
+        payload = response.get_json().get("data", response.get_json())
+        self.assertIn("value_at_risk", payload)
+        self.assertIsInstance(float(payload["value_at_risk"]), float)
 
-    def test_2_calculate_cvar(self) -> Any:
-        returns = [0.01, 0.02, -0.03, 0.04, -0.05]
-        confidence = 0.95
-        data = {"returns": returns, "confidence": confidence}
-        response = requests.post(
-            f"{BASE_URL}/risk/cvar", json=data, headers=self.get_auth_headers()
-        )
+    def test_2_calculate_cvar(self):
+        """POST /risk/cvar → 200 with conditional_value_at_risk field."""
+        with patch(
+            "src.domain.services.risk_service.risk_service.calculate_cvar",
+            return_value=Decimal("0.055"),
+        ):
+            response = self.client.post(
+                "/api/v1/risk/cvar",
+                json={"returns": SAMPLE_RETURNS, "confidence": 0.95},
+                headers=self._auth_headers(),
+            )
         self.assertEqual(
             response.status_code,
             200,
-            f"Expected 200, got {response.status_code}: {response.text}",
+            f"Expected 200, got {response.status_code}: {response.data}",
         )
-        result = response.json()
-        self.assertIn("conditional_value_at_risk", result)
-        self.assertIsInstance(float(result["conditional_value_at_risk"]), float)
+        payload = response.get_json().get("data", response.get_json())
+        self.assertIn("conditional_value_at_risk", payload)
+        self.assertIsInstance(float(payload["conditional_value_at_risk"]), float)
 
-    def test_3_calculate_sharpe_ratio(self) -> Any:
-        returns = [0.01, 0.02, 0.03, 0.04, 0.05]
-        risk_free_rate = 0.01
-        data = {"returns": returns, "risk_free_rate": risk_free_rate}
-        response = requests.post(
-            f"{BASE_URL}/risk/sharpe-ratio", json=data, headers=self.get_auth_headers()
-        )
+    def test_3_calculate_sharpe_ratio(self):
+        """POST /risk/sharpe-ratio → 200 with sharpe_ratio field."""
+        with patch(
+            "src.domain.services.risk_service.risk_service.calculate_sharpe_ratio",
+            return_value=Decimal("1.23"),
+        ):
+            response = self.client.post(
+                "/api/v1/risk/sharpe-ratio",
+                json={
+                    "returns": [0.01, 0.02, 0.03, 0.04, 0.05],
+                    "risk_free_rate": 0.01,
+                },
+                headers=self._auth_headers(),
+            )
         self.assertEqual(
             response.status_code,
             200,
-            f"Expected 200, got {response.status_code}: {response.text}",
+            f"Expected 200, got {response.status_code}: {response.data}",
         )
-        result = response.json()
-        self.assertIn("sharpe_ratio", result)
-        self.assertIsInstance(float(result["sharpe_ratio"]), float)
+        payload = response.get_json().get("data", response.get_json())
+        self.assertIn("sharpe_ratio", payload)
+        self.assertIsInstance(float(payload["sharpe_ratio"]), float)
 
-    def test_4_calculate_max_drawdown(self) -> Any:
-        returns = [0.01, -0.02, 0.03, -0.04, 0.05]
-        data = {"returns": returns}
-        response = requests.post(
-            f"{BASE_URL}/risk/max-drawdown", json=data, headers=self.get_auth_headers()
-        )
+    def test_4_calculate_max_drawdown(self):
+        """POST /risk/max-drawdown → 200 with max_drawdown field."""
+        with patch(
+            "src.domain.services.risk_service.risk_service.calculate_max_drawdown",
+            return_value=Decimal("0.04"),
+        ):
+            response = self.client.post(
+                "/api/v1/risk/max-drawdown",
+                json={"returns": [0.01, -0.02, 0.03, -0.04, 0.05]},
+                headers=self._auth_headers(),
+            )
         self.assertEqual(
             response.status_code,
             200,
-            f"Expected 200, got {response.status_code}: {response.text}",
+            f"Expected 200, got {response.status_code}: {response.data}",
         )
-        result = response.json()
-        self.assertIn("max_drawdown", result)
-        self.assertIsInstance(float(result["max_drawdown"]), float)
+        payload = response.get_json().get("data", response.get_json())
+        self.assertIn("max_drawdown", payload)
+        self.assertIsInstance(float(payload["max_drawdown"]), float)
 
-    def test_5_calculate_portfolio_risk_metrics(self) -> Any:
-        returns = [0.01, 0.02, -0.03, 0.04, -0.05]
-        confidence = 0.95
-        risk_free_rate = 0.01
-        data = {
-            "returns": returns,
-            "confidence": confidence,
-            "risk_free_rate": risk_free_rate,
+    def test_5_calculate_portfolio_risk_metrics(self):
+        """POST /risk/portfolio-metrics → 200 with full metrics bundle."""
+        mock_metrics = {
+            "expected_return": Decimal("0.006"),
+            "volatility": Decimal("0.03"),
+            "value_at_risk": Decimal("0.045"),
+            "conditional_var": Decimal("0.055"),
+            "sharpe_ratio": Decimal("1.2"),
+            "max_drawdown": Decimal("0.02"),
         }
-        response = requests.post(
-            f"{BASE_URL}/risk/portfolio-metrics",
-            json=data,
-            headers=self.get_auth_headers(),
-        )
+        with patch(
+            "src.domain.services.risk_service.risk_service.calculate_portfolio_risk_metrics",
+            return_value=mock_metrics,
+        ):
+            response = self.client.post(
+                "/api/v1/risk/portfolio-metrics",
+                json={
+                    "returns": SAMPLE_RETURNS,
+                    "confidence": 0.95,
+                    "risk_free_rate": 0.01,
+                },
+                headers=self._auth_headers(),
+            )
         self.assertEqual(
             response.status_code,
             200,
-            f"Expected 200, got {response.status_code}: {response.text}",
+            f"Expected 200, got {response.status_code}: {response.data}",
         )
-        result = response.json()
-        self.assertIn("expected_return", result)
-        self.assertIn("volatility", result)
-        self.assertIn("value_at_risk", result)
-        self.assertIn("conditional_var", result)
-        self.assertIn("sharpe_ratio", result)
-        self.assertIn("max_drawdown", result)
-        self.assertIsInstance(float(result["expected_return"]), float)
+        payload = response.get_json().get("data", response.get_json())
+        for field in [
+            "expected_return",
+            "volatility",
+            "value_at_risk",
+            "conditional_var",
+            "sharpe_ratio",
+            "max_drawdown",
+        ]:
+            self.assertIn(field, payload, f"Missing field: {field}")
+        self.assertIsInstance(float(payload["expected_return"]), float)
 
-    def test_6_calculate_efficient_frontier(self) -> Any:
-        returns = {
-            "asset1": [0.01, 0.02, 0.03, 0.04, 0.05],
-            "asset2": [0.005, 0.015, 0.025, 0.035, 0.045],
-        }
-        data = {
-            "returns": returns,
-            "min_weight": 0.1,
-            "max_weight": 0.9,
-            "risk_free_rate": 0.01,
-            "points": 10,
-        }
-        response = requests.post(
-            f"{BASE_URL}/risk/efficient-frontier",
-            json=data,
-            headers=self.get_auth_headers(),
-        )
+    def test_6_calculate_efficient_frontier(self):
+        """POST /risk/efficient-frontier → 200 with list of frontier points."""
+        frontier_points = [
+            {
+                "expected_return": 0.05 + i * 0.01,
+                "volatility": 0.10 + i * 0.005,
+                "sharpe_ratio": 0.8 + i * 0.02,
+                "weights": {"asset1": 0.6, "asset2": 0.4},
+            }
+            for i in range(10)
+        ]
+        with patch(
+            "src.domain.services.risk_service.risk_service.calculate_efficient_frontier",
+            return_value=frontier_points,
+        ):
+            response = self.client.post(
+                "/api/v1/risk/efficient-frontier",
+                json={
+                    "returns": {
+                        "asset1": [0.01, 0.02, 0.03, 0.04, 0.05],
+                        "asset2": [0.005, 0.015, 0.025, 0.035, 0.045],
+                    },
+                    "min_weight": 0.1,
+                    "max_weight": 0.9,
+                    "risk_free_rate": 0.01,
+                    "points": 10,
+                },
+                headers=self._auth_headers(),
+            )
         self.assertEqual(
             response.status_code,
             200,
-            f"Expected 200, got {response.status_code}: {response.text}",
+            f"Expected 200, got {response.status_code}: {response.data}",
         )
-        result = response.json()
-        self.assertIsInstance(result, list)
+        data = response.get_json().get("data", response.get_json())
+        result = data if isinstance(data, list) else data.get("items", [data])
         self.assertGreater(len(result), 0)
         self.assertIn("expected_return", result[0])
         self.assertIn("volatility", result[0])

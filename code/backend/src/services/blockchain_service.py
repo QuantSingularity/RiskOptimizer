@@ -15,8 +15,8 @@ _project_root = os.path.dirname(
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+from blockchain.services.blockchain_service import NETWORKS  # noqa: F401
 from blockchain.services.blockchain_service import (
-    NETWORKS,  # noqa: F401
     BlockchainService,
     get_blockchain_service,
 )

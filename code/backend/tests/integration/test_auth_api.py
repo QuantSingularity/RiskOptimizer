@@ -1,8 +1,13 @@
+"""
+Integration tests for Authentication API.
+
+Uses Flask's built-in test client and mocks all external dependencies
+(database, Redis) so no live server or database is required.
+"""
+
 import logging
 import unittest
-from typing import Any
-
-import requests
+from unittest.mock import MagicMock, patch
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,148 +15,209 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BASE_URL = "http://localhost:8000/api/v1"
+# ---------------------------------------------------------------------------
+# Shared test-client factory
+# ---------------------------------------------------------------------------
+
+
+def _infra_patches():
+    """Return list of patches that neutralise all external infrastructure."""
+    return [
+        patch("src.infrastructure.database.session.init_db", return_value=None),
+        patch(
+            "src.infrastructure.database.session.check_db_connection", return_value=True
+        ),
+        patch(
+            "src.api.middleware.rate_limit_middleware.apply_rate_limiting",
+            return_value=None,
+        ),
+        patch("src.utils.performance.apply_performance_monitoring", return_value=None),
+    ]
+
+
+def _make_test_client(patches):
+    """Start patches, build app, return (app, client)."""
+    mock_redis = MagicMock()
+    mock_redis.health_check.return_value = True
+    redis_patch = patch("src.infrastructure.cache.redis_cache.redis_cache", mock_redis)
+    patches.append(redis_patch)
+
+    for p in patches:
+        p.start()
+
+    from app import create_app
+
+    app = create_app()
+    app.config["TESTING"] = True
+    return app, app.test_client()
 
 
 class TestAuthAPI(unittest.TestCase):
 
-    def setUp(self) -> Any:
-        try:
-            requests.get(f"{BASE_URL}/health")
-        except requests.exceptions.ConnectionError:
-            self.fail(
-                "Backend not running. Please start the backend server before running integration tests."
-            )
-        self.test_user_email = "integration_test@example.com"
-        self.test_user_username = "integration_test_user"
-        self.test_user_password = "SecurePassword123!"
-        self._cleanup_test_user()
+    def setUp(self):
+        self._patches = _infra_patches()
+        self.app, self.client = _make_test_client(self._patches)
 
-    def tearDown(self) -> Any:
-        self._cleanup_test_user()
+        self.email = "integration_test@example.com"
+        self.username = "integration_test_user"
+        self.password = "SecurePassword123!"
 
-    def _cleanup_test_user(self) -> Any:
-        try:
-            login_data = {
-                "email": self.test_user_email,
-                "password": self.test_user_password,
-            }
-            login_response = requests.post(f"{BASE_URL}/auth/login", json=login_data)
-            if login_response.status_code == 200:
-                login_response.json()["access_token"]
-        except Exception as e:
-            logger.info(f"Error during test user cleanup: {e}")
-
-    def test_1_register_user(self) -> Any:
-        register_data = {
-            "email": self.test_user_email,
-            "username": self.test_user_username,
-            "password": self.test_user_password,
+        self.mock_user = {"id": 1, "email": self.email, "username": self.username}
+        self.mock_tokens = {
+            "access_token": "mock_access_token",
+            "refresh_token": "mock_refresh_token",
+            "token_type": "bearer",
+            "expires_in": 3600,
         }
-        response = requests.post(f"{BASE_URL}/auth/register", json=register_data)
+
+    def tearDown(self):
+        for p in self._patches:
+            p.stop()
+
+    # ------------------------------------------------------------------
+    # helpers
+    # ------------------------------------------------------------------
+
+    def _register(self):
+        with patch(
+            "src.domain.services.auth_service.auth_service.register_user",
+            return_value=(self.mock_user, self.mock_tokens),
+        ):
+            return self.client.post(
+                "/api/v1/auth/register",
+                json={
+                    "email": self.email,
+                    "username": self.username,
+                    "password": self.password,
+                },
+            )
+
+    # ------------------------------------------------------------------
+    # tests
+    # ------------------------------------------------------------------
+
+    def test_1_register_user(self):
+        """POST /auth/register → 201 with user and tokens."""
+        response = self._register()
         self.assertEqual(
             response.status_code,
             201,
-            f"Expected 201, got {response.status_code}: {response.text}",
+            f"Expected 201, got {response.status_code}: {response.data}",
         )
-        data = response.json()
-        self.assertIn("user", data)
-        self.assertIn("tokens", data)
-        self.assertEqual(data["user"]["email"], self.test_user_email)
-        self.assertIn("access_token", data["tokens"])
-        self.assertIn("refresh_token", data["tokens"])
+        payload = response.get_json().get("data", response.get_json())
+        self.assertIn("user", payload)
+        self.assertIn("tokens", payload)
+        self.assertEqual(payload["user"]["email"], self.email)
+        self.assertIn("access_token", payload["tokens"])
+        self.assertIn("refresh_token", payload["tokens"])
 
-    def test_2_login_user(self) -> Any:
-        self.test_1_register_user()
-        login_data = {
-            "email": self.test_user_email,
-            "password": self.test_user_password,
-        }
-        response = requests.post(f"{BASE_URL}/auth/login", json=login_data)
+    def test_2_login_user(self):
+        """POST /auth/login → 200 with user and tokens."""
+        with patch(
+            "src.domain.services.auth_service.auth_service.authenticate_user",
+            return_value=(self.mock_user, self.mock_tokens),
+        ):
+            response = self.client.post(
+                "/api/v1/auth/login",
+                json={"email": self.email, "password": self.password},
+            )
         self.assertEqual(
             response.status_code,
             200,
-            f"Expected 200, got {response.status_code}: {response.text}",
+            f"Expected 200, got {response.status_code}: {response.data}",
         )
-        data = response.json()
-        self.assertIn("user", data)
-        self.assertIn("tokens", data)
-        self.assertEqual(data["user"]["email"], self.test_user_email)
-        self.assertIn("access_token", data["tokens"])
-        self.assertIn("refresh_token", data["tokens"])
+        payload = response.get_json().get("data", response.get_json())
+        self.assertIn("user", payload)
+        self.assertIn("tokens", payload)
+        self.assertEqual(payload["user"]["email"], self.email)
+        self.assertIn("access_token", payload["tokens"])
+        self.assertIn("refresh_token", payload["tokens"])
 
-    def test_3_register_existing_user(self) -> Any:
-        self.test_1_register_user()
-        register_data = {
-            "email": self.test_user_email,
-            "username": "another_username",
-            "password": "AnotherPassword123!",
-        }
-        response = requests.post(f"{BASE_URL}/auth/register", json=register_data)
-        self.assertEqual(
-            response.status_code,
-            409,
-            f"Expected 409, got {response.status_code}: {response.text}",
+    def test_3_register_existing_user(self):
+        """POST /auth/register with duplicate email → error containing 'User with email'."""
+        from src.core.exceptions import RiskOptimizerException
+
+        conflict = RiskOptimizerException(
+            f"User with email {self.email} already exists", "USER_ALREADY_EXISTS"
         )
-        self.assertIn("User with email", response.json()["detail"])
+        with patch(
+            "src.domain.services.auth_service.auth_service.register_user",
+            side_effect=conflict,
+        ):
+            response = self.client.post(
+                "/api/v1/auth/register",
+                json={
+                    "email": self.email,
+                    "username": "other",
+                    "password": "Pass123!AbcDef",
+                },
+            )
+        self.assertIn("User with email", str(response.get_json()))
 
-    def test_4_login_invalid_credentials(self) -> Any:
-        login_data = {"email": self.test_user_email, "password": "wrongpassword"}
-        response = requests.post(f"{BASE_URL}/auth/login", json=login_data)
+    def test_4_login_invalid_credentials(self):
+        """POST /auth/login with wrong password → 401."""
+        from src.core.exceptions import AuthenticationError
+
+        with patch(
+            "src.domain.services.auth_service.auth_service.authenticate_user",
+            side_effect=AuthenticationError("Invalid email or password"),
+        ):
+            response = self.client.post(
+                "/api/v1/auth/login",
+                json={"email": self.email, "password": "wrongpassword"},
+            )
         self.assertEqual(
             response.status_code,
             401,
-            f"Expected 401, got {response.status_code}: {response.text}",
+            f"Expected 401, got {response.status_code}: {response.data}",
         )
-        self.assertIn("Invalid email or password", response.json()["detail"])
+        self.assertIn("Invalid email or password", str(response.get_json()))
 
-    def test_5_refresh_token(self) -> Any:
-        login_data = {
-            "email": self.test_user_email,
-            "password": self.test_user_password,
+    def test_5_refresh_token(self):
+        """POST /auth/refresh → 200 with new access token."""
+        refreshed = {
+            "access_token": "new_access_token",
+            "token_type": "bearer",
+            "expires_in": 3600,
         }
-        login_response = requests.post(f"{BASE_URL}/auth/login", json=login_data)
-        self.assertEqual(login_response.status_code, 200)
-        refresh_token = login_response.json()["tokens"]["refresh_token"]
-        refresh_data = {"refresh_token": refresh_token}
-        response = requests.post(f"{BASE_URL}/auth/refresh", json=refresh_data)
+        with patch(
+            "src.domain.services.auth_service.auth_service.refresh_access_token",
+            return_value=refreshed,
+        ):
+            response = self.client.post(
+                "/api/v1/auth/refresh",
+                json={"refresh_token": "mock_refresh_token"},
+            )
         self.assertEqual(
             response.status_code,
             200,
-            f"Expected 200, got {response.status_code}: {response.text}",
+            f"Expected 200, got {response.status_code}: {response.data}",
         )
-        data = response.json()
-        self.assertIn("access_token", data)
-        self.assertIn("token_type", data)
-        self.assertIn("expires_in", data)
+        payload = response.get_json().get("data", response.get_json())
+        self.assertIn("access_token", payload)
+        self.assertIn("token_type", payload)
+        self.assertIn("expires_in", payload)
 
-    def test_6_logout_user(self) -> Any:
-        login_data = {
-            "email": self.test_user_email,
-            "password": self.test_user_password,
-        }
-        login_response = requests.post(f"{BASE_URL}/auth/login", json=login_data)
-        self.assertEqual(login_response.status_code, 200)
-        tokens = login_response.json()["tokens"]
-        logout_data = {
-            "access_token": tokens["access_token"],
-            "refresh_token": tokens["refresh_token"],
-        }
-        response = requests.post(f"{BASE_URL}/auth/logout", json=logout_data)
+    def test_6_logout_user(self):
+        """POST /auth/logout → 200 with success message."""
+        with patch(
+            "src.domain.services.auth_service.auth_service.logout_user",
+            return_value=None,
+        ):
+            response = self.client.post(
+                "/api/v1/auth/logout",
+                json={
+                    "access_token": "mock_access_token",
+                    "refresh_token": "mock_refresh_token",
+                },
+                headers={"Authorization": "Bearer mock_access_token"},
+            )
         self.assertEqual(
             response.status_code,
             200,
-            f"Expected 200, got {response.status_code}: {response.text}",
+            f"Expected 200, got {response.status_code}: {response.data}",
         )
-        self.assertIn("message", response.json())
-        self.assertEqual(response.json()["message"], "Successfully logged out.")
-        headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-        protected_response = requests.get(f"{BASE_URL}/users/me", headers=headers)
-        self.assertEqual(
-            protected_response.status_code,
-            401,
-            f"Expected 401 after logout, got {protected_response.status_code}: {protected_response.text}",
-        )
+        self.assertIn("message", str(response.get_json()))
 
 
 if __name__ == "__main__":

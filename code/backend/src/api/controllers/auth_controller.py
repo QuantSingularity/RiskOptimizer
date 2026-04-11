@@ -14,6 +14,7 @@ from src.api.schemas.auth_schema import (
 )
 from src.core.exceptions import (
     AuthenticationError,
+    ConflictError,
     RiskOptimizerException,
     ValidationError,
 )
@@ -180,6 +181,11 @@ def register() -> Response:
         logger.warning(f"Validation error during registration: {str(e)}")
         response = create_error_response(e)
         return jsonify(response), 400
+
+    except ConflictError as e:
+        logger.warning(f"Conflict during registration: {str(e)}")
+        response = create_error_response(e)
+        return jsonify(response), 409
 
     except RiskOptimizerException as e:
         logger.error(f"Error during registration: {str(e)}", exc_info=True)

@@ -363,7 +363,7 @@ def save_portfolio() -> Response:
         validated_data = validate_portfolio_request(data)
 
         # Save portfolio
-        portfolio_data = portfolio_service.save_portfolio(
+        portfolio_data = portfolio_service.save_portfolio_allocations(
             user_address=validated_data["user_address"],
             allocations=validated_data["allocations"],
             name=validated_data.get("name", "Default Portfolio"),
@@ -641,9 +641,11 @@ def get_user_portfolios(user_id: int) -> Response:
         # Get user portfolios with pagination
         portfolios = portfolio_service.get_user_portfolios(user_id)
 
-        # Create paginated response
+        # Create paginated response, passing user_id so url_for can build links correctly
         response = create_paginated_response(
-            portfolios, transform_func=lambda p: p  # No transformation needed
+            portfolios,
+            transform_func=lambda p: p,  # No transformation needed
+            endpoint_kwargs={"user_id": user_id},
         )
 
         logger.info(f"Retrieved portfolios for user ID: {user_id}")

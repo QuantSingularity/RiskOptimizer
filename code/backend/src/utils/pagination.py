@@ -192,6 +192,7 @@ def create_paginated_response(
     transform_func: Optional[Callable[[T], Any]] = None,
     page: Optional[int] = None,
     per_page: Optional[int] = None,
+    endpoint_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Create a standardized paginated response.
@@ -201,6 +202,7 @@ def create_paginated_response(
         transform_func: Function to transform each item (optional)
         page: Page number (optional, defaults to request parameter)
         per_page: Number of items per page (optional, defaults to request parameter)
+        endpoint_kwargs: Extra URL path parameters required by the endpoint (e.g. {'user_id': 42})
 
     Returns:
         Standardized paginated response
@@ -228,16 +230,17 @@ def create_paginated_response(
         },
     }
     if request.endpoint:
+        extra_kwargs = {
+            k: v for k, v in dict(request.args).items() if k not in ["page", "per_page"]
+        }
+        if endpoint_kwargs:
+            extra_kwargs.update(endpoint_kwargs)
         links = get_pagination_links(
             request.endpoint,
             paginated.page,
             paginated.per_page,
             paginated.total,
-            **{
-                k: v
-                for k, v in dict(request.args).items()
-                if k not in ["page", "per_page"]
-            },
+            **extra_kwargs,
         )
         response["meta"]["links"] = links
     return response

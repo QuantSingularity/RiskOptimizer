@@ -20,9 +20,8 @@ def validate_email(email: Any) -> str:
     if not email or not isinstance(email, str):
         raise ValidationError("Email is required", "email", email)
 
-    # More robust email validation regex based on RFC 5322
-    # This regex is complex, a simpler one might be preferred for UX, but this is more accurate.
-    email_regex = r"(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*\"@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x5c-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"
+    # Standard email validation regex
+    email_regex = r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
     if not re.match(email_regex, email, re.IGNORECASE):
         raise ValidationError("Invalid email format", "email", email)
 

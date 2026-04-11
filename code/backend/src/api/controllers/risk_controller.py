@@ -500,7 +500,7 @@ def calculate_max_drawdown() -> Response:
         return jsonify(response), 500
 
 
-@risk_bp.route("/metrics", methods=["POST"])
+@risk_bp.route("/portfolio-metrics", methods=["POST"])
 @jwt_required()
 def calculate_risk_metrics() -> Response:
     """
@@ -757,7 +757,7 @@ def calculate_efficient_frontier() -> Response:
                     serialized_point[k] = v
             serialized_points.append(serialized_point)
         response = create_success_response(
-            data={"frontier_points": serialized_points},
+            data=serialized_points,
             message="Efficient frontier calculated successfully",
             meta={
                 "assets": list(validated_data["returns"].keys()),
