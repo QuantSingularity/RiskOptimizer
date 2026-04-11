@@ -15,7 +15,7 @@ import pandas as pd
 from scipy.optimize import minimize
 
 try:
-    from ai_models.optimization_model import AdvancedPortfolioOptimizer
+    from quant_ml.ai_models.optimization_model import AdvancedPortfolioOptimizer
 except ImportError:
     AdvancedPortfolioOptimizer = None
 
@@ -31,6 +31,7 @@ sys.path.append(
 
 MODEL_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "quant_ml",
     "ai_models",
 )
 DEFAULT_MODEL_PATH = os.path.join(MODEL_DIR, "trained_model.joblib")

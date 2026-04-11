@@ -12,10 +12,13 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 warnings.filterwarnings("ignore")
+
+# FIX: nltk raises LookupError (not nltk.downloader.DownloadError) when data is missing
 try:
     nltk.data.find("sentiment/vader_lexicon.zip")
-except nltk.downloader.DownloadError:
-    nltk.download("vader_lexicon")
+except LookupError:
+    nltk.download("vader_lexicon", quiet=True)
+
 DATA_DIR = "data"
 
 
@@ -42,6 +45,7 @@ def load_price_data(ticker: str, data_dir: str = DATA_DIR) -> pd.DataFrame:
 def prophet_forecast(df: pd.DataFrame, ticker: str, periods: int = 30) -> Any:
     """
     Trains a Prophet model and forecasts future price movements.
+
     :param df: DataFrame with 'ds' and 'y' columns.
     :param ticker: The stock ticker symbol for logging purposes.
     :param periods: The number of future days to forecast.
@@ -63,18 +67,19 @@ def prophet_forecast(df: pd.DataFrame, ticker: str, periods: int = 30) -> Any:
 
 
 def analyze_sentiment(
-    text_list: list[str],
+    text_list: list,
     positive_threshold: float = 0.05,
     negative_threshold: float = -0.05,
 ) -> pd.DataFrame:
     """
     Performs sentiment analysis on a list of text snippets using NLTK's VADER.
+
     :param text_list: A list of strings to analyze.
     :param positive_threshold: The threshold for classifying sentiment as positive.
     :param negative_threshold: The threshold for classifying sentiment as negative.
     """
     if not isinstance(text_list, list) or not all(
-        (isinstance(elem, str) for elem in text_list)
+        isinstance(elem, str) for elem in text_list
     ):
         raise TypeError("Input 'text_list' must be a list of strings.")
     logging.info("--- Sentiment Analysis (VADER) ---")

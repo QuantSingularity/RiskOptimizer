@@ -12,13 +12,16 @@ It demonstrates how to:
 import logging
 import os
 import sys
-from typing import Any
+from typing import Any, Dict, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+# FIX: insert the parent of training_scripts (i.e. ai_models/) so that the
+# sibling module optimization_model can be imported directly.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from optimization_model import AdvancedPortfolioOptimizer
 from sklearn.metrics import mean_squared_error, r2_score
 
@@ -29,10 +32,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_sample_data() -> Any:
+def load_sample_data() -> pd.DataFrame:
     """
-    Load sample market data for training
-    In production, this would load from a database or API
+    Load sample market data for training.
+    In production, this would load from a database or API.
     """
     np.random.seed(42)
     dates = pd.date_range(start="2020-01-01", end="2023-12-31", freq="B")
@@ -61,9 +64,11 @@ def load_sample_data() -> Any:
     return data
 
 
-def train_and_evaluate_model(data: Any, risk_tolerance: Any = 5) -> Any:
+def train_and_evaluate_model(
+    data: pd.DataFrame, risk_tolerance: int = 5
+) -> Tuple[AdvancedPortfolioOptimizer, Dict[str, Any]]:
     """
-    Train the model and evaluate its performance
+    Train the model and evaluate its performance.
 
     Args:
         data: DataFrame with historical price data
@@ -83,7 +88,7 @@ def train_and_evaluate_model(data: Any, risk_tolerance: Any = 5) -> Any:
     r2 = r2_score(y_test, y_pred)
     logger.info("Model evaluation metrics:")
     logger.info(f"Mean Squared Error: {mse:.6f}")
-    logger.info(f"R² Score: {r2:.4f}")
+    logger.info(f"R2 Score: {r2:.4f}")
     weights, metrics = optimizer.optimize_portfolio(test_data)
     logger.info("\nOptimal portfolio weights:")
     for asset, weight in weights.items():
@@ -109,9 +114,11 @@ def train_and_evaluate_model(data: Any, risk_tolerance: Any = 5) -> Any:
     )
 
 
-def save_model_visualization(data: Any, optimizer: Any, output_dir: Any) -> Any:
+def save_model_visualization(
+    data: pd.DataFrame, optimizer: AdvancedPortfolioOptimizer, output_dir: str
+) -> None:
     """
-    Generate and save visualizations of model performance
+    Generate and save visualizations of model performance.
 
     Args:
         data: DataFrame with historical price data
@@ -120,21 +127,21 @@ def save_model_visualization(data: Any, optimizer: Any, output_dir: Any) -> Any:
     """
     os.makedirs(output_dir, exist_ok=True)
     returns = data.pct_change().dropna()
+    assets = [col for col in data.columns if col != "market_index"]
+    n_assets = len(assets)
     num_portfolios = 1000
     results = np.zeros((3, num_portfolios))
     weights_record = []
-    assets = [col for col in data.columns if col != "market_index"]
-    n_assets = len(assets)
     for i in range(num_portfolios):
-        weights = np.random.random(n_assets)
-        weights /= np.sum(weights)
-        weights_record.append(weights)
-        portfolio_return = np.sum(returns.mean() * weights) * 252
-        portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(returns.cov() * 252, weights)))
-        sharpe_ratio = portfolio_return / portfolio_vol
-        results[0, i] = portfolio_return
-        results[1, i] = portfolio_vol
-        results[2, i] = sharpe_ratio
+        w = np.random.random(n_assets)
+        w /= np.sum(w)
+        weights_record.append(w)
+        port_ret = np.sum(returns[assets].mean() * w) * 252
+        port_vol = np.sqrt(np.dot(w.T, np.dot(returns[assets].cov() * 252, w)))
+        sharpe = port_ret / (port_vol + 1e-10)
+        results[0, i] = port_ret
+        results[1, i] = port_vol
+        results[2, i] = sharpe
     optimized_weights, metrics = optimizer.optimize_portfolio(data)
     opt_return = metrics["expected_return"]
     opt_vol = metrics["volatility"]
@@ -157,10 +164,7 @@ def save_model_visualization(data: Any, optimizer: Any, output_dir: Any) -> Any:
     plt.ylabel("Expected Return")
     plt.legend()
     plt.savefig(os.path.join(output_dir, "efficient_frontier.png"))
-    weights = {
-        asset: weight
-        for asset, weight in zip(assets, weights_record[np.argmax(results[2, :])])
-    }
+    plt.close()
     simulation, _ = optimizer.monte_carlo_simulation(data, optimized_weights)
     plt.figure(figsize=(10, 6))
     plt.plot(simulation.iloc[:, :100])
@@ -168,15 +172,17 @@ def save_model_visualization(data: Any, optimizer: Any, output_dir: Any) -> Any:
     plt.xlabel("Trading Days")
     plt.ylabel("Portfolio Value ($)")
     plt.savefig(os.path.join(output_dir, "monte_carlo_simulation.png"))
+    plt.close()
     logger.info(f"Visualizations saved to {output_dir}")
 
 
-def main() -> Any:
-    """Main function to train and save the model"""
+def main() -> None:
+    """Main function to train and save the model."""
     logger.info("Starting advanced model training for RiskOptimizer...")
     data = load_sample_data()
     logger.info(f"Loaded data with {len(data)} rows and {len(data.columns)} columns")
     optimizer, metrics = train_and_evaluate_model(data)
+    # Save model one level up from training_scripts/ (i.e. inside ai_models/)
     model_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     model_path = os.path.join(model_dir, "trained_model.joblib")
     optimizer.save_model(model_path)

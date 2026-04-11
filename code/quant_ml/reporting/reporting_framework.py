@@ -17,12 +17,26 @@ import os
 import uuid
 import warnings
 from io import BytesIO
-from typing import Any
+from typing import Any, Optional
 
 import jinja2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+# FIX: import markdown at module level with a graceful fallback
+try:
+    import markdown as _markdown_module
+
+    def _md_to_html(text: str) -> str:
+        return _markdown_module.markdown(text)
+
+except ImportError:
+    _markdown_module = None
+
+    def _md_to_html(text: str) -> str:
+        return text
+
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -32,7 +46,7 @@ warnings.filterwarnings("ignore")
 
 
 class ReportTemplate:
-    """Report template for risk reports"""
+    """Report template for risk reports."""
 
     def __init__(
         self,
@@ -43,7 +57,7 @@ class ReportTemplate:
         version: Any = "1.0",
     ) -> None:
         """
-        Initialize report template
+        Initialize report template.
 
         Args:
             title: Report title
@@ -67,9 +81,9 @@ class ReportTemplate:
         content: Any = "",
         section_type: Any = "text",
         position: Any = None,
-    ) -> Any:
+    ) -> "ReportTemplate":
         """
-        Add section to template
+        Add section to template.
 
         Args:
             title: Section title
@@ -99,9 +113,9 @@ class ReportTemplate:
         title: Any = None,
         content: Any = None,
         section_type: Any = None,
-    ) -> Any:
+    ) -> bool:
         """
-        Update section in template
+        Update section in template.
 
         Args:
             section_id: ID of section to update
@@ -124,9 +138,9 @@ class ReportTemplate:
                 return True
         return False
 
-    def remove_section(self, section_id: Any) -> Any:
+    def remove_section(self, section_id: Any) -> bool:
         """
-        Remove section from template
+        Remove section from template.
 
         Args:
             section_id: ID of section to remove
@@ -141,13 +155,8 @@ class ReportTemplate:
                 return True
         return False
 
-    def to_dict(self) -> Any:
-        """
-        Convert template to dictionary
-
-        Returns:
-            dict: Template as dictionary
-        """
+    def to_dict(self) -> dict:
+        """Convert template to dictionary."""
         return {
             "id": self.id,
             "title": self.title,
@@ -159,9 +168,9 @@ class ReportTemplate:
             "updated_at": self.updated_at,
         }
 
-    def save(self, filepath: Any) -> Any:
+    def save(self, filepath: Any) -> bool:
         """
-        Save template to file
+        Save template to file.
 
         Args:
             filepath: Path to save template
@@ -180,15 +189,15 @@ class ReportTemplate:
             return False
 
     @classmethod
-    def load(cls: Any, filepath: Any) -> Any:
+    def load(cls, filepath: Any) -> Optional["ReportTemplate"]:
         """
-        Load template from file
+        Load template from file.
 
         Args:
             filepath: Path to load template from
 
         Returns:
-            template: Template instance
+            template: Template instance, or None on error
         """
         try:
             with open(filepath, "r") as f:
@@ -211,11 +220,11 @@ class ReportTemplate:
 
 
 class ReportGenerator:
-    """Report generator for risk reports"""
+    """Report generator for risk reports."""
 
-    def __init__(self, template: Any) -> None:
+    def __init__(self, template: ReportTemplate) -> None:
         """
-        Initialize report generator
+        Initialize report generator.
 
         Args:
             template: Report template
@@ -226,9 +235,14 @@ class ReportGenerator:
             autoescape=jinja2.select_autoescape(["html", "xml"]),
         )
 
-    def generate_html(self, output_path: Any, data: Any = None) -> Any:
+    # FIX: added _get_html_template as the canonical name called by generate_html
+    def _get_html_template(self) -> str:
+        """Return the HTML template string. Delegates to _create_html_template."""
+        return self._create_html_template()
+
+    def generate_html(self, output_path: Any, data: Any = None) -> bool:
         """
-        Generate HTML report
+        Generate HTML report.
 
         Args:
             output_path: Path to save HTML report
@@ -249,9 +263,9 @@ class ReportGenerator:
             logger.error(f"Error generating HTML report: {e}")
             return False
 
-    def generate_pdf(self, filepath: Any, data: Any = None) -> Any:
+    def generate_pdf(self, filepath: Any, data: Any = None) -> bool:
         """
-        Generate PDF report
+        Generate PDF report.
 
         Args:
             filepath: Path to save PDF report
@@ -281,19 +295,66 @@ class ReportGenerator:
             logger.error(f"Error generating PDF report: {e}")
             return False
 
-    def _create_html_template(self) -> Any:
-        """
-        Create HTML template
+    def _create_html_template(self) -> str:
+        """Create and return the HTML template string."""
+        template = """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{{ title }}</title>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333;
+                       max-width: 1200px; margin: 0 auto; padding: 20px; }
+                h1, h2, h3 { color: #2c3e50; }
+                .header { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+                .section { margin-bottom: 30px; }
+                .section-title { border-bottom: 1px solid #eee; padding-bottom: 5px; }
+                table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                .chart { max-width: 100%; height: auto; }
+                .footer { border-top: 1px solid #eee; padding-top: 10px; margin-top: 30px;
+                          font-size: 0.8em; color: #777; }
+                pre { background-color: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+                code { font-family: Consolas, Monaco, 'Andale Mono', monospace; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>{{ title }}</h1>
+                <p>{{ description }}</p>
+                <p><strong>Date:</strong> {{ date }}</p>
+                {% if author %}<p><strong>Author:</strong> {{ author }}</p>{% endif %}
+            </div>
 
-        Returns:
-            template: HTML template string
+            {% for section in sections %}
+            <div class="section">
+                <h2 class="section-title">{{ section.title }}</h2>
+                {% if section.type == 'text' %}
+                    {{ section.content|safe }}
+                {% elif section.type == 'chart' %}
+                    <img class="chart" src="data:image/png;base64,{{ section.content }}" alt="{{ section.title }}">
+                {% elif section.type == 'table' %}
+                    {{ section.content|safe }}
+                {% elif section.type == 'code' %}
+                    <pre><code>{{ section.content }}</code></pre>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="footer">
+                <p>Generated on {{ generated_at }} | Version {{ version }}</p>
+            </div>
+        </body>
+        </html>
         """
-        template = '\n        <!DOCTYPE html>\n        <html lang="en">\n        <head>\n            <meta charset="UTF-8">\n            <meta name="viewport" content="width=device-width, initial-scale=1.0">\n            <title>{{ title }}</title>\n            <style>\n                body {\n                    font-family: Arial, sans-serif;\n                    line-height: 1.6;\n                    color: #333;\n                    max-width: 1200px;\n                    margin: 0 auto;\n                    padding: 20px;\n                }\n                h1, h2, h3 {\n                    color: #2c3e50;\n                }\n                .header {\n                    border-bottom: 1px solid #eee;\n                    padding-bottom: 10px;\n                    margin-bottom: 20px;\n                }\n                .section {\n                    margin-bottom: 30px;\n                }\n                .section-title {\n                    border-bottom: 1px solid #eee;\n                    padding-bottom: 5px;\n                }\n                table {\n                    border-collapse: collapse;\n                    width: 100%;\n                    margin-bottom: 20px;\n                }\n                th, td {\n                    border: 1px solid #ddd;\n                    padding: 8px;\n                    text-align: left;\n                }\n                th {\n                    background-color: #f2f2f2;\n                }\n                .chart {\n                    max-width: 100%;\n                    height: auto;\n                }\n                .footer {\n                    border-top: 1px solid #eee;\n                    padding-top: 10px;\n                    margin-top: 30px;\n                    font-size: 0.8em;\n                    color: #777;\n                }\n                pre {\n                    background-color: #f5f5f5;\n                    padding: 10px;\n                    border-radius: 5px;\n                    overflow-x: auto;\n                }\n                code {\n                    font-family: Consolas, Monaco, \'Andale Mono\', monospace;\n                }\n            </style>\n        </head>\n        <body>\n            <div class="header">\n                <h1>{{ title }}</h1>\n                <p>{{ description }}</p>\n                <p><strong>Date:</strong> {{ date }}</p>\n                {% if author %}\n                <p><strong>Author:</strong> {{ author }}</p>\n                {% endif %}\n            </div>\n\n            {% for section in sections %}\n            <div class="section">\n                <h2 class="section-title">{{ section.title }}</h2>\n                {% if section.type == \'text\' %}\n                    {{ section.content|safe }}\n                {% elif section.type == \'chart\' %}\n                    <img class="chart" src="data:image/png;base64,{{ section.content }}" alt="{{ section.title }}">\n                {% elif section.type == \'table\' %}\n                    {{ section.content|safe }}\n                {% elif section.type == \'code\' %}\n                    <pre><code>{{ section.content }}</code></pre>\n                {% endif %}\n            </div>\n            {% endfor %}\n\n            <div class="footer">\n                <p>Generated on {{ generated_at }} | Version {{ version }}</p>\n            </div>\n        </body>\n        </html>\n        '
         return template
 
-    def _prepare_context(self, data: Any = None) -> Any:
+    def _prepare_context(self, data: Any = None) -> dict:
         """
-        Prepare context for template rendering
+        Prepare context for template rendering.
 
         Args:
             data: Data for report generation
@@ -319,17 +380,17 @@ class ReportGenerator:
                 "content": section["content"],
             }
             if section["type"] == "text":
-                if "##" in section["content"] or "*" in section["content"]:
-                    processed_section["content"] = __import__("markdown").markdown(
-                        section["content"]
-                    )
+                content = section["content"]
+                if isinstance(content, str) and ("##" in content or "*" in content):
+                    # FIX: use module-level helper instead of inline __import__
+                    processed_section["content"] = _md_to_html(content)
             elif section["type"] == "chart":
                 if (
                     isinstance(section["content"], dict)
                     and "chart_type" in section["content"]
                 ):
                     chart_spec = section["content"]
-                    chart_data = data.get(chart_spec.get("data_key", ""), None)
+                    chart_data = (data or {}).get(chart_spec.get("data_key", ""), None)
                     if chart_data is not None:
                         chart_image = self._generate_chart(
                             chart_type=chart_spec["chart_type"],
@@ -343,7 +404,7 @@ class ReportGenerator:
                     and "data_key" in section["content"]
                 ):
                     table_spec = section["content"]
-                    table_data = data.get(table_spec.get("data_key", ""), None)
+                    table_data = (data or {}).get(table_spec.get("data_key", ""), None)
                     if table_data is not None:
                         table_html = self._generate_table(
                             data=table_data, options=table_spec.get("options", {})
@@ -352,13 +413,9 @@ class ReportGenerator:
             context["sections"].append(processed_section)
         return context
 
-    def _render_html(self, template_str: Any, context: Any) -> Any:
-        try:
-            import jinja2
-        except ImportError:
-            jinja2 = None
+    def _render_html(self, template_str: str, context: dict) -> str:
         """
-        Render HTML from template and context
+        Render HTML from template and context.
 
         Args:
             template_str: Template string
@@ -367,13 +424,14 @@ class ReportGenerator:
         Returns:
             html: Rendered HTML
         """
+        # FIX: docstring moved to top of method (was unreachable after try/except)
         template = jinja2.Template(template_str)
         html = template.render(**context)
         return html
 
-    def _generate_chart(self, chart_type: Any, data: Any, options: Any = None) -> Any:
+    def _generate_chart(self, chart_type: Any, data: Any, options: Any = None) -> str:
         """
-        Generate chart image
+        Generate chart image as base64 string.
 
         Args:
             chart_type: Type of chart ('line', 'bar', 'scatter', 'pie', 'heatmap')
@@ -388,7 +446,7 @@ class ReportGenerator:
         if chart_type == "line":
             if isinstance(data, pd.DataFrame):
                 data.plot(ax=ax)
-            elif isinstance(data, dict) and "x" in data and ("y" in data):
+            elif isinstance(data, dict) and "x" in data and "y" in data:
                 ax.plot(data["x"], data["y"])
             else:
                 ax.text(
@@ -402,7 +460,7 @@ class ReportGenerator:
         elif chart_type == "bar":
             if isinstance(data, pd.DataFrame):
                 data.plot(kind="bar", ax=ax)
-            elif isinstance(data, dict) and "x" in data and ("y" in data):
+            elif isinstance(data, dict) and "x" in data and "y" in data:
                 ax.bar(data["x"], data["y"])
             else:
                 ax.text(
@@ -416,7 +474,7 @@ class ReportGenerator:
         elif chart_type == "scatter":
             if isinstance(data, pd.DataFrame) and len(data.columns) >= 2:
                 ax.scatter(data.iloc[:, 0], data.iloc[:, 1])
-            elif isinstance(data, dict) and "x" in data and ("y" in data):
+            elif isinstance(data, dict) and "x" in data and "y" in data:
                 ax.scatter(data["x"], data["y"])
             else:
                 ax.text(
@@ -430,7 +488,7 @@ class ReportGenerator:
         elif chart_type == "pie":
             if isinstance(data, pd.DataFrame) and len(data.columns) >= 2:
                 ax.pie(data.iloc[:, 1], labels=data.iloc[:, 0], autopct="%1.1f%%")
-            elif isinstance(data, dict) and "values" in data and ("labels" in data):
+            elif isinstance(data, dict) and "values" in data and "labels" in data:
                 ax.pie(data["values"], labels=data["labels"], autopct="%1.1f%%")
             else:
                 ax.text(
@@ -463,54 +521,53 @@ class ReportGenerator:
                 va="center",
                 fontsize=12,
             )
+
         if "title" in options:
             ax.set_title(options["title"])
         if "xlabel" in options:
             ax.set_xlabel(options["xlabel"])
         if "ylabel" in options:
             ax.set_ylabel(options["ylabel"])
-        if "grid" in options and options["grid"]:
+        if options.get("grid"):
             ax.grid(True)
-        if "legend" in options and options["legend"]:
+        if options.get("legend"):
             ax.legend()
+
         buffer = BytesIO()
         plt.tight_layout()
         fig.savefig(buffer, format="png")
         plt.close(fig)
         buffer.seek(0)
-        image_base64 = base64.b64encode(buffer.read()).decode("utf-8")
-        return image_base64
+        return base64.b64encode(buffer.read()).decode("utf-8")
 
-    def _generate_table(self, data: Any, options: Any = None) -> Any:
+    def _generate_table(self, data: Any, options: Any = None) -> str:
         """
-        Generate HTML table
+        Generate HTML table.
 
         Args:
             data: Table data (DataFrame or dict)
             options: Table options
 
         Returns:
-            table_html: HTML table
+            table_html: HTML table string
         """
         options = options or {}
         if isinstance(data, dict):
             data = pd.DataFrame(data)
         if isinstance(data, pd.DataFrame):
-            table_html = data.to_html(
+            return data.to_html(
                 index=options.get("show_index", True),
                 classes=options.get("classes", "table table-striped"),
             )
-            return table_html
-        else:
-            return "<p>Invalid data format for table</p>"
+        return "<p>Invalid data format for table</p>"
 
 
 class ReportScheduler:
-    """Scheduler for automated report generation"""
+    """Scheduler for automated report generation."""
 
     def __init__(self, storage_dir: Any = None) -> None:
         """
-        Initialize report scheduler
+        Initialize report scheduler.
 
         Args:
             storage_dir: Directory for report storage
@@ -521,13 +578,8 @@ class ReportScheduler:
         os.makedirs(self.storage_dir, exist_ok=True)
         self.schedules = self._load_schedules()
 
-    def _load_schedules(self) -> Any:
-        """
-        Load schedules from storage
-
-        Returns:
-            schedules: Dictionary of schedules
-        """
+    def _load_schedules(self) -> dict:
+        """Load schedules from storage."""
         schedule_path = os.path.join(self.storage_dir, "schedules.json")
         if os.path.exists(schedule_path):
             try:
@@ -535,16 +587,10 @@ class ReportScheduler:
                     return json.load(f)
             except Exception:
                 return {}
-        else:
-            return {}
+        return {}
 
-    def _save_schedules(self) -> Any:
-        """
-        Save schedules to storage
-
-        Returns:
-            success: Whether save was successful
-        """
+    def _save_schedules(self) -> bool:
+        """Save schedules to storage."""
         schedule_path = os.path.join(self.storage_dir, "schedules.json")
         try:
             with open(schedule_path, "w") as f:
@@ -561,16 +607,16 @@ class ReportScheduler:
         frequency: Any,
         data_provider: Any = None,
         recipients: Any = None,
-    ) -> Any:
+    ) -> bool:
         """
-        Add report schedule
+        Add report schedule.
 
         Args:
             name: Schedule name
             template_path: Path to report template
             output_path: Path for generated reports
             frequency: Schedule frequency ('daily', 'weekly', 'monthly')
-            data_provider: Function to provide data for report
+            data_provider: Callable name (string) to provide data for report
             recipients: List of email recipients
 
         Returns:
@@ -590,71 +636,44 @@ class ReportScheduler:
         }
         return self._save_schedules()
 
-    def remove_schedule(self, schedule_id: Any) -> Any:
-        """
-        Remove report schedule
-
-        Args:
-            schedule_id: ID of schedule to remove
-
-        Returns:
-            success: Whether removal was successful
-        """
+    def remove_schedule(self, schedule_id: Any) -> bool:
+        """Remove report schedule by ID."""
         if schedule_id in self.schedules:
             del self.schedules[schedule_id]
             return self._save_schedules()
-        else:
-            return False
+        return False
 
-    def list_schedules(self) -> Any:
-        """
-        List all schedules
-
-        Returns:
-            schedules: List of schedule summaries
-        """
+    def list_schedules(self) -> list:
+        """List all schedules."""
         return [
             {
-                "id": id,
+                "id": sid,
                 "name": schedule["name"],
                 "frequency": schedule["frequency"],
                 "last_run": schedule["last_run"],
                 "next_run": schedule["next_run"],
             }
-            for id, schedule in self.schedules.items()
+            for sid, schedule in self.schedules.items()
         ]
 
-    def run_scheduled_reports(self) -> Any:
-        """
-        Run all due scheduled reports
-
-        Returns:
-            results: Dictionary of results
-        """
+    def run_scheduled_reports(self) -> dict:
+        """Run all due scheduled reports."""
         now = datetime.datetime.now()
         results = {}
-        for id, schedule in self.schedules.items():
+        for sid, schedule in self.schedules.items():
             next_run = datetime.datetime.fromisoformat(schedule["next_run"])
             if next_run <= now:
-                result = self.run_report(id)
-                results[id] = result
-                self.schedules[id]["last_run"] = now.isoformat()
-                self.schedules[id]["next_run"] = self._calculate_next_run(
+                result = self.run_report(sid)
+                results[sid] = result
+                self.schedules[sid]["last_run"] = now.isoformat()
+                self.schedules[sid]["next_run"] = self._calculate_next_run(
                     schedule["frequency"], now
                 )
         self._save_schedules()
         return results
 
-    def run_report(self, schedule_id: Any) -> Any:
-        """
-        Run specific scheduled report
-
-        Args:
-            schedule_id: ID of schedule to run
-
-        Returns:
-            result: Report generation result
-        """
+    def run_report(self, schedule_id: Any) -> dict:
+        """Run specific scheduled report."""
         if schedule_id not in self.schedules:
             return {"success": False, "error": "Schedule not found"}
         schedule = self.schedules[schedule_id]
@@ -666,7 +685,7 @@ class ReportScheduler:
             data = None
             if schedule["data_provider"]:
                 try:
-                    data = eval(schedule["data_provider"])()
+                    data = eval(schedule["data_provider"])()  # noqa: S307
                 except Exception:
                     return {
                         "success": False,
@@ -683,17 +702,8 @@ class ReportScheduler:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def _calculate_next_run(self, frequency: Any, from_date: Any = None) -> Any:
-        """
-        Calculate next run date
-
-        Args:
-            frequency: Schedule frequency ('daily', 'weekly', 'monthly')
-            from_date: Date to calculate from (default: now)
-
-        Returns:
-            next_run: Next run date as ISO string
-        """
+    def _calculate_next_run(self, frequency: Any, from_date: Any = None) -> str:
+        """Calculate next run date as ISO string."""
         if from_date is None:
             from_date = datetime.datetime.now()
         if frequency == "daily":
@@ -709,32 +719,22 @@ class ReportScheduler:
                 )
         else:
             next_run = from_date + datetime.timedelta(days=1)
-        next_run = datetime.datetime(
+        return datetime.datetime(
             next_run.year, next_run.month, next_run.day, 0, 0, 0
-        )
-        return next_run.isoformat()
+        ).isoformat()
 
-    def _send_report(self, report_path: Any, recipients: Any) -> Any:
-        """
-        Send report to recipients
-
-        Args:
-            report_path: Path to report file
-            recipients: List of email recipients
-
-        Returns:
-            success: Whether sending was successful
-        """
+    def _send_report(self, report_path: Any, recipients: Any) -> bool:
+        """Send report to recipients (stub)."""
         logger.info(f"Sending report {report_path} to {recipients}")
         return True
 
 
 class ReportArchive:
-    """Archive for report versioning and comparison"""
+    """Archive for report versioning and comparison."""
 
     def __init__(self, archive_dir: Any = None) -> None:
         """
-        Initialize report archive
+        Initialize report archive.
 
         Args:
             archive_dir: Directory for report archive
@@ -746,9 +746,9 @@ class ReportArchive:
 
     def archive_report(
         self, report_path: Any, report_type: Any, metadata: Any = None
-    ) -> Any:
+    ) -> Optional[str]:
         """
-        Archive report
+        Archive report.
 
         Args:
             report_path: Path to report file
@@ -756,22 +756,20 @@ class ReportArchive:
             metadata: Additional metadata
 
         Returns:
-            archive_path: Path to archived report
+            archive_path: Path to archived report, or None on failure
         """
         report_type_dir = os.path.join(self.archive_dir, report_type)
         os.makedirs(report_type_dir, exist_ok=True)
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = os.path.basename(report_path)
         base_name, ext = os.path.splitext(filename)
-        archive_filename = f"{base_name}_{timestamp}{ext}"
-        archive_path = os.path.join(report_type_dir, archive_filename)
+        archive_path = os.path.join(report_type_dir, f"{base_name}_{timestamp}{ext}")
         try:
             import shutil
 
             shutil.copy2(report_path, archive_path)
             if metadata:
-                metadata_path = archive_path + ".meta"
-                with open(metadata_path, "w") as f:
+                with open(archive_path + ".meta", "w") as f:
                     json.dump(metadata, f, indent=2)
             logger.info(f"Report archived to {archive_path}")
             return archive_path
@@ -779,17 +777,8 @@ class ReportArchive:
             logger.error(f"Error archiving report: {e}")
             return None
 
-    def list_archived_reports(self, report_type: Any = None, limit: Any = 10) -> Any:
-        """
-        List archived reports
-
-        Args:
-            report_type: Type of report to list (None = all)
-            limit: Maximum number of reports to list
-
-        Returns:
-            reports: List of archived reports
-        """
+    def list_archived_reports(self, report_type: Any = None, limit: int = 10) -> list:
+        """List archived reports."""
         reports = []
         if report_type:
             report_type_dir = os.path.join(self.archive_dir, report_type)
@@ -805,18 +794,8 @@ class ReportArchive:
         reports.sort(key=lambda r: r["timestamp"], reverse=True)
         return reports[:limit]
 
-    def _list_reports_in_dir(self, dir_path: Any, report_type: Any, limit: Any) -> Any:
-        """
-        List reports in directory
-
-        Args:
-            dir_path: Directory path
-            report_type: Type of report
-            limit: Maximum number of reports to list
-
-        Returns:
-            reports: List of reports
-        """
+    def _list_reports_in_dir(self, dir_path: Any, report_type: Any, limit: Any) -> list:
+        """List reports in a directory."""
         reports = []
         for filename in os.listdir(dir_path):
             if filename.endswith(".meta"):
@@ -824,25 +803,23 @@ class ReportArchive:
             file_path = os.path.join(dir_path, filename)
             if os.path.isfile(file_path):
                 parts = filename.split("_")
-                if len(parts) >= 2:
-                    try:
+                try:
+                    if len(parts) >= 2:
                         timestamp_str = parts[-2] + "_" + parts[-1].split(".")[0]
                         timestamp = datetime.datetime.strptime(
                             timestamp_str, "%Y%m%d_%H%M%S"
                         )
-                    except Exception:
-                        timestamp = datetime.datetime.fromtimestamp(
-                            os.path.getmtime(file_path)
-                        )
-                else:
+                    else:
+                        raise ValueError("not enough parts")
+                except Exception:
                     timestamp = datetime.datetime.fromtimestamp(
                         os.path.getmtime(file_path)
                     )
                 metadata = {}
-                metadata_path = file_path + ".meta"
-                if os.path.exists(metadata_path):
+                meta_path = file_path + ".meta"
+                if os.path.exists(meta_path):
                     try:
-                        with open(metadata_path, "r") as f:
+                        with open(meta_path, "r") as f:
                             metadata = json.load(f)
                     except Exception:
                         pass
@@ -857,16 +834,8 @@ class ReportArchive:
                 )
         return reports
 
-    def get_report(self, report_path: Any) -> Any:
-        """
-        Get archived report
-
-        Args:
-            report_path: Path to archived report
-
-        Returns:
-            content: Report content
-        """
+    def get_report(self, report_path: Any) -> Optional[str]:
+        """Get archived report content."""
         try:
             with open(report_path, "r") as f:
                 return f.read()
@@ -874,17 +843,8 @@ class ReportArchive:
             logger.error(f"Error reading report: {e}")
             return None
 
-    def compare_reports(self, report_path1: Any, report_path2: Any) -> Any:
-        """
-        Compare two archived reports
-
-        Args:
-            report_path1: Path to first report
-            report_path2: Path to second report
-
-        Returns:
-            diff: Report difference
-        """
+    def compare_reports(self, report_path1: Any, report_path2: Any) -> Optional[str]:
+        """Compare two archived reports and return a unified diff."""
         try:
             with open(report_path1, "r") as f:
                 content1 = f.read()
@@ -921,23 +881,9 @@ if __name__ == "__main__":
         content={"data_key": "risk_metrics", "options": {"show_index": False}},
         section_type="table",
     )
-    template.add_section(
-        title="Returns Distribution",
-        content={
-            "chart_type": "histogram",
-            "data_key": "returns",
-            "options": {
-                "title": "Returns Distribution",
-                "xlabel": "Return",
-                "ylabel": "Frequency",
-                "grid": True,
-            },
-        },
-        section_type="chart",
-    )
     template.save("risk_report_template.json")
+
     np.random.seed(42)
-    returns = np.random.normal(0.001, 0.02, 1000)
     risk_metrics = pd.DataFrame(
         {
             "Metric": [
@@ -956,7 +902,6 @@ if __name__ == "__main__":
         data={
             "portfolio_name": "Sample Portfolio",
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
-            "returns": returns,
             "risk_metrics": risk_metrics,
         },
     )

@@ -59,7 +59,7 @@ class ParallelRiskEngine:
         risk_model: Any,
         weights: Any,
         n_scenarios: Any = 10000,
-        confidence_levels: Any = [0.95, 0.99],
+        confidence_levels: Any = None,
     ) -> Any:
         """
         Run Monte Carlo simulation in parallel
@@ -73,6 +73,8 @@ class ParallelRiskEngine:
         Returns:
             results: Dictionary of simulation results
         """
+        if confidence_levels is None:
+            confidence_levels = [0.95, 0.99]
         logger.info(
             f"Running parallel Monte Carlo simulation with {n_scenarios} scenarios"
         )
@@ -82,10 +84,8 @@ class ParallelRiskEngine:
         scenario_batches = Parallel(
             n_jobs=self.n_jobs, backend=self.backend, verbose=self.verbose
         )(
-            (
-                delayed(self._generate_scenarios_batch)(risk_model, batch_size)
-                for _ in range(n_batches)
-            )
+            delayed(self._generate_scenarios_batch)(risk_model, batch_size)
+            for _ in range(n_batches)
         )
         all_scenarios = pd.concat(scenario_batches)
         if isinstance(weights, dict):
@@ -163,19 +163,17 @@ class ParallelRiskEngine:
         portfolio_batches = Parallel(
             n_jobs=self.n_jobs, backend=self.backend, verbose=self.verbose
         )(
-            (
-                delayed(self._generate_portfolios_batch)(
-                    returns, risk_model, batch_size, risk_free_rate
-                )
-                for _ in range(n_batches)
+            delayed(self._generate_portfolios_batch)(
+                returns, risk_model, batch_size, risk_free_rate
             )
+            for _ in range(n_batches)
         )
         all_portfolios = []
         for batch in portfolio_batches:
             all_portfolios.extend(batch)
         portfolios_df = pd.DataFrame(all_portfolios)
         required_cols = ["return", "volatility", "sharpe_ratio"]
-        if not all((col in portfolios_df.columns for col in required_cols)):
+        if not all(col in portfolios_df.columns for col in required_cols):
             logger.error("Missing required columns in generated portfolios DataFrame")
             return None
         efficient_frontier = self._find_efficient_frontier(portfolios_df)
@@ -195,15 +193,13 @@ class ParallelRiskEngine:
         }
         target_portfolios = {}
         if target_return is not None:
-            target_return_portfolio = self._find_target_return_portfolio(
+            target_portfolios["target_return"] = self._find_target_return_portfolio(
                 portfolios_df, target_return, assets
             )
-            target_portfolios["target_return"] = target_return_portfolio
         if target_risk is not None:
-            target_risk_portfolio = self._find_target_risk_portfolio(
+            target_portfolios["target_risk"] = self._find_target_risk_portfolio(
                 portfolios_df, target_risk, assets
             )
-            target_portfolios["target_risk"] = target_risk_portfolio
         time_taken = time.time() - start_time
         logger.info(f"Portfolio optimization completed in {time_taken:.2f} seconds")
         return {
@@ -218,18 +214,7 @@ class ParallelRiskEngine:
     def _generate_portfolios_batch(
         self, returns: Any, risk_model: Any, batch_size: Any, risk_free_rate: Any
     ) -> Any:
-        """
-        Generate a batch of random portfolios
-
-        Args:
-            returns: DataFrame of asset returns
-            risk_model: Risk model to use
-            batch_size: Number of portfolios to generate
-            risk_free_rate: Risk-free rate (annualized)
-
-        Returns:
-            portfolios: List of portfolio dictionaries
-        """
+        """Generate a batch of random portfolios."""
         assets = returns.columns
         n_assets = len(assets)
         if isinstance(returns.index, pd.DatetimeIndex):
@@ -247,6 +232,7 @@ class ParallelRiskEngine:
                 annualization_factor = 252
         else:
             annualization_factor = 252
+
         mean_returns = returns.mean() * annualization_factor
         cov_matrix = returns.cov() * annualization_factor
         portfolios = []
@@ -270,6 +256,7 @@ class ParallelRiskEngine:
                 risk_metric = mad * np.sqrt(annualization_factor)
             else:
                 risk_metric = portfolio_volatility
+
             sharpe_ratio = (
                 (portfolio_return - risk_free_rate) / portfolio_volatility
                 if portfolio_volatility > 0
@@ -286,16 +273,7 @@ class ParallelRiskEngine:
         return portfolios
 
     def _find_efficient_frontier(self, portfolios_df: Any, n_points: Any = 100) -> Any:
-        """
-        Find the efficient frontier from a set of portfolios
-
-        Args:
-            portfolios_df: DataFrame of portfolios
-            n_points: Number of points on the efficient frontier
-
-        Returns:
-            efficient_frontier: DataFrame of efficient frontier portfolios
-        """
+        """Find the efficient frontier from a set of portfolios."""
         sorted_portfolios = portfolios_df.sort_values("return")
         efficient_frontier = []
         min_return = sorted_portfolios["return"].min()
@@ -314,17 +292,7 @@ class ParallelRiskEngine:
     def _find_target_return_portfolio(
         self, portfolios_df: Any, target_return: Any, assets: Any
     ) -> Any:
-        """
-        Find portfolio with target return
-
-        Args:
-            portfolios_df: DataFrame of portfolios
-            target_return: Target return
-            assets: List of asset names
-
-        Returns:
-            portfolio: Dictionary of portfolio with target return
-        """
+        """Find portfolio with target return."""
         closest_idx = (portfolios_df["return"] - target_return).abs().idxmin()
         return {
             "weights": dict(zip(assets, portfolios_df.loc[closest_idx, assets])),
@@ -336,17 +304,7 @@ class ParallelRiskEngine:
     def _find_target_risk_portfolio(
         self, portfolios_df: Any, target_risk: Any, assets: Any
     ) -> Any:
-        """
-        Find portfolio with target risk
-
-        Args:
-            portfolios_df: DataFrame of portfolios
-            target_risk: Target risk (volatility)
-            assets: List of asset names
-
-        Returns:
-            portfolio: Dictionary of portfolio with target risk
-        """
+        """Find portfolio with target risk."""
         closest_idx = (portfolios_df["volatility"] - target_risk).abs().idxmin()
         return {
             "weights": dict(zip(assets, portfolios_df.loc[closest_idx, assets])),
@@ -358,8 +316,8 @@ class ParallelRiskEngine:
     def parallel_batch_risk_calculation(
         self,
         returns: Any,
-        risk_models: Any = ["parametric", "historical", "evt"],
-        confidence_levels: Any = [0.95, 0.99],
+        risk_models: Any = None,
+        confidence_levels: Any = None,
     ) -> Any:
         """
         Run batch risk calculation in parallel
@@ -372,6 +330,10 @@ class ParallelRiskEngine:
         Returns:
             results: Dictionary of risk calculation results
         """
+        if risk_models is None:
+            risk_models = ["parametric", "historical", "evt"]
+        if confidence_levels is None:
+            confidence_levels = [0.95, 0.99]
         logger.info(
             f"Running parallel batch risk calculation with {len(risk_models)} models"
         )
@@ -381,10 +343,8 @@ class ParallelRiskEngine:
         risk_results = Parallel(
             n_jobs=self.n_jobs, backend=self.backend, verbose=self.verbose
         )(
-            (
-                delayed(self._calculate_risk_metrics)(returns, model, confidence_levels)
-                for model in risk_models
-            )
+            delayed(self._calculate_risk_metrics)(returns, model, confidence_levels)
+            for model in risk_models
         )
         risk_metrics = {}
         for model, result in zip(risk_models, risk_results):
@@ -397,7 +357,7 @@ class ParallelRiskEngine:
         self, returns: Any, model: Any, confidence_levels: Any
     ) -> Any:
         """
-        Calculate risk metrics for a specific model
+        Calculate risk metrics for a specific model.
 
         Args:
             returns: Series or DataFrame of returns
@@ -412,16 +372,20 @@ class ParallelRiskEngine:
             returns_array = returns.values
         else:
             returns_array = returns
+
         for conf in confidence_levels:
             if model == "parametric":
                 mean = np.mean(returns_array)
                 std = np.std(returns_array)
-                z_score = stats.norm.ppf(conf)
+                # FIX: use ppf(1 - conf) so z_score is negative (left-tail), giving
+                # var = -(mean + z_neg * std) = -mean + |z| * std  (positive VaR)
+                z_score = stats.norm.ppf(1 - conf)
                 var = -(mean + z_score * std)
-                es = max(0.0, -(mean - std * stats.norm.pdf(z_score) / (1 - conf)))
+                es = max(0.0, -(mean - std * stats.norm.pdf(-z_score) / (1 - conf)))
             elif model == "historical":
                 var = -np.percentile(returns_array, 100 * (1 - conf))
-                es = -np.mean(returns_array[returns_array <= -var])
+                tail = returns_array[returns_array <= -var]
+                es = -np.mean(tail) if len(tail) > 0 else var
             elif model == "evt":
                 try:
                     from risk_models.extreme_value_theory import ExtremeValueRisk
@@ -432,10 +396,13 @@ class ParallelRiskEngine:
                     es = evt_model.calculate_es(conf)
                 except ImportError:
                     var = -np.percentile(returns_array, 100 * (1 - conf))
-                    es = -np.mean(returns_array[returns_array <= -var])
+                    tail = returns_array[returns_array <= -var]
+                    es = -np.mean(tail) if len(tail) > 0 else var
             else:
                 var = -np.percentile(returns_array, 100 * (1 - conf))
-                es = -np.mean(returns_array[returns_array <= -var])
+                tail = returns_array[returns_array <= -var]
+                es = -np.mean(tail) if len(tail) > 0 else var
+
             metrics[f"var_{int(conf * 100)}"] = max(0, var)
             metrics[f"es_{int(conf * 100)}"] = max(0, es)
         return metrics
@@ -470,6 +437,7 @@ class ParallelRiskEngine:
                 if asset in weights:
                     weight_array[i] = weights[asset]
             weights = weight_array
+
         if predefined_scenarios is None:
             predefined_scenarios = {
                 "market_crash": {
@@ -493,28 +461,25 @@ class ParallelRiskEngine:
                     "shocks": {"credit": -0.08, "real_estate": -0.1},
                 },
             }
+
         predefined_results = Parallel(
             n_jobs=self.n_jobs, backend=self.backend, verbose=self.verbose
         )(
-            (
-                delayed(self._run_predefined_scenario)(
-                    returns, weights, scenario_name, scenario
-                )
-                for scenario_name, scenario in predefined_scenarios.items()
+            delayed(self._run_predefined_scenario)(
+                returns, weights, scenario_name, scenario
             )
+            for scenario_name, scenario in predefined_scenarios.items()
         )
-        predefined_scenario_results = {}
-        for scenario_name, result in zip(
-            predefined_scenarios.keys(), predefined_results
-        ):
-            predefined_scenario_results[scenario_name] = result
+        predefined_scenario_results = {
+            name: result
+            for name, result in zip(predefined_scenarios.keys(), predefined_results)
+        }
+
         custom_results = Parallel(
             n_jobs=self.n_jobs, backend=self.backend, verbose=self.verbose
         )(
-            (
-                delayed(self._generate_custom_scenario)(returns, weights)
-                for _ in range(n_custom_scenarios)
-            )
+            delayed(self._generate_custom_scenario)(returns, weights)
+            for _ in range(n_custom_scenarios)
         )
         custom_returns = [result["portfolio_return"] for result in custom_results]
         custom_vars = [result["var_95"] for result in custom_results]
@@ -527,8 +492,8 @@ class ParallelRiskEngine:
             "avg_var_95": np.mean(custom_vars),
             "max_var_95": np.max(custom_vars),
         }
-        worst_return_idx = np.argmin(custom_returns)
-        worst_var_idx = np.argmax(custom_vars)
+        worst_return_idx = int(np.argmin(custom_returns))
+        worst_var_idx = int(np.argmax(custom_vars))
         worst_case = {
             "worst_return": custom_results[worst_return_idx],
             "worst_var": custom_results[worst_var_idx],
@@ -545,18 +510,7 @@ class ParallelRiskEngine:
     def _run_predefined_scenario(
         self, returns: Any, weights: Any, scenario_name: Any, scenario: Any
     ) -> Any:
-        """
-        Run a predefined stress scenario
-
-        Args:
-            returns: DataFrame of asset returns
-            weights: Portfolio weights
-            scenario_name: Name of the scenario
-            scenario: Scenario definition
-
-        Returns:
-            result: Dictionary of scenario results
-        """
+        """Run a predefined stress scenario."""
         shocked_returns = returns.copy()
         for asset_class, shock in scenario["shocks"].items():
             if asset_class == "all":
@@ -569,8 +523,10 @@ class ParallelRiskEngine:
         portfolio_returns = shocked_returns.dot(weights)
         var_95 = -np.percentile(portfolio_returns, 5)
         var_99 = -np.percentile(portfolio_returns, 1)
-        es_95 = -portfolio_returns[portfolio_returns <= -var_95].mean()
-        es_99 = -portfolio_returns[portfolio_returns <= -var_99].mean()
+        tail_95 = portfolio_returns[portfolio_returns <= -var_95]
+        tail_99 = portfolio_returns[portfolio_returns <= -var_99]
+        es_95 = -tail_95.mean() if len(tail_95) > 0 else var_95
+        es_99 = -tail_99.mean() if len(tail_99) > 0 else var_99
         return {
             "scenario_name": scenario_name,
             "description": scenario["description"],
@@ -583,16 +539,7 @@ class ParallelRiskEngine:
         }
 
     def _generate_custom_scenario(self, returns: Any, weights: Any) -> Any:
-        """
-        Generate a custom stress scenario
-
-        Args:
-            returns: DataFrame of asset returns
-            weights: Portfolio weights
-
-        Returns:
-            result: Dictionary of scenario results
-        """
+        """Generate a custom stress scenario."""
         cov_matrix = returns.cov()
         shock_factors = np.random.normal(0, 1, len(returns.columns))
         chol_decomp = np.linalg.cholesky(cov_matrix)
@@ -604,8 +551,10 @@ class ParallelRiskEngine:
         portfolio_returns = shocked_returns.dot(weights)
         var_95 = -np.percentile(portfolio_returns, 5)
         var_99 = -np.percentile(portfolio_returns, 1)
-        es_95 = -portfolio_returns[portfolio_returns <= -var_95].mean()
-        es_99 = -portfolio_returns[portfolio_returns <= -var_99].mean()
+        tail_95 = portfolio_returns[portfolio_returns <= -var_95]
+        tail_99 = portfolio_returns[portfolio_returns <= -var_99]
+        es_95 = -tail_95.mean() if len(tail_95) > 0 else var_95
+        es_99 = -tail_99.mean() if len(tail_99) > 0 else var_99
         return {
             "scenario_type": "custom",
             "shocks": dict(zip(returns.columns, shocks)),
@@ -619,13 +568,13 @@ class ParallelRiskEngine:
     def parallel_backtest(
         self,
         returns: Any,
-        risk_models: Any = ["parametric", "historical", "evt"],
+        risk_models: Any = None,
         confidence_level: Any = 0.95,
         window_size: Any = 252,
         step_size: Any = 20,
     ) -> Any:
         """
-        Run backtesting of risk models in parallel
+        Run backtesting of risk models in parallel.
 
         Args:
             returns: Series or DataFrame of returns
@@ -637,6 +586,8 @@ class ParallelRiskEngine:
         Returns:
             results: Dictionary of backtesting results
         """
+        if risk_models is None:
+            risk_models = ["parametric", "historical", "evt"]
         logger.info(f"Running parallel backtesting with window size {window_size}")
         start_time = time.time()
         if isinstance(returns, pd.DataFrame) and returns.shape[1] == 1:
@@ -646,12 +597,10 @@ class ParallelRiskEngine:
         backtest_results = Parallel(
             n_jobs=self.n_jobs, backend=self.backend, verbose=self.verbose
         )(
-            (
-                delayed(self._run_backtest_window)(
-                    returns, i, window_size, step_size, risk_models, confidence_level
-                )
-                for i in range(n_windows)
+            delayed(self._run_backtest_window)(
+                returns, i, window_size, step_size, risk_models, confidence_level
             )
+            for i in range(n_windows)
         )
         windows = []
         breaches = {model: 0 for model in risk_models}
@@ -685,20 +634,7 @@ class ParallelRiskEngine:
         risk_models: Any,
         confidence_level: Any,
     ) -> Any:
-        """
-        Run backtest for a specific window
-
-        Args:
-            returns: Series or DataFrame of returns
-            window_idx: Window index
-            window_size: Size of rolling window
-            step_size: Step size for rolling window
-            risk_models: List of risk models to use
-            confidence_level: Confidence level for VaR
-
-        Returns:
-            result: Dictionary of window results
-        """
+        """Run backtest for a specific window."""
         start_idx = window_idx * step_size
         end_idx = start_idx + window_size
         test_idx = end_idx
@@ -719,6 +655,7 @@ class ParallelRiskEngine:
             if model == "parametric":
                 mean = np.mean(window_returns)
                 std = np.std(window_returns)
+                # consistent sign with _calculate_risk_metrics
                 z_score = stats.norm.ppf(1 - confidence_level)
                 var = -(mean + z_score * std)
             elif model == "historical":
@@ -734,6 +671,7 @@ class ParallelRiskEngine:
                     var = -np.percentile(window_returns, 100 * (1 - confidence_level))
             else:
                 var = -np.percentile(window_returns, 100 * (1 - confidence_level))
+
             breach = False
             if not np.isnan(test_return_value):
                 breach = test_return_value < -var
@@ -749,7 +687,7 @@ class ParallelRiskEngine:
         n_points: Any = 10,
     ) -> Any:
         """
-        Run sensitivity analysis in parallel
+        Run sensitivity analysis in parallel.
 
         Args:
             returns: DataFrame of asset returns
@@ -772,13 +710,18 @@ class ParallelRiskEngine:
                 returns, weights, factor, shock_points
             )
             factor_results[factor] = factor_result
-            return_sensitivity = (
-                factor_result["portfolio_returns"][-1]
-                - factor_result["portfolio_returns"][0]
-            ) / (shock_points[-1] - shock_points[0])
-            var_sensitivity = (
-                factor_result["var_95"][-1] - factor_result["var_95"][0]
-            ) / (shock_points[-1] - shock_points[0])
+            denom = shock_points[-1] - shock_points[0]
+            if abs(denom) > 1e-10:
+                return_sensitivity = (
+                    factor_result["portfolio_returns"][-1]
+                    - factor_result["portfolio_returns"][0]
+                ) / denom
+                var_sensitivity = (
+                    factor_result["var_95"][-1] - factor_result["var_95"][0]
+                ) / denom
+            else:
+                return_sensitivity = 0.0
+                var_sensitivity = 0.0
             sensitivities[factor] = {
                 "return_sensitivity": return_sensitivity,
                 "var_sensitivity": var_sensitivity,
@@ -794,18 +737,7 @@ class ParallelRiskEngine:
     def _analyze_factor_sensitivity(
         self, returns: Any, weights: Any, factor: Any, shock_points: Any
     ) -> Any:
-        """
-        Analyze sensitivity to a specific factor
-
-        Args:
-            returns: DataFrame of asset returns
-            weights: Portfolio weights
-            factor: Factor to analyze
-            shock_points: Points in the shock range
-
-        Returns:
-            result: Dictionary of factor sensitivity results
-        """
+        """Analyze sensitivity to a specific factor."""
         n_points = len(shock_points)
         portfolio_returns = np.zeros(n_points)
         portfolio_volatilities = np.zeros(n_points)
@@ -814,18 +746,19 @@ class ParallelRiskEngine:
         for i, shock in enumerate(shock_points):
             shocked_returns = returns.copy()
             shocked_returns[factor] = shocked_returns[factor] + shock
-            portfolio_return = 0
-            portfolio_volatility = 0
+            portfolio_return = 0.0
+            portfolio_volatility = 0.0
+            portfolio_rets = pd.Series(
+                np.zeros(len(shocked_returns)), index=shocked_returns.index
+            )
             for asset, weight in weights.items():
                 if asset in shocked_returns.columns:
                     portfolio_return += shocked_returns[asset].mean() * weight
                     portfolio_volatility += shocked_returns[asset].std() * weight
-            portfolio_rets = 0
-            for asset, weight in weights.items():
-                if asset in shocked_returns.columns:
                     portfolio_rets += shocked_returns[asset] * weight
             var = -np.percentile(portfolio_rets, 5)
-            es = -portfolio_rets[portfolio_rets <= -var].mean()
+            tail = portfolio_rets[portfolio_rets <= -var]
+            es = -tail.mean() if len(tail) > 0 else var
             portfolio_returns[i] = portfolio_return
             portfolio_volatilities[i] = portfolio_volatility
             var_95[i] = var
@@ -843,7 +776,7 @@ class ParallelRiskEngine:
         self, returns: Any, weights: Any, risk_measure: Any = "volatility"
     ) -> Any:
         """
-        Run risk decomposition in parallel
+        Run risk decomposition in parallel.
 
         Args:
             returns: DataFrame of asset returns
@@ -857,6 +790,7 @@ class ParallelRiskEngine:
         start_time = time.time()
         if isinstance(weights, np.ndarray):
             weights = dict(zip(returns.columns, weights))
+
         if risk_measure == "volatility":
             cov_matrix = returns.cov()
             weight_array = np.array(
@@ -868,25 +802,27 @@ class ParallelRiskEngine:
             marginal_contributions = np.dot(cov_matrix, weight_array) / portfolio_risk
             component_contributions = weight_array * marginal_contributions
             percentage_contributions = component_contributions / portfolio_risk
-        elif risk_measure == "var" or risk_measure == "es":
-            portfolio_returns = 0
-            for asset, weight in weights.items():
-                if asset in returns.columns:
-                    portfolio_returns += returns[asset] * weight
+
+        elif risk_measure in ("var", "es"):
+            portfolio_returns_series = sum(
+                returns[asset] * weights.get(asset, 0)
+                for asset in returns.columns
+                if asset in returns.columns
+            )
             if risk_measure == "var":
-                portfolio_risk = -np.percentile(portfolio_returns, 5)
+                portfolio_risk = -np.percentile(portfolio_returns_series, 5)
             else:
-                var_95 = -np.percentile(portfolio_returns, 5)
-                portfolio_risk = -portfolio_returns[portfolio_returns <= -var_95].mean()
+                var_95 = -np.percentile(portfolio_returns_series, 5)
+                tail = portfolio_returns_series[portfolio_returns_series <= -var_95]
+                portfolio_risk = -tail.mean() if len(tail) > 0 else var_95
+
             contributions = Parallel(
                 n_jobs=self.n_jobs, backend=self.backend, verbose=self.verbose
             )(
-                (
-                    delayed(self._calculate_risk_contribution)(
-                        returns, weights, asset, risk_measure
-                    )
-                    for asset in returns.columns
+                delayed(self._calculate_risk_contribution)(
+                    returns, weights, asset, risk_measure
                 )
+                for asset in returns.columns
             )
             marginal_contributions = np.array(
                 [c["marginal_contribution"] for c in contributions]
@@ -899,30 +835,33 @@ class ParallelRiskEngine:
             )
         else:
             raise ValueError(f"Unsupported risk measure: {risk_measure}")
-        contributions = []
+
+        contributions_list = []
         for i, asset in enumerate(returns.columns):
-            contributions.append(
+            contributions_list.append(
                 {
                     "asset": asset,
                     "weight": weights.get(asset, 0),
-                    "marginal_contribution": marginal_contributions[i],
-                    "component_contribution": component_contributions[i],
-                    "percentage_contribution": percentage_contributions[i],
+                    "marginal_contribution": float(marginal_contributions[i]),
+                    "component_contribution": float(component_contributions[i]),
+                    "percentage_contribution": float(percentage_contributions[i]),
                 }
             )
-        contributions.sort(key=lambda x: x["percentage_contribution"], reverse=True)
+        contributions_list.sort(
+            key=lambda x: x["percentage_contribution"], reverse=True
+        )
         time_taken = time.time() - start_time
         logger.info(f"Risk decomposition completed in {time_taken:.2f} seconds")
         return {
             "risk_measure": risk_measure,
-            "portfolio_risk": portfolio_risk,
-            "total_risk": portfolio_risk,
-            "contributions": contributions,
+            "portfolio_risk": float(portfolio_risk),
+            "total_risk": float(portfolio_risk),
+            "contributions": contributions_list,
             "component_contributions": [
-                c["component_contribution"] for c in contributions
+                c["component_contribution"] for c in contributions_list
             ],
             "percentage_contributions": [
-                c["percentage_contribution"] for c in contributions
+                c["percentage_contribution"] for c in contributions_list
             ],
             "time_taken": time_taken,
         }
@@ -930,44 +869,38 @@ class ParallelRiskEngine:
     def _calculate_risk_contribution(
         self, returns: Any, weights: Any, asset: Any, risk_measure: Any
     ) -> Any:
-        """
-        Calculate risk contribution for a specific asset
-
-        Args:
-            returns: DataFrame of asset returns
-            weights: Portfolio weights
-            asset: Asset to analyze
-            risk_measure: Risk measure to decompose
-
-        Returns:
-            result: Dictionary of risk contribution results
-        """
-        portfolio_returns = 0
-        for a, weight in weights.items():
-            if a in returns.columns:
-                portfolio_returns += returns[a] * weight
+        """Calculate risk contribution for a specific asset."""
+        portfolio_returns = sum(
+            returns[a] * weights.get(a, 0) for a in weights if a in returns.columns
+        )
         if risk_measure == "var":
             base_risk = -np.percentile(portfolio_returns, 5)
         else:
             var_95 = -np.percentile(portfolio_returns, 5)
-            base_risk = -portfolio_returns[portfolio_returns <= -var_95].mean()
+            tail = portfolio_returns[portfolio_returns <= -var_95]
+            base_risk = -tail.mean() if len(tail) > 0 else var_95
+
         delta = 0.0001
         modified_weights = weights.copy()
         modified_weights[asset] = weights.get(asset, 0) + delta
         total_weight = sum(modified_weights.values())
-        for a in modified_weights:
-            modified_weights[a] /= total_weight
-        modified_portfolio_returns = 0
-        for a, weight in modified_weights.items():
-            if a in returns.columns:
-                modified_portfolio_returns += returns[a] * weight
+        if total_weight > 0:
+            modified_weights = {
+                a: v / total_weight for a, v in modified_weights.items()
+            }
+
+        modified_portfolio_returns = sum(
+            returns[a] * modified_weights.get(a, 0)
+            for a in modified_weights
+            if a in returns.columns
+        )
         if risk_measure == "var":
             modified_risk = -np.percentile(modified_portfolio_returns, 5)
         else:
             var_95 = -np.percentile(modified_portfolio_returns, 5)
-            modified_risk = -modified_portfolio_returns[
-                modified_portfolio_returns <= -var_95
-            ].mean()
+            tail = modified_portfolio_returns[modified_portfolio_returns <= -var_95]
+            modified_risk = -tail.mean() if len(tail) > 0 else var_95
+
         marginal_contribution = (modified_risk - base_risk) / delta
         component_contribution = weights.get(asset, 0) * marginal_contribution
         percentage_contribution = (
@@ -981,12 +914,7 @@ class ParallelRiskEngine:
         }
 
     def system_info(self) -> Any:
-        """
-        Get system information
-
-        Returns:
-            info: Dictionary of system information
-        """
+        """Get system information."""
         cpu_count = mp.cpu_count()
         try:
             cpu_percent = psutil.cpu_percent(interval=0.1)
