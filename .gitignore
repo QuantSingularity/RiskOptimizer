@@ -100,7 +100,8 @@ yarn-error.log
 build/contracts/
 contracts/build/
 artifacts/
-cache/
+contracts/cache/
+hardhat/cache/
 typechain-types/
 
 # Docker
