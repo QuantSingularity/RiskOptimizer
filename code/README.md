@@ -24,6 +24,7 @@ Ethereum smart contracts (Solidity), Truffle migration scripts, blockchain
 tests, and the Python Web3 integration service.
 
 **Key files:**
+
 - `contracts/` - Solidity source for PortfolioTracker and RiskManagement
 - `services/blockchain_service.py` - Python service consumed by the backend
 - `web3_integration.py` - standalone Web3 helper / demo script
@@ -32,14 +33,14 @@ tests, and the Python Web3 integration service.
 
 All Python quantitative and ML services.
 
-| Sub-package | Purpose |
-|---|---|
+| Sub-package    | Purpose                                                 |
+| -------------- | ------------------------------------------------------- |
 | `risk_engine/` | Parallel Monte Carlo, backtesting, sensitivity analysis |
-| `risk_models/` | EVT, ML risk models, portfolio optimisation, GARCH |
-| `ai_models/` | Prophet forecasting, sentiment analysis, RL optimiser |
-| `reporting/` | HTML/PDF report generation, scheduling, archiving |
-| `data/` | Historical OHLCV CSV files |
-| `tests/` | Comprehensive test suite |
+| `risk_models/` | EVT, ML risk models, portfolio optimisation, GARCH      |
+| `ai_models/`   | Prophet forecasting, sentiment analysis, RL optimiser   |
+| `reporting/`   | HTML/PDF report generation, scheduling, archiving       |
+| `data/`        | Historical OHLCV CSV files                              |
+| `tests/`       | Comprehensive test suite                                |
 
 ## Docker (full stack)
 
