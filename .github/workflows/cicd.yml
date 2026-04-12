@@ -131,7 +131,7 @@ jobs:
     needs: code_quality
 
     env:
-      BACKEND_DIR: backend
+      BACKEND_DIR: code/backend
 
     steps:
       - name: Checkout repository
