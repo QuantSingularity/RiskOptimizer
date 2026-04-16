@@ -2,6 +2,7 @@ import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import HomeIcon from "@mui/icons-material/Home";
 import SettingsIcon from "@mui/icons-material/Settings";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import {
@@ -12,13 +13,14 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Typography,
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const drawerWidth = 240;
 
 const menuItems = [
-  { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
+  { text: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
   { text: "Portfolio", icon: <AccountBalanceWalletIcon />, path: "/portfolio" },
   { text: "Risk Analysis", icon: <AssessmentIcon />, path: "/risk-analysis" },
   { text: "Optimization", icon: <TrendingUpIcon />, path: "/optimization" },
@@ -45,16 +47,38 @@ const Sidebar = ({ mobileOpen, onClose, isMobile }) => {
           alignItems: "center",
           justifyContent: "center",
           borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          cursor: "pointer",
         }}
+        onClick={() => navigate("/")}
       >
-        <Box
-          component="img"
-          src="/favicon.ico"
-          alt="RiskOptimizer Logo"
-          sx={{ height: 32, mr: 1 }}
-        />
+        <Typography
+          variant="h6"
+          sx={{
+            fontFamily: "Poppins, sans-serif",
+            fontWeight: 700,
+            color: "primary.main",
+            fontSize: "1.1rem",
+          }}
+        >
+          RiskOptimizer
+        </Typography>
       </Box>
       <List sx={{ pt: 2 }}>
+        <ListItemButton
+          onClick={() => handleNavigation("/")}
+          sx={{
+            mb: 0.5,
+            mx: 1,
+            borderRadius: 1,
+            "&:hover": { backgroundColor: "rgba(97, 218, 251, 0.05)" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "text.secondary", minWidth: 40 }}>
+            <HomeIcon />
+          </ListItemIcon>
+          <ListItemText primary="Home" sx={{ color: "text.primary" }} />
+        </ListItemButton>
+        <Divider sx={{ my: 1, backgroundColor: "rgba(255, 255, 255, 0.06)" }} />
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (

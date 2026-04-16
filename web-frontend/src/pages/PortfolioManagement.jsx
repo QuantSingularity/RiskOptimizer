@@ -2,6 +2,8 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import {
   Alert,
   Box,
@@ -25,22 +27,16 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
 import { usePortfolio } from "../context/PortfolioContext";
 import { formatCurrency, formatPercentage } from "../utils/formatters";
 
-const emptyForm = {
-  symbol: "",
-  name: "",
-  quantity: "",
-  purchasePrice: "",
-};
+const emptyForm = { symbol: "", name: "", quantity: "", purchasePrice: "" };
 
 const PortfolioManagement = () => {
-  const { user } = useAuth();
   const {
     portfolio,
     loading,
@@ -56,23 +52,31 @@ const PortfolioManagement = () => {
   const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState("");
 
+  // Load portfolio on mount
   useEffect(() => {
-    if (user?.wallet_address || user?.address) {
-      fetchPortfolio(user.wallet_address || user.address);
-    }
-  }, [user, fetchPortfolio]);
+    fetchPortfolio();
+  }, [fetchPortfolio]);
 
+  // Sync local assets whenever context portfolio changes
   useEffect(() => {
     if (portfolio?.assets) {
       setLocalAssets(portfolio.assets);
     }
   }, [portfolio]);
 
+  // ── Derived totals ──────────────────────────────────────────────────────────
   const portfolioValue = localAssets.reduce(
-    (sum, a) => sum + (a.quantity * a.currentPrice || 0),
+    (s, a) => s + (a.totalValue || a.quantity * a.currentPrice || 0),
     0,
   );
+  const totalGain = localAssets.reduce((s, a) => s + (a.gain || 0), 0);
+  const totalCost = localAssets.reduce(
+    (s, a) => s + (a.quantity * a.purchasePrice || 0),
+    0,
+  );
+  const totalGainPct = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
 
+  // ── Dialog helpers ──────────────────────────────────────────────────────────
   const handleOpenDialog = (asset = null) => {
     clearError();
     setFormError("");
@@ -98,8 +102,8 @@ const PortfolioManagement = () => {
     setFormError("");
   };
 
-  const handleInputChange = (field) => (event) => {
-    setFormData((prev) => ({ ...prev, [field]: event.target.value }));
+  const handleInputChange = (field) => (e) => {
+    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
     setFormError("");
   };
 
@@ -111,68 +115,55 @@ const PortfolioManagement = () => {
     }
     const qty = parseFloat(quantity);
     const price = parseFloat(purchasePrice);
-    if (Number.isNaN(qty) || qty <= 0) {
+    if (isNaN(qty) || qty <= 0) {
       setFormError("Quantity must be a positive number.");
       return;
     }
-    if (Number.isNaN(price) || price <= 0) {
+    if (isNaN(price) || price <= 0) {
       setFormError("Purchase price must be a positive number.");
       return;
     }
 
-    const currentPrice = price;
+    // For demo: use a simple simulated current price (purchase price ± random %)
+    const existingAsset = currentAsset;
+    const currentPrice =
+      existingAsset?.currentPrice ?? price * (1 + (Math.random() * 0.4 - 0.1));
     const totalValue = qty * currentPrice;
     const gain = (currentPrice - price) * qty;
     const gainPercent = price > 0 ? ((currentPrice - price) / price) * 100 : 0;
 
     const updatedAsset = {
-      id: currentAsset?.id ?? Date.now(),
+      id: existingAsset?.id ?? Date.now(),
       symbol: symbol.toUpperCase(),
       name,
       quantity: qty,
       purchasePrice: price,
-      currentPrice,
-      totalValue,
-      gain,
-      gainPercent,
+      currentPrice: parseFloat(currentPrice.toFixed(2)),
+      totalValue: parseFloat(totalValue.toFixed(2)),
+      gain: parseFloat(gain.toFixed(2)),
+      gainPercent: parseFloat(gainPercent.toFixed(2)),
     };
 
-    let updatedAssets;
-    if (currentAsset) {
-      updatedAssets = localAssets.map((a) =>
-        a.id === currentAsset.id ? updatedAsset : a,
-      );
-    } else {
-      updatedAssets = [...localAssets, updatedAsset];
-    }
+    const updatedAssets = currentAsset
+      ? localAssets.map((a) => (a.id === currentAsset.id ? updatedAsset : a))
+      : [...localAssets, updatedAsset];
 
     setLocalAssets(updatedAssets);
-
-    const address = user?.wallet_address || user?.address;
-    if (address) {
-      await savePortfolio({ user_address: address, assets: updatedAssets });
-    }
-
+    await savePortfolio({ assets: updatedAssets });
     handleCloseDialog();
   };
 
   const handleDeleteAsset = async (id) => {
-    const updatedAssets = localAssets.filter((a) => a.id !== id);
-    setLocalAssets(updatedAssets);
-    const address = user?.wallet_address || user?.address;
-    if (address) {
-      await savePortfolio({ user_address: address, assets: updatedAssets });
-    }
+    const updated = localAssets.filter((a) => a.id !== id);
+    setLocalAssets(updated);
+    await savePortfolio({ assets: updated });
   };
 
-  const handleRefresh = () => {
-    if (user?.wallet_address || user?.address) {
-      fetchPortfolio(user.wallet_address || user.address);
-    }
-  };
+  const handleRefresh = () => fetchPortfolio();
 
   return (
     <Box className="fade-in">
+      {/* Header */}
       <Box
         sx={{
           display: "flex",
@@ -181,7 +172,7 @@ const PortfolioManagement = () => {
           mb: 3,
         }}
       >
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography variant="h4" component="h1">
           Portfolio Management
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
@@ -217,48 +208,63 @@ const PortfolioManagement = () => {
 
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} sm={4}>
           <Card>
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">
                 Total Portfolio Value
               </Typography>
-              <Typography variant="h4" sx={{ my: 1 }}>
+              <Typography variant="h4" sx={{ my: 1, fontWeight: 600 }}>
                 {formatCurrency(portfolioValue)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {localAssets.length} asset{localAssets.length !== 1 ? "s" : ""}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} sm={4}>
           <Card>
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">
                 Total Gain / Loss
               </Typography>
-              <Typography
-                variant="h4"
-                sx={{ my: 1 }}
-                color={
-                  localAssets.reduce((s, a) => s + (a.gain || 0), 0) >= 0
-                    ? "success.main"
-                    : "error.main"
-                }
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 0.5, my: 1 }}
               >
-                {formatCurrency(
-                  localAssets.reduce((s, a) => s + (a.gain || 0), 0),
+                {totalGain >= 0 ? (
+                  <TrendingUpIcon color="success" />
+                ) : (
+                  <TrendingDownIcon color="error" />
                 )}
+                <Typography
+                  variant="h4"
+                  sx={{ fontWeight: 600 }}
+                  color={totalGain >= 0 ? "success.main" : "error.main"}
+                >
+                  {formatCurrency(totalGain)}
+                </Typography>
+              </Box>
+              <Typography
+                variant="body2"
+                color={totalGain >= 0 ? "success.main" : "error.main"}
+              >
+                {formatPercentage(totalGainPct, 2, true)} overall
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} sm={4}>
           <Card>
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">
-                Number of Assets
+                Total Cost Basis
               </Typography>
-              <Typography variant="h4" sx={{ my: 1 }}>
-                {localAssets.length}
+              <Typography variant="h4" sx={{ my: 1, fontWeight: 600 }}>
+                {formatCurrency(totalCost)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Invested capital
               </Typography>
             </CardContent>
           </Card>
@@ -277,17 +283,17 @@ const PortfolioManagement = () => {
                 <TableCell align="right">Purchase Price</TableCell>
                 <TableCell align="right">Current Price</TableCell>
                 <TableCell align="right">Total Value</TableCell>
-                <TableCell align="right">Gain/Loss</TableCell>
+                <TableCell align="right">Gain / Loss</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {localAssets.length > 0 ? (
                 localAssets.map((asset) => (
-                  <TableRow key={asset.id}>
+                  <TableRow key={asset.id} hover>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" fontWeight={700}>
                           {asset.symbol}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -310,22 +316,27 @@ const PortfolioManagement = () => {
                         label={`${formatPercentage(asset.gainPercent, 2, true)} (${formatCurrency(asset.gain)})`}
                         color={asset.gain >= 0 ? "success" : "error"}
                         size="small"
+                        variant="outlined"
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDialog(asset)}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDeleteAsset(asset.id)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
+                      <Tooltip title="Edit">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenDialog(asset)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteAsset(asset.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))
@@ -348,7 +359,7 @@ const PortfolioManagement = () => {
         </TableContainer>
       </Card>
 
-      {/* Add/Edit Asset Dialog */}
+      {/* Add / Edit Dialog */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -366,7 +377,7 @@ const PortfolioManagement = () => {
           )}
           <TextField
             fullWidth
-            label="Symbol"
+            label="Symbol (e.g. AAPL)"
             value={formData.symbol}
             onChange={handleInputChange("symbol")}
             margin="normal"

@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
+import Home from "./pages/Home";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Optimization from "./pages/Optimization";
@@ -32,18 +33,25 @@ function ProtectedRoute({ children }) {
   }
 
   if (!user) {
-    // Redirect to login but save the location they were trying to access
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return children;
 }
 
+// Layout wrapper for protected pages
+function ProtectedLayout({ children }) {
+  return (
+    <ProtectedRoute>
+      <MainLayout>{children}</MainLayout>
+    </ProtectedRoute>
+  );
+}
+
 function App() {
   const { checkAuthState, loading } = useAuth();
 
   useEffect(() => {
-    // Check authentication state on mount
     checkAuthState();
   }, [checkAuthState]);
 
@@ -66,12 +74,15 @@ function App() {
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <Routes>
-        {/* Public routes */}
+        {/* Homepage - public, always shown first */}
+        <Route path="/" element={<Home />} />
+
+        {/* Auth route */}
         <Route path="/login" element={<Login />} />
 
-        {/* Protected routes with layout */}
+        {/* Protected app routes with layout */}
         <Route
-          path="/"
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <MainLayout />
@@ -79,10 +90,50 @@ function App() {
           }
         >
           <Route index element={<Dashboard />} />
-          <Route path="portfolio" element={<PortfolioManagement />} />
-          <Route path="risk-analysis" element={<RiskAnalysis />} />
-          <Route path="optimization" element={<Optimization />} />
-          <Route path="settings" element={<Settings />} />
+        </Route>
+
+        <Route
+          path="/portfolio"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<PortfolioManagement />} />
+        </Route>
+
+        <Route
+          path="/risk-analysis"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<RiskAnalysis />} />
+        </Route>
+
+        <Route
+          path="/optimization"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Optimization />} />
+        </Route>
+
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Settings />} />
         </Route>
 
         {/* 404 route */}

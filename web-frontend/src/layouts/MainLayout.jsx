@@ -1,18 +1,18 @@
 import { Box, useMediaQuery, useTheme } from "@mui/material";
-import React from "react";
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Footer from "../components/navigation/Footer";
 import Header from "../components/navigation/Header";
 import Sidebar from "../components/navigation/Sidebar";
 
+const DRAWER_WIDTH = 240;
+
 const MainLayout = () => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
+  const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -27,21 +27,22 @@ const MainLayout = () => {
           component="main"
           sx={{
             flexGrow: 1,
-            p: 3,
-            width: { sm: `calc(100% - ${isMobile ? 0 : 240}px)` },
-            ml: { sm: isMobile ? 0 : "240px" },
-            transition: theme.transitions.create(["margin", "width"], {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.leavingScreen,
-            }),
+            p: { xs: 2, sm: 3 },
+            // On desktop, offset by sidebar width; on mobile sidebar is an overlay
+            ml: { xs: 0, sm: `${DRAWER_WIDTH}px` },
+            width: { xs: "100%", sm: `calc(100% - ${DRAWER_WIDTH}px)` },
+            minHeight: "calc(100vh - 64px)",
           }}
         >
-          <Box sx={{ mt: 8, mb: 2 }}>
+          {/* Spacer for fixed AppBar */}
+          <Box sx={{ mt: { xs: 7, sm: 8 }, mb: 2 }}>
             <Outlet />
           </Box>
         </Box>
       </Box>
-      <Footer />
+      <Box sx={{ ml: { xs: 0, sm: `${DRAWER_WIDTH}px` } }}>
+        <Footer />
+      </Box>
     </Box>
   );
 };

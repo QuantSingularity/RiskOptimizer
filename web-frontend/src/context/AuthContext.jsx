@@ -1,5 +1,4 @@
 import { createContext, useCallback, useContext, useState } from "react";
-import apiService from "../services/apiService";
 
 const AuthContext = createContext();
 
@@ -8,26 +7,30 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Demo login: accepts any wallet address / credentials — no backend required
   const login = useCallback(async (credentials) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiService.auth.login(credentials);
-      if (response?.data) {
-        const userData = {
-          ...response.data.user,
-          token: response.data.token,
-          isAuthenticated: true,
-        };
-        setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
-        return true;
-      }
-      setError("Login failed. Please check your credentials.");
-      return false;
+      // Simulate a brief loading delay for UX realism
+      await new Promise((r) => setTimeout(r, 600));
+      const address = credentials.wallet_address || credentials.email || "demo";
+      const userData = {
+        id: "demo-user",
+        username: address.startsWith("0x")
+          ? `User_${address.slice(2, 6)}`
+          : address,
+        email: credentials.email || "",
+        wallet_address: address,
+        address,
+        token: `demo-token-${Date.now()}`,
+        isAuthenticated: true,
+      };
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+      return true;
     } catch (err) {
-      const message = err.message || "An error occurred during login";
-      setError(message);
+      setError(err.message || "An error occurred during login");
       return false;
     } finally {
       setLoading(false);
@@ -38,19 +41,19 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiService.auth.register(userData);
-      if (response?.data) {
-        const newUser = {
-          ...response.data.user,
-          token: response.data.token,
-          isAuthenticated: true,
-        };
-        setUser(newUser);
-        localStorage.setItem("user", JSON.stringify(newUser));
-        return true;
-      }
-      setError("Registration failed.");
-      return false;
+      await new Promise((r) => setTimeout(r, 600));
+      const newUser = {
+        id: `user-${Date.now()}`,
+        username: userData.username,
+        email: userData.email,
+        wallet_address: userData.wallet_address || userData.address || "",
+        address: userData.wallet_address || userData.address || "",
+        token: `demo-token-${Date.now()}`,
+        isAuthenticated: true,
+      };
+      setUser(newUser);
+      localStorage.setItem("user", JSON.stringify(newUser));
+      return true;
     } catch (err) {
       setError(err.message || "An error occurred during registration");
       return false;
@@ -59,24 +62,18 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const logout = useCallback(async () => {
-    try {
-      await apiService.auth.logout();
-    } catch {
-      // ignore logout API errors - still clear local state
-    } finally {
-      setUser(null);
-      setError(null);
-      localStorage.removeItem("user");
-    }
+  const logout = useCallback(() => {
+    setUser(null);
+    setError(null);
+    localStorage.removeItem("user");
   }, []);
 
   const checkAuthState = useCallback(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
+    const saved = localStorage.getItem("user");
+    if (saved) {
       try {
-        const parsed = JSON.parse(savedUser);
-        if (parsed && parsed.isAuthenticated) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.isAuthenticated) {
           setUser(parsed);
         } else {
           localStorage.removeItem("user");

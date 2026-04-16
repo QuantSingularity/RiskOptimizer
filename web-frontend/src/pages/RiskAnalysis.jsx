@@ -20,11 +20,329 @@ import {
   Tabs,
   TextField,
   Typography,
+  useTheme,
 } from "@mui/material";
-import { useState } from "react";
+import React, { useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { useRiskAnalysis } from "../context/RiskAnalysisContext";
 import { formatCurrency, formatPercentage } from "../utils/formatters";
 
+// ─── Correlation matrix data ──────────────────────────────────────────────────
+const ASSETS_CORR = ["AAPL", "MSFT", "AMZN", "TSLA", "BTC", "GLD", "SPY"];
+const correlationMatrix = [
+  [1.0, 0.82, 0.75, 0.61, 0.38, -0.15, 0.9],
+  [0.82, 1.0, 0.79, 0.55, 0.32, -0.12, 0.88],
+  [0.75, 0.79, 1.0, 0.58, 0.41, -0.1, 0.83],
+  [0.61, 0.55, 0.58, 1.0, 0.52, 0.05, 0.67],
+  [0.38, 0.32, 0.41, 0.52, 1.0, 0.12, 0.44],
+  [-0.15, -0.12, -0.1, 0.05, 0.12, 1.0, -0.18],
+  [0.9, 0.88, 0.83, 0.67, 0.44, -0.18, 1.0],
+];
+
+// ─── Risk contribution data ───────────────────────────────────────────────────
+const riskContributionData = [
+  { name: "AAPL", riskContrib: 22.4, weight: 15, fill: "#61dafb" },
+  { name: "MSFT", riskContrib: 18.1, weight: 12, fill: "#4caf50" },
+  { name: "AMZN", riskContrib: 15.6, weight: 10, fill: "#ff9800" },
+  { name: "TSLA", riskContrib: 14.2, weight: 8, fill: "#e91e63" },
+  { name: "GOOGL", riskContrib: 12.8, weight: 10, fill: "#9c27b0" },
+  { name: "BTC", riskContrib: 8.7, weight: 5, fill: "#f44336" },
+  { name: "SPY", riskContrib: 5.3, weight: 20, fill: "#00bcd4" },
+  { name: "GLD", riskContrib: 2.9, weight: 10, fill: "#ffc107" },
+];
+
+// ─── Stress scenario presets ──────────────────────────────────────────────────
+const SCENARIO_PRESETS = {
+  "2008_crisis": { equity_shock: -38, bond_shock: 3.2, crypto_shock: -60 },
+  covid_crash: { equity_shock: -34, bond_shock: -1.0, crypto_shock: -50 },
+  dot_com: { equity_shock: -49, bond_shock: 6.8, crypto_shock: 0 },
+  custom: null,
+};
+
+const SCENARIO_LABELS = {
+  "2008_crisis": "2008 Financial Crisis",
+  covid_crash: "COVID-19 Crash (2020)",
+  dot_com: "Dot-com Bubble (2000)",
+  custom: "Custom Scenario",
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function corrColor(val) {
+  if (val >= 0.8) return "#f44336";
+  if (val >= 0.6) return "#ff7043";
+  if (val >= 0.4) return "#ffa726";
+  if (val >= 0.2) return "#ffee58";
+  if (val >= 0) return "#c8e6c9";
+  if (val >= -0.2) return "#b2dfdb";
+  return "#26c6da";
+}
+
+// ─── Correlation Heatmap ──────────────────────────────────────────────────────
+const CorrelationHeatmap = () => {
+  const cellSize = 46;
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Correlation Matrix
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Values near 1 indicate strong positive correlation; values near −1
+        indicate inverse movement. Diversification benefits are highest when
+        asset correlations are low or negative.
+      </Typography>
+
+      <Box sx={{ overflowX: "auto" }}>
+        <Box
+          sx={{
+            display: "inline-grid",
+            gridTemplateColumns: `72px repeat(${ASSETS_CORR.length}, ${cellSize}px)`,
+            gap: "2px",
+            mt: 1,
+          }}
+        >
+          {/* Header row */}
+          <Box />
+          {ASSETS_CORR.map((a) => (
+            <Box
+              key={`hdr-${a}`}
+              sx={{
+                width: cellSize,
+                textAlign: "center",
+                fontSize: "0.65rem",
+                fontWeight: 700,
+                color: "text.secondary",
+                pb: 0.5,
+              }}
+            >
+              {a}
+            </Box>
+          ))}
+
+          {/* Data rows — use React.Fragment with key instead of <> */}
+          {ASSETS_CORR.map((rowAsset, ri) => (
+            <React.Fragment key={`row-${rowAsset}`}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  color: "text.secondary",
+                  pr: 1,
+                }}
+              >
+                {rowAsset}
+              </Box>
+              {ASSETS_CORR.map((_, ci) => {
+                const val = correlationMatrix[ri][ci];
+                return (
+                  <Box
+                    key={`cell-${ri}-${ci}`}
+                    sx={{
+                      width: cellSize,
+                      height: cellSize,
+                      backgroundColor: corrColor(val),
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: "4px",
+                      fontSize: "0.65rem",
+                      fontWeight: 600,
+                      color: "#1a1a1a",
+                      cursor: "default",
+                      transition: "transform 0.15s",
+                      "&:hover": {
+                        transform: "scale(1.15)",
+                        zIndex: 10,
+                        position: "relative",
+                      },
+                    }}
+                  >
+                    {val.toFixed(2)}
+                  </Box>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </Box>
+      </Box>
+
+      {/* Legend */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          mt: 3,
+          flexWrap: "wrap",
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
+          Correlation:
+        </Typography>
+        {[
+          { label: "−1.0", color: "#26c6da" },
+          { label: "−0.5", color: "#b2dfdb" },
+          { label: "0", color: "#c8e6c9" },
+          { label: "+0.5", color: "#ffa726" },
+          { label: "+1.0", color: "#f44336" },
+        ].map(({ label, color }) => (
+          <Box
+            key={label}
+            sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+          >
+            <Box
+              sx={{
+                width: 14,
+                height: 14,
+                borderRadius: 1,
+                backgroundColor: color,
+              }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              {label}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+};
+
+// ─── Risk Contribution Chart ──────────────────────────────────────────────────
+const RiskContributionChart = () => (
+  <Box>
+    <Typography variant="h6" gutterBottom>
+      Risk Contribution by Asset
+    </Typography>
+    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      Shows how much each holding contributes to overall portfolio volatility.
+      High-contribution assets may be candidates for reduction to improve
+      diversification.
+    </Typography>
+
+    <Grid container spacing={3}>
+      {/* Bar chart */}
+      <Grid item xs={12} md={7}>
+        <Box sx={{ height: 300 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={riskContributionData}
+              margin={{ top: 10, right: 20, left: 0, bottom: 5 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="rgba(255,255,255,0.07)"
+              />
+              <XAxis
+                dataKey="name"
+                tick={{ fill: "#b2bac2", fontSize: 11 }}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: "#b2bac2", fontSize: 11 }}
+                tickLine={false}
+                unit="%"
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#132f4c",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 8,
+                }}
+                formatter={(v) => [`${v.toFixed(1)}%`, "Risk Contribution"]}
+              />
+              <Bar dataKey="riskContrib" radius={[4, 4, 0, 0]}>
+                {riskContributionData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </Box>
+      </Grid>
+
+      {/* Weight vs Risk breakdown */}
+      <Grid item xs={12} md={5}>
+        <Typography variant="subtitle2" sx={{ mb: 2 }}>
+          Weight vs Risk Contribution
+        </Typography>
+        {riskContributionData.map((d) => (
+          <Box key={d.name} sx={{ mb: 1.5 }}>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mb: 0.3 }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {d.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {d.weight}% wt → {d.riskContrib.toFixed(1)}% risk
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", gap: 0.5 }}>
+              <Box
+                sx={{
+                  height: 6,
+                  width: `${d.weight * 4}px`,
+                  backgroundColor: "rgba(97,218,251,0.35)",
+                  borderRadius: 3,
+                }}
+              />
+              <Box
+                sx={{
+                  height: 6,
+                  width: `${d.riskContrib * 4}px`,
+                  backgroundColor: d.fill,
+                  borderRadius: 3,
+                }}
+              />
+            </Box>
+          </Box>
+        ))}
+        <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Box
+              sx={{
+                width: 12,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: "rgba(97,218,251,0.35)",
+              }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              Weight
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Box
+              sx={{
+                width: 12,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: "#61dafb",
+              }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              Risk Contrib
+            </Typography>
+          </Box>
+        </Box>
+      </Grid>
+    </Grid>
+  </Box>
+);
+
+// ─── Main component ───────────────────────────────────────────────────────────
 const RiskAnalysis = () => {
   const [tabValue, setTabValue] = useState(0);
   const {
@@ -34,9 +352,7 @@ const RiskAnalysis = () => {
     error,
     calculateVaR,
     calculateCVaR,
-    calculateSharpeRatio,
-    calculateMaxDrawdown,
-    clearRiskData,
+    clearError,
   } = useRiskAnalysis();
 
   const [varParams, setVarParams] = useState({
@@ -45,16 +361,12 @@ const RiskAnalysis = () => {
     method: "historical",
   });
   const [stressScenario, setStressScenario] = useState("2008_crisis");
-  const [stressParams, setStressParams] = useState({
-    equity_shock: -30,
-    bond_shock: 1.5,
-    crypto_shock: -45,
-  });
+  const [stressParams, setStressParams] = useState(
+    SCENARIO_PRESETS["2008_crisis"],
+  );
   const [stressResult, setStressResult] = useState(null);
 
-  const handleTabChange = (_event, newValue) => {
-    setTabValue(newValue);
-  };
+  const handleTabChange = (_, newValue) => setTabValue(newValue);
 
   const handleVarCalculate = async () => {
     const mockReturns = Array.from(
@@ -73,7 +385,14 @@ const RiskAnalysis = () => {
     });
   };
 
-  const handleStressTest = async () => {
+  const handleScenarioChange = (scenario) => {
+    setStressScenario(scenario);
+    const preset = SCENARIO_PRESETS[scenario];
+    if (preset) setStressParams({ ...preset });
+    setStressResult(null);
+  };
+
+  const handleStressTest = () => {
     const totalShock =
       stressParams.equity_shock * 0.6 +
       stressParams.bond_shock * -2 * 0.2 +
@@ -88,11 +407,7 @@ const RiskAnalysis = () => {
   };
 
   const handleExport = () => {
-    const data = {
-      varData,
-      cvarData,
-      exportedAt: new Date().toISOString(),
-    };
+    const data = { varData, cvarData, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
     });
@@ -112,8 +427,15 @@ const RiskAnalysis = () => {
     maxDrawdown: -12.4,
   };
 
+  const SHOCK_FIELDS = [
+    { label: "Equity Markets", key: "equity_shock" },
+    { label: "Bond Yields", key: "bond_shock" },
+    { label: "Cryptocurrency", key: "crypto_shock" },
+  ];
+
   return (
     <Box className="fade-in">
+      {/* Page header */}
       <Box
         sx={{
           display: "flex",
@@ -122,7 +444,7 @@ const RiskAnalysis = () => {
           mb: 3,
         }}
       >
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography variant="h4" component="h1">
           Risk Analysis
         </Typography>
         <Button
@@ -135,13 +457,13 @@ const RiskAnalysis = () => {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={clearRiskData}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={clearError}>
           {error}
         </Alert>
       )}
 
       <Grid container spacing={3}>
-        {/* Risk Metrics Summary */}
+        {/* ── Summary metrics row ──────────────────────────────────── */}
         <Grid item xs={12}>
           <Card>
             <CardHeader
@@ -154,108 +476,69 @@ const RiskAnalysis = () => {
             />
             <Divider />
             <CardContent>
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6} md={3} lg={2.4}>
-                  <Box sx={{ textAlign: "center", p: 2 }}>
-                    <Typography
-                      variant="subtitle2"
-                      color="text.secondary"
-                      gutterBottom
-                    >
-                      Value at Risk (95%)
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {formatCurrency(riskSummary.valueAtRisk)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {formatPercentage(
-                        (riskSummary.valueAtRisk / 124532.89) * 100,
-                      )}{" "}
-                      of portfolio
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3} lg={2.4}>
-                  <Box sx={{ textAlign: "center", p: 2 }}>
-                    <Typography
-                      variant="subtitle2"
-                      color="text.secondary"
-                      gutterBottom
-                    >
-                      CVaR (Expected Shortfall)
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {formatCurrency(riskSummary.cvar)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Expected tail loss
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3} lg={2.4}>
-                  <Box sx={{ textAlign: "center", p: 2 }}>
-                    <Typography
-                      variant="subtitle2"
-                      color="text.secondary"
-                      gutterBottom
-                    >
-                      Volatility (Annualized)
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {formatPercentage(riskSummary.volatility)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Moderate volatility
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3} lg={2.4}>
-                  <Box sx={{ textAlign: "center", p: 2 }}>
-                    <Typography
-                      variant="subtitle2"
-                      color="text.secondary"
-                      gutterBottom
-                    >
-                      Sharpe Ratio
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {riskSummary.sharpeRatio}
-                    </Typography>
-                    <Typography variant="body2" color="success.main">
-                      Good risk-adjusted return
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3} lg={2.4}>
-                  <Box sx={{ textAlign: "center", p: 2 }}>
-                    <Typography
-                      variant="subtitle2"
-                      color="text.secondary"
-                      gutterBottom
-                    >
-                      Maximum Drawdown
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {formatPercentage(riskSummary.maxDrawdown)}
-                    </Typography>
-                    <Typography variant="body2" color="warning.main">
-                      Moderate risk
-                    </Typography>
-                  </Box>
-                </Grid>
+              <Grid container spacing={2}>
+                {[
+                  {
+                    label: "Value at Risk (95%)",
+                    value: formatCurrency(riskSummary.valueAtRisk),
+                    sub: `${formatPercentage((riskSummary.valueAtRisk / 124532.89) * 100)} of portfolio`,
+                    subColor: "text.secondary",
+                  },
+                  {
+                    label: "CVaR (Expected Shortfall)",
+                    value: formatCurrency(riskSummary.cvar),
+                    sub: "Expected tail loss",
+                    subColor: "text.secondary",
+                  },
+                  {
+                    label: "Volatility (Annualized)",
+                    value: formatPercentage(riskSummary.volatility),
+                    sub: "Moderate volatility",
+                    subColor: "text.secondary",
+                  },
+                  {
+                    label: "Sharpe Ratio",
+                    value: String(riskSummary.sharpeRatio),
+                    sub: "Good risk-adjusted return",
+                    subColor: "success.main",
+                  },
+                  {
+                    label: "Maximum Drawdown",
+                    value: formatPercentage(riskSummary.maxDrawdown),
+                    sub: "Moderate risk",
+                    subColor: "warning.main",
+                  },
+                ].map(({ label, value, sub, subColor }) => (
+                  <Grid item xs={12} sm={6} md={4} lg={2.4} key={label}>
+                    <Box sx={{ textAlign: "center", p: 1.5 }}>
+                      <Typography
+                        variant="subtitle2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        {label}
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                        {value}
+                      </Typography>
+                      <Typography variant="body2" color={subColor}>
+                        {sub}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
               </Grid>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Risk Analysis Tools */}
+        {/* ── Tabbed tools ─────────────────────────────────────────── */}
         <Grid item xs={12}>
           <Card>
             <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
               <Tabs
                 value={tabValue}
                 onChange={handleTabChange}
-                aria-label="risk analysis tabs"
                 variant="scrollable"
                 scrollButtons="auto"
               >
@@ -266,14 +549,19 @@ const RiskAnalysis = () => {
                 <Tab label="Risk Contribution" />
               </Tabs>
             </Box>
+
             <CardContent>
-              {/* VaR Tab */}
+              {/* ── VaR ───────────────────────────────── */}
               {tabValue === 0 && (
                 <Box>
                   <Typography variant="h6" gutterBottom>
                     Value at Risk (VaR) Calculator
                   </Typography>
-                  <Typography variant="body2" paragraph>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
                     VaR estimates the maximum potential loss over a specific
                     time period at a given confidence level.
                   </Typography>
@@ -350,7 +638,7 @@ const RiskAnalysis = () => {
                         onClick={handleVarCalculate}
                         disabled={loading}
                       >
-                        {loading ? "Calculating..." : "Calculate VaR"}
+                        {loading ? "Calculating…" : "Calculate VaR"}
                       </Button>
                     </Grid>
                     <Grid item xs={12} md={7}>
@@ -373,14 +661,12 @@ const RiskAnalysis = () => {
                               <Typography
                                 variant="h5"
                                 color="error.main"
-                                sx={{ fontWeight: 600 }}
+                                sx={{ fontWeight: 700 }}
                               >
-                                {varData
-                                  ? formatCurrency(
-                                      varData.var_amount ??
-                                        riskSummary.valueAtRisk,
-                                    )
-                                  : formatCurrency(riskSummary.valueAtRisk)}
+                                {formatCurrency(
+                                  varData?.var_amount ??
+                                    riskSummary.valueAtRisk,
+                                )}
                               </Typography>
                             </Grid>
                             <Grid item xs={6}>
@@ -388,18 +674,16 @@ const RiskAnalysis = () => {
                                 variant="body2"
                                 color="text.secondary"
                               >
-                                CVaR (Expected Shortfall)
+                                CVaR (Exp. Shortfall)
                               </Typography>
                               <Typography
                                 variant="h5"
                                 color="error.main"
-                                sx={{ fontWeight: 600 }}
+                                sx={{ fontWeight: 700 }}
                               >
-                                {cvarData
-                                  ? formatCurrency(
-                                      cvarData.cvar_amount ?? riskSummary.cvar,
-                                    )
-                                  : formatCurrency(riskSummary.cvar)}
+                                {formatCurrency(
+                                  cvarData?.cvar_amount ?? riskSummary.cvar,
+                                )}
                               </Typography>
                             </Grid>
                             <Grid item xs={6}>
@@ -411,7 +695,7 @@ const RiskAnalysis = () => {
                               </Typography>
                               <Typography
                                 variant="body1"
-                                sx={{ fontWeight: 500 }}
+                                sx={{ fontWeight: 600 }}
                               >
                                 {(varParams.confidence_level * 100).toFixed(0)}%
                               </Typography>
@@ -425,7 +709,7 @@ const RiskAnalysis = () => {
                               </Typography>
                               <Typography
                                 variant="body1"
-                                sx={{ fontWeight: 500 }}
+                                sx={{ fontWeight: 600 }}
                               >
                                 {varParams.time_horizon} day
                                 {varParams.time_horizon > 1 ? "s" : ""}
@@ -439,16 +723,19 @@ const RiskAnalysis = () => {
                 </Box>
               )}
 
-              {/* CVaR Tab */}
+              {/* ── CVaR ──────────────────────────────── */}
               {tabValue === 1 && (
                 <Box>
                   <Typography variant="h6" gutterBottom>
                     CVaR / Expected Shortfall
                   </Typography>
-                  <Typography variant="body2" paragraph>
-                    Conditional Value at Risk (CVaR), also known as Expected
-                    Shortfall, measures the expected loss beyond the VaR
-                    threshold — giving a fuller picture of tail risk.
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    CVaR measures the expected loss beyond the VaR threshold,
+                    providing a fuller picture of tail risk.
                   </Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={5}>
@@ -482,7 +769,7 @@ const RiskAnalysis = () => {
                         onClick={handleVarCalculate}
                         disabled={loading}
                       >
-                        {loading ? "Calculating..." : "Calculate CVaR"}
+                        {loading ? "Calculating…" : "Calculate CVaR"}
                       </Button>
                     </Grid>
                     <Grid item xs={12} md={7}>
@@ -500,16 +787,14 @@ const RiskAnalysis = () => {
                           <Typography
                             variant="h4"
                             color="error.main"
-                            sx={{ fontWeight: 600, my: 1 }}
+                            sx={{ fontWeight: 700, my: 1 }}
                           >
-                            {cvarData
-                              ? formatCurrency(
-                                  cvarData.cvar_amount ?? riskSummary.cvar,
-                                )
-                              : formatCurrency(riskSummary.cvar)}
+                            {formatCurrency(
+                              cvarData?.cvar_amount ?? riskSummary.cvar,
+                            )}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            This is the average loss expected in the worst{" "}
+                            Average loss expected in the worst{" "}
                             {(100 - varParams.confidence_level * 100).toFixed(
                               0,
                             )}
@@ -522,15 +807,19 @@ const RiskAnalysis = () => {
                 </Box>
               )}
 
-              {/* Stress Testing Tab */}
+              {/* ── Stress Testing ────────────────────── */}
               {tabValue === 2 && (
                 <Box>
                   <Typography variant="h6" gutterBottom>
                     Stress Testing
                   </Typography>
-                  <Typography variant="body2" paragraph>
-                    Simulate how your portfolio performs under extreme market
-                    conditions.
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    Simulate how your portfolio performs under extreme
+                    historical or custom market conditions.
                   </Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
@@ -539,7 +828,7 @@ const RiskAnalysis = () => {
                         <Select
                           value={stressScenario}
                           label="Scenario"
-                          onChange={(e) => setStressScenario(e.target.value)}
+                          onChange={(e) => handleScenarioChange(e.target.value)}
                         >
                           <MenuItem value="2008_crisis">
                             2008 Financial Crisis
@@ -553,69 +842,39 @@ const RiskAnalysis = () => {
                           <MenuItem value="custom">Custom Scenario</MenuItem>
                         </Select>
                       </FormControl>
+
                       <Typography variant="subtitle2" gutterBottom>
                         Shock Parameters
                       </Typography>
-                      <Grid container spacing={2}>
-                        <Grid item xs={8}>
-                          <Typography variant="body2">
-                            Equity Markets
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={4}>
-                          <TextField
-                            size="small"
-                            value={stressParams.equity_shock}
-                            onChange={(e) =>
-                              setStressParams((p) => ({
-                                ...p,
-                                equity_shock: parseFloat(e.target.value) || 0,
-                              }))
-                            }
-                            InputProps={{ endAdornment: "%" }}
-                            type="number"
-                          />
-                        </Grid>
-                        <Grid item xs={8}>
-                          <Typography variant="body2">Bond Yields</Typography>
-                        </Grid>
-                        <Grid item xs={4}>
-                          <TextField
-                            size="small"
-                            value={stressParams.bond_shock}
-                            onChange={(e) =>
-                              setStressParams((p) => ({
-                                ...p,
-                                bond_shock: parseFloat(e.target.value) || 0,
-                              }))
-                            }
-                            InputProps={{ endAdornment: "%" }}
-                            type="number"
-                          />
-                        </Grid>
-                        <Grid item xs={8}>
-                          <Typography variant="body2">
-                            Cryptocurrency
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={4}>
-                          <TextField
-                            size="small"
-                            value={stressParams.crypto_shock}
-                            onChange={(e) =>
-                              setStressParams((p) => ({
-                                ...p,
-                                crypto_shock: parseFloat(e.target.value) || 0,
-                              }))
-                            }
-                            InputProps={{ endAdornment: "%" }}
-                            type="number"
-                          />
-                        </Grid>
+                      <Grid container spacing={2} alignItems="center">
+                        {SHOCK_FIELDS.map(({ label, key }) => (
+                          <React.Fragment key={key}>
+                            <Grid item xs={7}>
+                              <Typography variant="body2">{label}</Typography>
+                            </Grid>
+                            <Grid item xs={5}>
+                              <TextField
+                                size="small"
+                                fullWidth
+                                type="number"
+                                value={stressParams[key]}
+                                onChange={(e) =>
+                                  setStressParams((p) => ({
+                                    ...p,
+                                    [key]: parseFloat(e.target.value) || 0,
+                                  }))
+                                }
+                                InputProps={{ endAdornment: "%" }}
+                              />
+                            </Grid>
+                          </React.Fragment>
+                        ))}
                       </Grid>
+
                       <Button
                         variant="contained"
                         fullWidth
+                        sx={{ mt: 2 }}
                         startIcon={
                           loading ? (
                             <CircularProgress size={16} color="inherit" />
@@ -625,11 +884,11 @@ const RiskAnalysis = () => {
                         }
                         onClick={handleStressTest}
                         disabled={loading}
-                        sx={{ mt: 2 }}
                       >
-                        {loading ? "Running..." : "Run Stress Test"}
+                        {loading ? "Running…" : "Run Stress Test"}
                       </Button>
                     </Grid>
+
                     <Grid item xs={12} md={6}>
                       <Card
                         variant="outlined"
@@ -637,14 +896,7 @@ const RiskAnalysis = () => {
                       >
                         <CardContent>
                           <Typography variant="subtitle2" gutterBottom>
-                            Stress Test Results:{" "}
-                            {stressScenario === "2008_crisis"
-                              ? "2008 Financial Crisis"
-                              : stressScenario === "covid_crash"
-                                ? "COVID-19 Crash"
-                                : stressScenario === "dot_com"
-                                  ? "Dot-com Bubble"
-                                  : "Custom Scenario"}
+                            Results: {SCENARIO_LABELS[stressScenario]}
                           </Typography>
                           <Box sx={{ mb: 2 }}>
                             <Typography variant="body2" color="text.secondary">
@@ -653,7 +905,7 @@ const RiskAnalysis = () => {
                             <Typography
                               variant="h5"
                               color="error.main"
-                              sx={{ fontWeight: 600 }}
+                              sx={{ fontWeight: 700 }}
                             >
                               {stressResult
                                 ? formatPercentage(
@@ -665,6 +917,7 @@ const RiskAnalysis = () => {
                           </Box>
                           {stressResult && (
                             <>
+                              <Divider sx={{ mb: 1.5 }} />
                               <Typography variant="subtitle2" gutterBottom>
                                 Impact by Asset Class
                               </Typography>
@@ -682,21 +935,27 @@ const RiskAnalysis = () => {
                                   value: stressResult.cryptoImpact,
                                 },
                                 {
-                                  label: "Gold",
+                                  label: "Gold (safe-haven)",
                                   value: stressResult.goldImpact,
                                 },
                               ].map(({ label, value }) => (
-                                <Box key={label} sx={{ mb: 1 }}>
-                                  <Typography variant="body2" display="inline">
-                                    {label}:
+                                <Box
+                                  key={label}
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    mb: 0.8,
+                                  }}
+                                >
+                                  <Typography variant="body2">
+                                    {label}
                                   </Typography>
                                   <Typography
                                     variant="body2"
                                     color={
                                       value >= 0 ? "success.main" : "error.main"
                                     }
-                                    display="inline"
-                                    sx={{ ml: 1 }}
+                                    sx={{ fontWeight: 700 }}
                                   >
                                     {formatPercentage(value, 1, true)}
                                   </Typography>
@@ -711,54 +970,11 @@ const RiskAnalysis = () => {
                 </Box>
               )}
 
-              {tabValue === 3 && (
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    Correlation Analysis
-                  </Typography>
-                  <Typography variant="body2" paragraph>
-                    Correlation analysis helps understand how assets move in
-                    relation to each other, crucial for portfolio
-                    diversification.
-                  </Typography>
-                  <Box
-                    sx={{
-                      height: 400,
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Typography variant="body2" color="text.secondary">
-                      Correlation matrix heatmap — connect backend for live data
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
+              {/* ── Correlation Analysis ──────────────── */}
+              {tabValue === 3 && <CorrelationHeatmap />}
 
-              {tabValue === 4 && (
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    Risk Contribution
-                  </Typography>
-                  <Typography variant="body2" paragraph>
-                    Risk contribution analysis shows how much each asset
-                    contributes to overall portfolio risk.
-                  </Typography>
-                  <Box
-                    sx={{
-                      height: 400,
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Typography variant="body2" color="text.secondary">
-                      Risk contribution chart — connect backend for live data
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
+              {/* ── Risk Contribution ─────────────────── */}
+              {tabValue === 4 && <RiskContributionChart />}
             </CardContent>
           </Card>
         </Grid>

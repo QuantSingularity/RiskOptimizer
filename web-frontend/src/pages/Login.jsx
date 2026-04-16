@@ -29,10 +29,9 @@ const Login = () => {
   const { login, register, loading, error, user, clearError } = useAuth();
   const navigate = useNavigate();
 
+  // Redirect if already authenticated
   useEffect(() => {
-    if (user) {
-      navigate("/", { replace: true });
-    }
+    if (user) navigate("/dashboard", { replace: true });
   }, [user, navigate]);
 
   useEffect(() => {
@@ -53,22 +52,17 @@ const Login = () => {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLocalError("");
-
     if (!formData.wallet_address) {
-      setLocalError("Please enter your wallet address");
+      setLocalError("Please enter a wallet address");
       return;
     }
-
     const success = await login({ wallet_address: formData.wallet_address });
-    if (success) {
-      navigate("/");
-    }
+    if (success) navigate("/dashboard");
   };
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setLocalError("");
-
     if (
       !formData.username ||
       !formData.email ||
@@ -78,16 +72,28 @@ const Login = () => {
       setLocalError("All fields are required");
       return;
     }
-
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setLocalError("Please enter a valid email address");
+      return;
+    }
+    if (formData.password.length < 6) {
+      setLocalError("Password must be at least 6 characters");
+      return;
+    }
     const success = await register({
       username: formData.username,
       email: formData.email,
       password: formData.password,
       wallet_address: formData.wallet_address,
     });
-    if (success) {
-      navigate("/");
-    }
+    if (success) navigate("/dashboard");
+  };
+
+  const handleDemoLogin = async () => {
+    const success = await login({
+      wallet_address: "0xDEMO1234567890ABCDEFdemo",
+    });
+    if (success) navigate("/dashboard");
   };
 
   const displayError = localError || error;
@@ -96,31 +102,39 @@ const Login = () => {
     <Container component="main" maxWidth="xs">
       <Box
         sx={{
-          marginTop: 8,
+          minHeight: "100vh",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          minHeight: "100vh",
+          justifyContent: "center",
         }}
         className="fade-in"
       >
         <Paper
           elevation={3}
           sx={{
-            padding: 4,
+            p: 4,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             backgroundColor: "background.paper",
-            borderRadius: 2,
+            borderRadius: 3,
             width: "100%",
+            border: "1px solid rgba(255,255,255,0.07)",
           }}
         >
-          <Avatar sx={{ m: 1, bgcolor: "primary.main" }}>
+          <Avatar sx={{ m: 1, bgcolor: "primary.main", width: 48, height: 48 }}>
             <LockOutlinedIcon />
           </Avatar>
-          <Typography component="h1" variant="h5" sx={{ mb: 2 }}>
+          <Typography
+            component="h1"
+            variant="h5"
+            sx={{ mb: 0.5, fontFamily: "Poppins, sans-serif", fontWeight: 700 }}
+          >
             RiskOptimizer
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            AI-Powered Portfolio Intelligence
           </Typography>
 
           <Tabs
@@ -138,6 +152,7 @@ const Login = () => {
             </Alert>
           )}
 
+          {/* Sign In */}
           {tab === 0 && (
             <Box
               component="form"
@@ -161,23 +176,42 @@ const Login = () => {
                 type="submit"
                 fullWidth
                 variant="contained"
-                sx={{ mt: 3, mb: 2, py: 1.5 }}
+                sx={{ mt: 2, mb: 1, py: 1.4 }}
                 disabled={loading}
               >
-                {loading ? <CircularProgress size={24} /> : "Sign In"}
+                {loading ? <CircularProgress size={22} /> : "Sign In"}
               </Button>
-              <Divider sx={{ my: 1 }} />
+              <Divider sx={{ my: 1.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  or
+                </Typography>
+              </Divider>
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={handleDemoLogin}
+                disabled={loading}
+                sx={{ py: 1.2 }}
+              >
+                {loading ? (
+                  <CircularProgress size={20} />
+                ) : (
+                  "Continue with Demo Account"
+                )}
+              </Button>
               <Typography
-                variant="body2"
+                variant="caption"
                 color="text.secondary"
                 align="center"
-                sx={{ mt: 1 }}
+                display="block"
+                sx={{ mt: 1.5 }}
               >
-                For demo, use any wallet address.
+                Demo mode: enter any wallet address, or click above.
               </Typography>
             </Box>
           )}
 
+          {/* Register */}
           {tab === 1 && (
             <Box
               component="form"
@@ -213,6 +247,7 @@ const Login = () => {
                 value={formData.password}
                 onChange={handleChange("password")}
                 disabled={loading}
+                helperText="Minimum 6 characters"
               />
               <TextField
                 margin="normal"
@@ -228,10 +263,10 @@ const Login = () => {
                 type="submit"
                 fullWidth
                 variant="contained"
-                sx={{ mt: 3, mb: 2, py: 1.5 }}
+                sx={{ mt: 2, mb: 1, py: 1.4 }}
                 disabled={loading}
               >
-                {loading ? <CircularProgress size={24} /> : "Create Account"}
+                {loading ? <CircularProgress size={22} /> : "Create Account"}
               </Button>
             </Box>
           )}

@@ -5,10 +5,10 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
-import "./styles/index.css";
 import { AuthProvider } from "./context/AuthContext";
 import { PortfolioProvider } from "./context/PortfolioContext";
 import { RiskAnalysisProvider } from "./context/RiskAnalysisContext";
+import "./styles/index.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,24 +50,23 @@ const theme = createTheme({
   },
   typography: {
     fontFamily: [
+      "Poppins",
       "-apple-system",
       "BlinkMacSystemFont",
       '"Segoe UI"',
       "Roboto",
-      '"Helvetica Neue"',
-      "Arial",
       "sans-serif",
     ].join(","),
-    h4: { fontWeight: 600 },
+    h4: { fontWeight: 700 },
     h5: { fontWeight: 600 },
-    h6: { fontWeight: 500 },
+    h6: { fontWeight: 600 },
   },
   components: {
     MuiAppBar: {
       styleOverrides: {
         root: {
           backgroundColor: "#132f4c",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
         },
       },
     },
@@ -80,7 +79,9 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 12,
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+          boxShadow: "0 4px 24px rgba(0, 0, 0, 0.35)",
+          backgroundImage: "none",
+          border: "1px solid rgba(255, 255, 255, 0.06)",
         },
       },
     },
@@ -88,15 +89,33 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           textTransform: "none",
-          fontWeight: 500,
+          fontWeight: 600,
           borderRadius: 8,
         },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        head: {
+          backgroundColor: "rgba(255,255,255,0.03)",
+          fontWeight: 700,
+          color: "#b2bac2",
+          fontSize: "0.75rem",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: { borderRadius: 6 },
       },
     },
   },
 });
 
-const root = createRoot(document.getElementById("root"));
+const container = document.getElementById("root");
+const root = createRoot(container);
 root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>

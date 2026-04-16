@@ -1,4 +1,9 @@
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import LockIcon from "@mui/icons-material/Lock";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import SaveIcon from "@mui/icons-material/Save";
+import SecurityIcon from "@mui/icons-material/Security";
+import TuneIcon from "@mui/icons-material/Tune";
 import {
   Alert,
   Box,
@@ -9,6 +14,7 @@ import {
   Divider,
   FormControlLabel,
   Grid,
+  Slider,
   Snackbar,
   Switch,
   TextField,
@@ -16,28 +22,40 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { formatAddress } from "../utils/formatters";
 
 const Settings = () => {
   const { user, logout } = useAuth();
-  const [settings, setSettings] = useState({
+
+  const [account, setAccount] = useState({
+    email: user?.email || "",
+    username: user?.username || "",
+  });
+
+  const [prefs, setPrefs] = useState({
     notifications: true,
     darkMode: true,
     autoRebalance: false,
-    email: user?.email || "",
-    riskTolerance: 50,
+    emailAlerts: true,
+    riskAlerts: true,
   });
+
+  const [riskTolerance, setRiskTolerance] = useState(50);
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
 
-  const handleChange = (field) => (event) => {
-    const value =
-      event.target.type === "checkbox"
-        ? event.target.checked
-        : event.target.value;
-    setSettings((prev) => ({ ...prev, [field]: value }));
+  // Correct handler for text fields
+  const handleAccountChange = (field) => (e) => {
+    setAccount((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
+  // Correct handler for Switch — uses e.target.checked, not e.target.value
+  const handlePrefSwitch = (field) => (e) => {
+    setPrefs((prev) => ({ ...prev, [field]: e.target.checked }));
   };
 
   const handleSave = () => {
@@ -48,9 +66,11 @@ const Settings = () => {
     });
   };
 
-  const handleCloseSnackbar = () => {
-    setSnackbar((prev) => ({ ...prev, open: false }));
+  const handleLogout = () => {
+    logout();
   };
+
+  const walletAddress = user?.wallet_address || user?.address || "";
 
   return (
     <Box className="fade-in">
@@ -59,37 +79,49 @@ const Settings = () => {
       </Typography>
 
       <Grid container spacing={3}>
+        {/* Account Settings */}
         <Grid item xs={12} md={6}>
           <Card>
-            <CardHeader title="Account Settings" />
+            <CardHeader
+              title="Account"
+              avatar={<AccountCircleIcon color="primary" />}
+            />
             <Divider />
             <CardContent>
               <TextField
                 fullWidth
-                label="Email"
-                value={settings.email}
-                onChange={handleChange("email")}
+                label="Username"
+                value={account.username}
+                onChange={handleAccountChange("username")}
                 margin="normal"
+              />
+              <TextField
+                fullWidth
+                label="Email"
                 type="email"
+                value={account.email}
+                onChange={handleAccountChange("email")}
+                margin="normal"
               />
               <TextField
                 fullWidth
                 label="Wallet Address"
-                value={user?.wallet_address || user?.address || ""}
+                value={walletAddress}
                 margin="normal"
                 disabled
-                helperText="Your connected wallet address"
+                helperText={
+                  walletAddress ? `Full: ${walletAddress}` : "Not connected"
+                }
               />
-              <Box sx={{ mt: 3 }}>
+              <Box sx={{ mt: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
                 <Button
                   variant="contained"
                   startIcon={<SaveIcon />}
                   onClick={handleSave}
-                  sx={{ mr: 2 }}
                 >
                   Save Changes
                 </Button>
-                <Button variant="outlined" color="error" onClick={logout}>
+                <Button variant="outlined" color="error" onClick={handleLogout}>
                   Logout
                 </Button>
               </Box>
@@ -97,68 +129,208 @@ const Settings = () => {
           </Card>
         </Grid>
 
+        {/* Preferences */}
         <Grid item xs={12} md={6}>
           <Card>
-            <CardHeader title="Preferences" />
+            <CardHeader
+              title="Preferences"
+              avatar={<NotificationsActiveIcon color="primary" />}
+            />
             <Divider />
             <CardContent>
               <FormControlLabel
                 control={
                   <Switch
-                    checked={settings.notifications}
-                    onChange={handleChange("notifications")}
+                    checked={prefs.notifications}
+                    onChange={handlePrefSwitch("notifications")}
                   />
                 }
-                label="Enable Notifications"
+                label="Enable Push Notifications"
+                sx={{ display: "flex", mb: 1 }}
               />
               <FormControlLabel
                 control={
                   <Switch
-                    checked={settings.darkMode}
-                    onChange={handleChange("darkMode")}
+                    checked={prefs.emailAlerts}
+                    onChange={handlePrefSwitch("emailAlerts")}
                   />
                 }
-                label="Dark Mode"
+                label="Email Alerts"
+                sx={{ display: "flex", mb: 1 }}
               />
               <FormControlLabel
                 control={
                   <Switch
-                    checked={settings.autoRebalance}
-                    onChange={handleChange("autoRebalance")}
+                    checked={prefs.riskAlerts}
+                    onChange={handlePrefSwitch("riskAlerts")}
+                  />
+                }
+                label="Risk Threshold Alerts"
+                sx={{ display: "flex", mb: 1 }}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={prefs.autoRebalance}
+                    onChange={handlePrefSwitch("autoRebalance")}
                   />
                 }
                 label="Auto-Rebalance Portfolio"
+                sx={{ display: "flex", mb: 1 }}
               />
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Default Risk Tolerance
-                </Typography>
-                <TextField
-                  type="number"
-                  value={settings.riskTolerance}
-                  onChange={handleChange("riskTolerance")}
-                  inputProps={{ min: 0, max: 100 }}
-                  helperText="0 = Conservative, 100 = Aggressive"
-                  fullWidth
-                />
-              </Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={prefs.darkMode}
+                    onChange={handlePrefSwitch("darkMode")}
+                  />
+                }
+                label="Dark Mode"
+                sx={{ display: "flex", mb: 1 }}
+              />
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12}>
+        {/* Risk Profile */}
+        <Grid item xs={12} md={6}>
           <Card>
-            <CardHeader title="Security" />
+            <CardHeader
+              title="Risk Profile"
+              avatar={<TuneIcon color="primary" />}
+            />
+            <Divider />
+            <CardContent>
+              <Box sx={{ mb: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mb: 1,
+                  }}
+                >
+                  <Typography variant="subtitle2">
+                    Default Risk Tolerance
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color={
+                      riskTolerance < 33
+                        ? "success.main"
+                        : riskTolerance < 67
+                          ? "warning.main"
+                          : "error.main"
+                    }
+                    sx={{ fontWeight: 600 }}
+                  >
+                    {riskTolerance < 33
+                      ? "Conservative"
+                      : riskTolerance < 67
+                        ? "Moderate"
+                        : "Aggressive"}{" "}
+                    ({riskTolerance})
+                  </Typography>
+                </Box>
+                <Slider
+                  value={riskTolerance}
+                  onChange={(_, v) => setRiskTolerance(v)}
+                  min={0}
+                  max={100}
+                  step={5}
+                  marks={[
+                    { value: 0, label: "0" },
+                    { value: 50, label: "50" },
+                    { value: 100, label: "100" },
+                  ]}
+                  valueLabelDisplay="auto"
+                  color={
+                    riskTolerance < 33
+                      ? "success"
+                      : riskTolerance < 67
+                        ? "warning"
+                        : "error"
+                  }
+                />
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mt: 0.5,
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    Conservative
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Aggressive
+                  </Typography>
+                </Box>
+              </Box>
+              <Button
+                variant="contained"
+                startIcon={<SaveIcon />}
+                onClick={handleSave}
+              >
+                Save Profile
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Security */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardHeader
+              title="Security"
+              avatar={<SecurityIcon color="primary" />}
+            />
             <Divider />
             <CardContent>
               <Alert severity="info" sx={{ mb: 2 }}>
-                Your wallet connection is secured through blockchain
-                authentication.
+                Your session is secured via wallet-based authentication.
               </Alert>
-              <Typography variant="body2" color="text.secondary">
-                Connected Wallet:{" "}
-                {user?.wallet_address || user?.address || "Not connected"}
-              </Typography>
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  Connected Wallet
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontFamily: "monospace",
+                    backgroundColor: "rgba(255,255,255,0.04)",
+                    p: 1,
+                    borderRadius: 1,
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {walletAddress || "Not connected"}
+                </Typography>
+              </Box>
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  Display (Shortened)
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {walletAddress ? formatAddress(walletAddress) : "—"}
+                </Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<LockIcon />}
+                onClick={handleLogout}
+                fullWidth
+              >
+                Sign Out
+              </Button>
             </CardContent>
           </Card>
         </Grid>
@@ -166,11 +338,14 @@ const Settings = () => {
 
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>
