@@ -12,8 +12,6 @@ RiskOptimizer is an advanced portfolio risk management platform that leverages a
   <img src="docs/images/RiskOptimizer_dashboard.bmp" alt="RiskOptimizer Dashboard" width="80%">
 </div>
 
-> **Note**: This project is under active development. Features and functionalities are continuously being enhanced to improve risk assessment capabilities and user experience.
-
 ## Table of Contents
 
 - [Overview](#overview)
