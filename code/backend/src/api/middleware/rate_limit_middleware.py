@@ -69,7 +69,7 @@ def rate_limit(
     def decorator(func: Callable) -> Callable:
 
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args, **kwargs) -> object:
             try:
                 endpoint = request.endpoint or "unknown"
                 key = get_rate_limit_key(endpoint)
@@ -119,7 +119,7 @@ def rate_limit(
     return decorator
 
 
-def apply_rate_limiting(app: Any) -> None:
+def apply_rate_limiting(app: object) -> None:
     """
     Apply rate limiting to all API endpoints.
 

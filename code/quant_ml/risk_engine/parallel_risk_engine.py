@@ -15,7 +15,7 @@ import logging
 import multiprocessing as mp
 import time
 import warnings
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -34,7 +34,10 @@ class ParallelRiskEngine:
     """Parallel Risk Calculation Engine"""
 
     def __init__(
-        self, n_jobs: Any = None, backend: Any = "multiprocessing", verbose: Any = 0
+        self,
+        n_jobs: Optional[int] = None,
+        backend: str = "multiprocessing",
+        verbose: int = 0,
     ) -> None:
         """
         Initialize Parallel Risk Engine
@@ -56,11 +59,11 @@ class ParallelRiskEngine:
 
     def parallel_monte_carlo(
         self,
-        risk_model: Any,
-        weights: Any,
-        n_scenarios: Any = 10000,
-        confidence_levels: Any = None,
-    ) -> Any:
+        risk_model: object,
+        weights: object,
+        n_scenarios: int = 10000,
+        confidence_levels: Optional[List[float]] = None,
+    ) -> Dict[str, object]:
         """
         Run Monte Carlo simulation in parallel
 
@@ -117,7 +120,9 @@ class ParallelRiskEngine:
             "time_taken": time_taken,
         }
 
-    def _generate_scenarios_batch(self, risk_model: Any, batch_size: Any) -> Any:
+    def _generate_scenarios_batch(
+        self, risk_model: object, batch_size: object
+    ) -> object:
         """
         Generate a batch of scenarios
 
@@ -132,13 +137,13 @@ class ParallelRiskEngine:
 
     def parallel_portfolio_optimization(
         self,
-        returns: Any,
-        risk_model: Any = "markowitz",
-        n_portfolios: Any = 1000,
-        risk_free_rate: Any = 0.02,
-        target_return: Any = None,
-        target_risk: Any = None,
-    ) -> Any:
+        returns: object,
+        risk_model: object = "markowitz",
+        n_portfolios: int = 1000,
+        risk_free_rate: object = 0.02,
+        target_return: object = None,
+        target_risk: object = None,
+    ) -> Dict[str, object]:
         """
         Run portfolio optimization in parallel
 
@@ -212,8 +217,12 @@ class ParallelRiskEngine:
         }
 
     def _generate_portfolios_batch(
-        self, returns: Any, risk_model: Any, batch_size: Any, risk_free_rate: Any
-    ) -> Any:
+        self,
+        returns: object,
+        risk_model: object,
+        batch_size: object,
+        risk_free_rate: object,
+    ) -> object:
         """Generate a batch of random portfolios."""
         assets = returns.columns
         n_assets = len(assets)
@@ -272,7 +281,9 @@ class ParallelRiskEngine:
             portfolios.append(portfolio)
         return portfolios
 
-    def _find_efficient_frontier(self, portfolios_df: Any, n_points: Any = 100) -> Any:
+    def _find_efficient_frontier(
+        self, portfolios_df: object, n_points: int = 100
+    ) -> object:
         """Find the efficient frontier from a set of portfolios."""
         sorted_portfolios = portfolios_df.sort_values("return")
         efficient_frontier = []
@@ -290,8 +301,8 @@ class ParallelRiskEngine:
         return pd.DataFrame(efficient_frontier)
 
     def _find_target_return_portfolio(
-        self, portfolios_df: Any, target_return: Any, assets: Any
-    ) -> Any:
+        self, portfolios_df: object, target_return: object, assets: object
+    ) -> object:
         """Find portfolio with target return."""
         closest_idx = (portfolios_df["return"] - target_return).abs().idxmin()
         return {
@@ -302,8 +313,8 @@ class ParallelRiskEngine:
         }
 
     def _find_target_risk_portfolio(
-        self, portfolios_df: Any, target_risk: Any, assets: Any
-    ) -> Any:
+        self, portfolios_df: object, target_risk: object, assets: object
+    ) -> object:
         """Find portfolio with target risk."""
         closest_idx = (portfolios_df["volatility"] - target_risk).abs().idxmin()
         return {
@@ -315,10 +326,10 @@ class ParallelRiskEngine:
 
     def parallel_batch_risk_calculation(
         self,
-        returns: Any,
-        risk_models: Any = None,
-        confidence_levels: Any = None,
-    ) -> Any:
+        returns: object,
+        risk_models: Optional[List[str]] = None,
+        confidence_levels: Optional[List[float]] = None,
+    ) -> Dict[str, object]:
         """
         Run batch risk calculation in parallel
 
@@ -354,8 +365,8 @@ class ParallelRiskEngine:
         return {"risk_metrics": risk_metrics, "time_taken": time_taken}
 
     def _calculate_risk_metrics(
-        self, returns: Any, model: Any, confidence_levels: Any
-    ) -> Any:
+        self, returns: object, model: object, confidence_levels: object
+    ) -> object:
         """
         Calculate risk metrics for a specific model.
 
@@ -409,11 +420,11 @@ class ParallelRiskEngine:
 
     def parallel_stress_testing(
         self,
-        returns: Any,
-        weights: Any,
-        predefined_scenarios: Any = None,
-        n_custom_scenarios: Any = 100,
-    ) -> Any:
+        returns: object,
+        weights: object,
+        predefined_scenarios: object = None,
+        n_custom_scenarios: int = 100,
+    ) -> Dict[str, object]:
         """
         Run stress testing in parallel
 
@@ -508,8 +519,8 @@ class ParallelRiskEngine:
         }
 
     def _run_predefined_scenario(
-        self, returns: Any, weights: Any, scenario_name: Any, scenario: Any
-    ) -> Any:
+        self, returns: object, weights: object, scenario_name: object, scenario: object
+    ) -> object:
         """Run a predefined stress scenario."""
         shocked_returns = returns.copy()
         for asset_class, shock in scenario["shocks"].items():
@@ -538,7 +549,7 @@ class ParallelRiskEngine:
             "es_99": es_99,
         }
 
-    def _generate_custom_scenario(self, returns: Any, weights: Any) -> Any:
+    def _generate_custom_scenario(self, returns: object, weights: object) -> object:
         """Generate a custom stress scenario."""
         cov_matrix = returns.cov()
         shock_factors = np.random.normal(0, 1, len(returns.columns))
@@ -567,12 +578,12 @@ class ParallelRiskEngine:
 
     def parallel_backtest(
         self,
-        returns: Any,
-        risk_models: Any = None,
-        confidence_level: Any = 0.95,
-        window_size: Any = 252,
-        step_size: Any = 20,
-    ) -> Any:
+        returns: object,
+        risk_models: Optional[List[str]] = None,
+        confidence_level: float = 0.95,
+        window_size: int = 252,
+        step_size: int = 20,
+    ) -> Dict[str, object]:
         """
         Run backtesting of risk models in parallel.
 
@@ -627,13 +638,13 @@ class ParallelRiskEngine:
 
     def _run_backtest_window(
         self,
-        returns: Any,
-        window_idx: Any,
-        window_size: Any,
-        step_size: Any,
-        risk_models: Any,
-        confidence_level: Any,
-    ) -> Any:
+        returns: object,
+        window_idx: object,
+        window_size: object,
+        step_size: object,
+        risk_models: object,
+        confidence_level: object,
+    ) -> object:
         """Run backtest for a specific window."""
         start_idx = window_idx * step_size
         end_idx = start_idx + window_size
@@ -681,10 +692,10 @@ class ParallelRiskEngine:
 
     def parallel_sensitivity_analysis(
         self,
-        returns: Any,
-        weights: Any,
-        shock_range: Any = (-0.1, 0.1),
-        n_points: Any = 10,
+        returns: object,
+        weights: object,
+        shock_range: object = (-0.1, 0.1),
+        n_points: int = 10,
     ) -> Any:
         """
         Run sensitivity analysis in parallel.
@@ -735,8 +746,8 @@ class ParallelRiskEngine:
         }
 
     def _analyze_factor_sensitivity(
-        self, returns: Any, weights: Any, factor: Any, shock_points: Any
-    ) -> Any:
+        self, returns: object, weights: object, factor: object, shock_points: object
+    ) -> object:
         """Analyze sensitivity to a specific factor."""
         n_points = len(shock_points)
         portfolio_returns = np.zeros(n_points)
@@ -773,8 +784,8 @@ class ParallelRiskEngine:
         }
 
     def parallel_risk_decomposition(
-        self, returns: Any, weights: Any, risk_measure: Any = "volatility"
-    ) -> Any:
+        self, returns: object, weights: object, risk_measure: str = "volatility"
+    ) -> Dict[str, object]:
         """
         Run risk decomposition in parallel.
 
@@ -867,8 +878,8 @@ class ParallelRiskEngine:
         }
 
     def _calculate_risk_contribution(
-        self, returns: Any, weights: Any, asset: Any, risk_measure: Any
-    ) -> Any:
+        self, returns: object, weights: object, asset: object, risk_measure: object
+    ) -> object:
         """Calculate risk contribution for a specific asset."""
         portfolio_returns = sum(
             returns[a] * weights.get(a, 0) for a in weights if a in returns.columns
@@ -913,7 +924,7 @@ class ParallelRiskEngine:
             "percentage_contribution": percentage_contribution,
         }
 
-    def system_info(self) -> Any:
+    def system_info(self) -> Dict[str, object]:
         """Get system information."""
         cpu_count = mp.cpu_count()
         try:

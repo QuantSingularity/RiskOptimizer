@@ -54,7 +54,7 @@ def cache_result(
     def decorator(func: Callable) -> Callable:
 
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args, **kwargs) -> object:
             try:
                 if key_func:
                     cache_key = key_func(*args, **kwargs)
@@ -92,7 +92,7 @@ def cache_invalidate(prefix: str, key_func: Optional[Callable] = None) -> Callab
     def decorator(func: Callable) -> Callable:
 
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args, **kwargs) -> object:
             try:
                 result = func(*args, **kwargs)
                 if key_func:
@@ -127,7 +127,7 @@ def memoize(ttl: int = 3600) -> Callable:
     def decorator(func: Callable) -> Callable:
 
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args, **kwargs) -> object:
             func_name = f"{func.__module__}.{func.__name__}"
             cache_key = generate_cache_key(func_name, *args, **kwargs)
             try:

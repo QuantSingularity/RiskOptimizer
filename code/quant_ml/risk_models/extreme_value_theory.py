@@ -12,7 +12,7 @@ This module provides advanced risk modeling using Extreme Value Theory:
 
 import logging
 import warnings
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,7 +44,10 @@ class ExtremeValueRisk:
         return self.pot_params["shape"], self.pot_params["scale"]
 
     def fit_pot(
-        self, data: Any, threshold: Any = None, threshold_quantile: Any = 0.1
+        self,
+        data: "np.ndarray | pd.DataFrame | list",
+        threshold: Optional[float] = None,
+        threshold_quantile: float = 0.1,
     ) -> "ExtremeValueRisk":
         """
         Fit Peaks Over Threshold model with Generalized Pareto Distribution
@@ -108,7 +111,9 @@ class ExtremeValueRisk:
         self.fitted = True
         return self
 
-    def fit_block_maxima(self, data: Any, block_size: Any = 20) -> dict:
+    def fit_block_maxima(
+        self, data: "np.ndarray | pd.DataFrame | list", block_size: int = 20
+    ) -> dict:
         """
         Fit Block Maxima model with Generalized Extreme Value Distribution
 
@@ -158,7 +163,10 @@ class ExtremeValueRisk:
         return self.bm_params
 
     def calculate_var(
-        self, confidence: Any = 0.95, method: Any = "evt", return_period: Any = None
+        self,
+        confidence: float = 0.95,
+        method: str = "evt",
+        return_period: Optional[int] = None,
     ) -> float:
         """
         Calculate Value at Risk (VaR) using EVT
@@ -217,7 +225,7 @@ class ExtremeValueRisk:
         else:
             raise ValueError("Method must be 'evt', 'historical', or 'normal'")
 
-    def calculate_es(self, confidence: Any = 0.95, method: Any = "evt") -> float:
+    def calculate_es(self, confidence: float = 0.95, method: str = "evt") -> float:
         """
         Calculate Expected Shortfall (ES) using EVT
 
@@ -273,7 +281,7 @@ class ExtremeValueRisk:
             raise ValueError("Method must be 'evt', 'historical', or 'normal'")
 
     def generate_scenarios(
-        self, n_scenarios: Any = 1000, method: Any = "evt", severity: Any = "extreme"
+        self, n_scenarios: int = 1000, method: str = "evt", severity: str = "extreme"
     ) -> np.ndarray:
         """
         Generate extreme scenarios based on fitted EVT model
@@ -342,7 +350,7 @@ class ExtremeValueRisk:
             raise ValueError("Method must be 'evt', 'historical', or 'normal'")
 
     def simulate_extreme_scenarios(
-        self, n_scenarios: Any = 100, confidence: Any = 0.95
+        self, n_scenarios: int = 100, confidence: float = 0.95
     ) -> np.ndarray:
         """
         Simulate scenarios that breach the VaR threshold.
@@ -380,10 +388,10 @@ class ExtremeValueRisk:
 
     def tail_dependence(
         self,
-        x: Any,
-        y: Any,
-        method: Any = "empirical",
-        threshold_quantile: Any = 0.1,
+        x: "np.ndarray | pd.DataFrame | list",
+        y: "np.ndarray | pd.DataFrame | list",
+        method: str = "empirical",
+        threshold_quantile: float = 0.1,
     ) -> float:
         """Alias for calculate_tail_dependence for backward compatibility."""
         return self.calculate_tail_dependence(
@@ -391,7 +399,11 @@ class ExtremeValueRisk:
         )
 
     def calculate_tail_dependence(
-        self, x: Any, y: Any, method: Any = "empirical", threshold_quantile: Any = 0.1
+        self,
+        x: "np.ndarray | pd.DataFrame | list",
+        y: "np.ndarray | pd.DataFrame | list",
+        method: str = "empirical",
+        threshold_quantile: float = 0.1,
     ) -> float:
         """
         Calculate tail dependence between two return series

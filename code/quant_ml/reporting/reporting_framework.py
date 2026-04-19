@@ -17,7 +17,7 @@ import os
 import uuid
 import warnings
 from io import BytesIO
-from typing import Any, Optional
+from typing import Optional
 
 import jinja2
 import matplotlib.pyplot as plt
@@ -50,11 +50,11 @@ class ReportTemplate:
 
     def __init__(
         self,
-        title: Any,
-        sections: Any = None,
-        description: Any = "",
-        author: Any = "",
-        version: Any = "1.0",
+        title: str,
+        sections: object = None,
+        description: str = "",
+        author: str = "",
+        version: object = "1.0",
     ) -> None:
         """
         Initialize report template.
@@ -68,7 +68,13 @@ class ReportTemplate:
         """
         self.id = str(uuid.uuid4())[:8]
         self.title = title
-        self.sections = sections or []
+        # Ensure every section has an 'id' key
+        normalised = []
+        for s in sections or []:
+            if isinstance(s, dict) and "id" not in s:
+                s = dict(s, id=str(uuid.uuid4())[:8])
+            normalised.append(s)
+        self.sections = normalised
         self.description = description
         self.author = author
         self.version = version
@@ -77,10 +83,10 @@ class ReportTemplate:
 
     def add_section(
         self,
-        title: Any,
-        content: Any = "",
-        section_type: Any = "text",
-        position: Any = None,
+        title: str,
+        content: str = "",
+        section_type: str = "text",
+        position: object = None,
     ) -> "ReportTemplate":
         """
         Add section to template.
@@ -109,10 +115,10 @@ class ReportTemplate:
 
     def update_section(
         self,
-        section_id: Any,
-        title: Any = None,
-        content: Any = None,
-        section_type: Any = None,
+        section_id: str,
+        title: str = None,
+        content: str = None,
+        section_type: str = None,
     ) -> bool:
         """
         Update section in template.
@@ -138,7 +144,7 @@ class ReportTemplate:
                 return True
         return False
 
-    def remove_section(self, section_id: Any) -> bool:
+    def remove_section(self, section_id: str) -> bool:
         """
         Remove section from template.
 
@@ -168,7 +174,7 @@ class ReportTemplate:
             "updated_at": self.updated_at,
         }
 
-    def save(self, filepath: Any) -> bool:
+    def save(self, filepath: str) -> bool:
         """
         Save template to file.
 
@@ -189,7 +195,7 @@ class ReportTemplate:
             return False
 
     @classmethod
-    def load(cls, filepath: Any) -> Optional["ReportTemplate"]:
+    def load(cls, filepath: str) -> Optional["ReportTemplate"]:
         """
         Load template from file.
 
@@ -240,7 +246,9 @@ class ReportGenerator:
         """Return the HTML template string. Delegates to _create_html_template."""
         return self._create_html_template()
 
-    def generate_html(self, output_path: Any, data: Any = None) -> bool:
+    def generate_html(
+        self, output_path: str, data: "np.ndarray | pd.DataFrame | list" = None
+    ) -> bool:
         """
         Generate HTML report.
 
@@ -263,7 +271,9 @@ class ReportGenerator:
             logger.error(f"Error generating HTML report: {e}")
             return False
 
-    def generate_pdf(self, filepath: Any, data: Any = None) -> bool:
+    def generate_pdf(
+        self, filepath: str, data: "np.ndarray | pd.DataFrame | list" = None
+    ) -> bool:
         """
         Generate PDF report.
 
@@ -352,7 +362,7 @@ class ReportGenerator:
         """
         return template
 
-    def _prepare_context(self, data: Any = None) -> dict:
+    def _prepare_context(self, data: "np.ndarray | pd.DataFrame | list" = None) -> dict:
         """
         Prepare context for template rendering.
 
@@ -375,21 +385,20 @@ class ReportGenerator:
             context.update(data)
         for section in self.template.sections:
             processed_section = {
-                "title": section["title"],
-                "type": section["type"],
-                "content": section["content"],
+                "title": section.get("title", ""),
+                "type": section.get("type", "text"),
+                "content": section.get("content", ""),
             }
-            if section["type"] == "text":
-                content = section["content"]
+            if section.get("type", "text") == "text":
+                content = section.get("content", "")
                 if isinstance(content, str) and ("##" in content or "*" in content):
                     # FIX: use module-level helper instead of inline __import__
                     processed_section["content"] = _md_to_html(content)
-            elif section["type"] == "chart":
-                if (
-                    isinstance(section["content"], dict)
-                    and "chart_type" in section["content"]
-                ):
-                    chart_spec = section["content"]
+            elif section.get("type", "text") == "chart":
+                if isinstance(
+                    section.get("content", ""), dict
+                ) and "chart_type" in section.get("content", ""):
+                    chart_spec = section.get("content", "")
                     chart_data = (data or {}).get(chart_spec.get("data_key", ""), None)
                     if chart_data is not None:
                         chart_image = self._generate_chart(
@@ -398,12 +407,11 @@ class ReportGenerator:
                             options=chart_spec.get("options", {}),
                         )
                         processed_section["content"] = chart_image
-            elif section["type"] == "table":
-                if (
-                    isinstance(section["content"], dict)
-                    and "data_key" in section["content"]
-                ):
-                    table_spec = section["content"]
+            elif section.get("type", "text") == "table":
+                if isinstance(
+                    section.get("content", ""), dict
+                ) and "data_key" in section.get("content", ""):
+                    table_spec = section.get("content", "")
                     table_data = (data or {}).get(table_spec.get("data_key", ""), None)
                     if table_data is not None:
                         table_html = self._generate_table(
@@ -429,7 +437,12 @@ class ReportGenerator:
         html = template.render(**context)
         return html
 
-    def _generate_chart(self, chart_type: Any, data: Any, options: Any = None) -> str:
+    def _generate_chart(
+        self,
+        chart_type: str,
+        data: "np.ndarray | pd.DataFrame | list",
+        options: dict = None,
+    ) -> str:
         """
         Generate chart image as base64 string.
 
@@ -540,7 +553,9 @@ class ReportGenerator:
         buffer.seek(0)
         return base64.b64encode(buffer.read()).decode("utf-8")
 
-    def _generate_table(self, data: Any, options: Any = None) -> str:
+    def _generate_table(
+        self, data: "np.ndarray | pd.DataFrame | list", options: dict = None
+    ) -> str:
         """
         Generate HTML table.
 
@@ -565,7 +580,7 @@ class ReportGenerator:
 class ReportScheduler:
     """Scheduler for automated report generation."""
 
-    def __init__(self, storage_dir: Any = None) -> None:
+    def __init__(self, storage_dir: Optional[str] = None) -> None:
         """
         Initialize report scheduler.
 
@@ -601,12 +616,12 @@ class ReportScheduler:
 
     def add_schedule(
         self,
-        name: Any,
-        template_path: Any,
-        output_path: Any,
-        frequency: Any,
-        data_provider: Any = None,
-        recipients: Any = None,
+        name: str,
+        template_path: str,
+        output_path: str,
+        frequency: "np.ndarray | pd.DataFrame | list",
+        data_provider: object = None,
+        recipients: object = None,
     ) -> bool:
         """
         Add report schedule.
@@ -636,7 +651,7 @@ class ReportScheduler:
         }
         return self._save_schedules()
 
-    def remove_schedule(self, schedule_id: Any) -> bool:
+    def remove_schedule(self, schedule_id: object) -> bool:
         """Remove report schedule by ID."""
         if schedule_id in self.schedules:
             del self.schedules[schedule_id]
@@ -672,7 +687,7 @@ class ReportScheduler:
         self._save_schedules()
         return results
 
-    def run_report(self, schedule_id: Any) -> dict:
+    def run_report(self, schedule_id: object) -> dict:
         """Run specific scheduled report."""
         if schedule_id not in self.schedules:
             return {"success": False, "error": "Schedule not found"}
@@ -702,7 +717,9 @@ class ReportScheduler:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def _calculate_next_run(self, frequency: Any, from_date: Any = None) -> str:
+    def _calculate_next_run(
+        self, frequency: "np.ndarray | pd.DataFrame | list", from_date: object = None
+    ) -> str:
         """Calculate next run date as ISO string."""
         if from_date is None:
             from_date = datetime.datetime.now()
@@ -723,7 +740,7 @@ class ReportScheduler:
             next_run.year, next_run.month, next_run.day, 0, 0, 0
         ).isoformat()
 
-    def _send_report(self, report_path: Any, recipients: Any) -> bool:
+    def _send_report(self, report_path: object, recipients: object) -> bool:
         """Send report to recipients (stub)."""
         logger.info(f"Sending report {report_path} to {recipients}")
         return True
@@ -732,7 +749,7 @@ class ReportScheduler:
 class ReportArchive:
     """Archive for report versioning and comparison."""
 
-    def __init__(self, archive_dir: Any = None) -> None:
+    def __init__(self, archive_dir: object = None) -> None:
         """
         Initialize report archive.
 
@@ -745,7 +762,10 @@ class ReportArchive:
         os.makedirs(self.archive_dir, exist_ok=True)
 
     def archive_report(
-        self, report_path: Any, report_type: Any, metadata: Any = None
+        self,
+        report_path: object,
+        report_type: object,
+        metadata: "np.ndarray | pd.DataFrame | list" = None,
     ) -> Optional[str]:
         """
         Archive report.
@@ -777,7 +797,9 @@ class ReportArchive:
             logger.error(f"Error archiving report: {e}")
             return None
 
-    def list_archived_reports(self, report_type: Any = None, limit: int = 10) -> list:
+    def list_archived_reports(
+        self, report_type: object = None, limit: int = 10
+    ) -> list:
         """List archived reports."""
         reports = []
         if report_type:
@@ -794,7 +816,9 @@ class ReportArchive:
         reports.sort(key=lambda r: r["timestamp"], reverse=True)
         return reports[:limit]
 
-    def _list_reports_in_dir(self, dir_path: Any, report_type: Any, limit: Any) -> list:
+    def _list_reports_in_dir(
+        self, dir_path: object, report_type: object, limit: object
+    ) -> list:
         """List reports in a directory."""
         reports = []
         for filename in os.listdir(dir_path):
@@ -834,7 +858,7 @@ class ReportArchive:
                 )
         return reports
 
-    def get_report(self, report_path: Any) -> Optional[str]:
+    def get_report(self, report_path: str) -> Optional[str]:
         """Get archived report content."""
         try:
             with open(report_path, "r") as f:
@@ -843,7 +867,7 @@ class ReportArchive:
             logger.error(f"Error reading report: {e}")
             return None
 
-    def compare_reports(self, report_path1: Any, report_path2: Any) -> Optional[str]:
+    def compare_reports(self, report_path1: str, report_path2: str) -> Optional[str]:
         """Compare two archived reports and return a unified diff."""
         try:
             with open(report_path1, "r") as f:

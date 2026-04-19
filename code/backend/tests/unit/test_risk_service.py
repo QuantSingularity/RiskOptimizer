@@ -1,6 +1,5 @@
 import unittest
 from decimal import Decimal, getcontext
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 from src.core.exceptions import CalculationError, ValidationError
@@ -11,35 +10,35 @@ getcontext().prec = 28
 
 class TestRiskService(unittest.TestCase):
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         self.risk_service = RiskService()
         self.risk_service.cache = MagicMock()
         self.risk_service.cache.get.return_value = None
         self.risk_service.cache.set.return_value = True
         self.risk_service.cache.exists.return_value = False
 
-    def test_validate_returns_valid(self) -> Any:
+    def test_validate_returns_valid(self) -> None:
         self.risk_service._validate_returns([1.0, 2.0, 3.0])
         self.risk_service._validate_returns([Decimal("0.01"), Decimal("0.02")])
 
-    def test_validate_returns_invalid_type(self) -> Any:
+    def test_validate_returns_invalid_type(self) -> None:
         with self.assertRaises(ValidationError):
             self.risk_service._validate_returns("not a list")
         with self.assertRaises(ValidationError):
             self.risk_service._validate_returns([1, "not a number"])
 
-    def test_validate_returns_too_few_elements(self) -> Any:
+    def test_validate_returns_too_few_elements(self) -> None:
         with self.assertRaises(ValidationError):
             self.risk_service._validate_returns([1.0])
         with self.assertRaises(ValidationError):
             self.risk_service._validate_returns([])
 
-    def test_validate_confidence_valid(self) -> Any:
+    def test_validate_confidence_valid(self) -> None:
         self.risk_service._validate_confidence(0.95)
         self.risk_service._validate_confidence(0.01)
         self.risk_service._validate_confidence(0.999)
 
-    def test_validate_confidence_invalid_type(self) -> Any:
+    def test_validate_confidence_invalid_type(self) -> None:
         with self.assertRaises(ValidationError):
             self.risk_service._validate_confidence("not a float")
         with self.assertRaises(ValidationError):
@@ -48,7 +47,7 @@ class TestRiskService(unittest.TestCase):
             self.risk_service._validate_confidence(0)
 
     @patch("src.services.quant_analysis.RiskMetrics.calculate_var")
-    def test_calculate_var_success(self, mock_calculate_var: Any) -> Any:
+    def test_calculate_var_success(self, mock_calculate_var: "MagicMock") -> None:
         mock_calculate_var.return_value = Decimal("0.02")
         returns = [0.01, 0.02, 0.03]
         confidence = 0.95
@@ -59,7 +58,7 @@ class TestRiskService(unittest.TestCase):
         self.risk_service.cache.set.assert_called_once()
 
     @patch("src.services.quant_analysis.RiskMetrics.calculate_cvar")
-    def test_calculate_cvar_success(self, mock_calculate_cvar: Any) -> Any:
+    def test_calculate_cvar_success(self, mock_calculate_cvar: "MagicMock") -> None:
         mock_calculate_cvar.return_value = Decimal("0.03")
         returns = [0.01, 0.02, 0.03]
         confidence = 0.95
@@ -71,8 +70,8 @@ class TestRiskService(unittest.TestCase):
 
     @patch("src.services.quant_analysis.RiskMetrics.calculate_sharpe_ratio")
     def test_calculate_sharpe_ratio_success(
-        self, mock_calculate_sharpe_ratio: Any
-    ) -> Any:
+        self, mock_calculate_sharpe_ratio: "MagicMock"
+    ) -> object:
         mock_calculate_sharpe_ratio.return_value = Decimal("1.5")
         returns = [0.01, 0.02, 0.03]
         risk_free_rate = 0.01
@@ -82,7 +81,7 @@ class TestRiskService(unittest.TestCase):
         self.risk_service.cache.get.assert_called_once()
         self.risk_service.cache.set.assert_called_once()
 
-    def test_calculate_max_drawdown_success(self) -> Any:
+    def test_calculate_max_drawdown_success(self) -> None:
         returns = [0.01, -0.02, 0.03, -0.04, 0.05]
         result = self.risk_service.calculate_max_drawdown(returns)
         self.assertLess(result, Decimal("0"), "Max drawdown should be negative")
@@ -96,11 +95,11 @@ class TestRiskService(unittest.TestCase):
     @patch("src.domain.services.risk_service.RiskService.calculate_max_drawdown")
     def test_calculate_portfolio_risk_metrics_success(
         self,
-        mock_max_drawdown: Any,
-        mock_sharpe_ratio: Any,
-        mock_cvar: Any,
-        mock_var: Any,
-    ) -> Any:
+        mock_max_drawdown: "MagicMock",
+        mock_sharpe_ratio: "MagicMock",
+        mock_cvar: "MagicMock",
+        mock_var: "MagicMock",
+    ) -> object:
         mock_var.return_value = Decimal("0.02")
         mock_cvar.return_value = Decimal("0.03")
         mock_sharpe_ratio.return_value = Decimal("1.5")
@@ -133,10 +132,10 @@ class TestRiskService(unittest.TestCase):
     @patch("pypfopt.expected_returns.mean_historical_return")
     def test_calculate_efficient_frontier_success(
         self,
-        mock_mean_historical_return: Any,
-        mock_sample_cov: Any,
-        mock_ef_cls: Any,
-    ) -> Any:
+        mock_mean_historical_return: "MagicMock",
+        mock_sample_cov: "MagicMock",
+        mock_ef_cls: "MagicMock",
+    ) -> object:
         mock_mean_historical_return.return_value = MagicMock()
         mock_sample_cov.return_value = MagicMock()
         mock_ef_instance = MagicMock()
@@ -158,7 +157,7 @@ class TestRiskService(unittest.TestCase):
         self.risk_service.cache.get.assert_called_once()
         self.risk_service.cache.set.assert_called_once()
 
-    def test_calculate_efficient_frontier_invalid_returns(self) -> Any:
+    def test_calculate_efficient_frontier_invalid_returns(self) -> None:
         with self.assertRaises(ValidationError):
             self.risk_service.calculate_efficient_frontier({}, 0.0, 1.0, 0.0, 20)
         with self.assertRaises(ValidationError):
@@ -166,7 +165,7 @@ class TestRiskService(unittest.TestCase):
                 {"asset1": [0.01]}, 0.0, 1.0, 0.0, 20
             )
 
-    def test_calculate_efficient_frontier_pypfopt_not_installed(self) -> Any:
+    def test_calculate_efficient_frontier_pypfopt_not_installed(self) -> None:
         with patch.dict("sys.modules", {"pypfopt": None}):
             with self.assertRaises(CalculationError) as cm:
                 self.risk_service.calculate_efficient_frontier(
@@ -176,25 +175,25 @@ class TestRiskService(unittest.TestCase):
                 "Required library PyPortfolioOpt not installed", str(cm.exception)
             )
 
-    def test_calculate_var_validation_error(self) -> Any:
+    def test_calculate_var_validation_error(self) -> None:
         with self.assertRaises(ValidationError):
             self.risk_service.calculate_var([], 0.95)
         with self.assertRaises(ValidationError):
             self.risk_service.calculate_var([0.01, 0.02], 1.5)
 
-    def test_calculate_cvar_validation_error(self) -> Any:
+    def test_calculate_cvar_validation_error(self) -> None:
         with self.assertRaises(ValidationError):
             self.risk_service.calculate_cvar([], 0.95)
 
-    def test_calculate_sharpe_ratio_validation_error(self) -> Any:
+    def test_calculate_sharpe_ratio_validation_error(self) -> None:
         with self.assertRaises(ValidationError):
             self.risk_service.calculate_sharpe_ratio([0.01], 0.0)
 
-    def test_calculate_max_drawdown_validation_error(self) -> Any:
+    def test_calculate_max_drawdown_validation_error(self) -> None:
         with self.assertRaises(ValidationError):
             self.risk_service.calculate_max_drawdown([0.01])
 
-    def test_calculate_portfolio_risk_metrics_validation_error(self) -> Any:
+    def test_calculate_portfolio_risk_metrics_validation_error(self) -> None:
         with self.assertRaises(ValidationError):
             self.risk_service.calculate_portfolio_risk_metrics([], 0.95)
         with self.assertRaises(ValidationError):

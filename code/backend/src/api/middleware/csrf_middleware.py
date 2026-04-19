@@ -49,7 +49,7 @@ def csrf_protect(exempt_methods: Optional[List[str]] = None) -> Callable:
     def decorator(func: Callable) -> Callable:
 
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args, **kwargs) -> object:
             if request.method in exempt_methods:
                 return func(*args, **kwargs)
             if current_app.testing and config.environment == "testing":
@@ -70,7 +70,7 @@ def csrf_protect(exempt_methods: Optional[List[str]] = None) -> Callable:
     return decorator
 
 
-def apply_csrf_protection(app: Any) -> None:
+def apply_csrf_protection(app: object) -> None:
     """
     Apply CSRF protection to all API endpoints.
 

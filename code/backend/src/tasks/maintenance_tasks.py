@@ -8,7 +8,6 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any
 
 import psutil
 import redis
@@ -18,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True)
-def cleanup_expired_tasks(self) -> Any:
+def cleanup_expired_tasks(self) -> object:
     """
     Clean up expired task results and metadata.
     This is a scheduled task that runs daily.
@@ -71,7 +70,7 @@ def cleanup_expired_tasks(self) -> Any:
 
 
 @celery_app.task(bind=True)
-def update_market_data(self) -> Any:
+def update_market_data(self) -> object:
     """
     Update market data from external sources.
     This is a scheduled task that runs every 6 hours.
@@ -116,7 +115,7 @@ def update_market_data(self) -> Any:
 
 
 @celery_app.task(bind=True)
-def cache_warmup(self) -> Any:
+def cache_warmup(self) -> object:
     """
     Warm up frequently accessed cache entries.
     This is a scheduled task that runs daily.
@@ -166,7 +165,7 @@ def cache_warmup(self) -> Any:
 
 
 @celery_app.task(bind=True)
-def system_health_check(self) -> Any:
+def system_health_check(self) -> object:
     """
     Perform comprehensive system health check.
     """
@@ -244,7 +243,7 @@ def system_health_check(self) -> Any:
 
 
 @celery_app.task(bind=True)
-def database_maintenance(self) -> Any:
+def database_maintenance(self) -> object:
     """
     Perform database maintenance tasks.
     """
@@ -290,7 +289,7 @@ def database_maintenance(self) -> Any:
 
 
 @celery_app.task(bind=True)
-def memory_cleanup(self) -> Any:
+def memory_cleanup(self) -> object:
     """
     Perform memory cleanup and garbage collection.
     """
@@ -320,7 +319,7 @@ def memory_cleanup(self) -> Any:
 
 
 @celery_app.task(bind=True)
-def log_rotation(self) -> Any:
+def log_rotation(self) -> object:
     """
     Perform log file rotation and cleanup.
     """

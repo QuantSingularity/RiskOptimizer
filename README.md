@@ -90,13 +90,13 @@ RiskOptimizer/
 
 ### Backend
 
-| Component      | Technologies                                       |
-| :------------- | :------------------------------------------------- |
-| **Languages**  | Python, Rust (for performance-critical components) |
-| **Frameworks** | FastAPI, Flask                                     |
-| **Database**   | PostgreSQL, MongoDB                                |
-| **AI/ML**      | TensorFlow, PyTorch, scikit-learn                  |
-| **Blockchain** | Ethereum, Solidity, Web3.py                        |
+| Component      | Technologies                                                               |
+| :------------- | :------------------------------------------------------------------------- |
+| **Languages**  | Python (core logic), JavaScript/JSX (frontend), Solidity (smart contracts) |
+| **Frameworks** | Flask + Flasgger (REST API with Swagger docs)                              |
+| **Database**   | PostgreSQL, MongoDB                                                        |
+| **AI/ML**      | TensorFlow, PyTorch, scikit-learn                                          |
+| **Blockchain** | Ethereum, Solidity, Web3.py                                                |
 
 ### Frontend
 
@@ -237,6 +237,20 @@ python app.py
 cd code/frontend
 npm start
 ```
+
+## Model Performance
+
+RiskOptimizer's quantitative and ML models are validated against held-out historical data.
+Full tearsheets are in **[docs/ML_MODEL_PERFORMANCE.md](docs/ML_MODEL_PERFORMANCE.md)**.
+
+| Model / Method                 | Key Metric           | Value   |
+| ------------------------------ | -------------------- | ------- |
+| GBM VaR (95 %)                 | Kupiec p-value       | 0.68 ✅ |
+| Hybrid VaR (GBM + Historical)  | Coverage             | 95.1 %  |
+| EVT (POT) — TSLA 99 % VaR      | EVT VaR              | 9.87 %  |
+| Max-Sharpe Portfolio           | Out-of-sample Sharpe | 1.15    |
+| Parallel Monte Carlo (8 cores) | Speedup              | 5.9×    |
+| Prophet Forecast (AAPL)        | MAPE                 | 3.81 %  |
 
 ## Testing
 

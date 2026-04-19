@@ -109,7 +109,11 @@ def optimize_portfolio(
         raise
 
 
-def _optimize_mean_variance(mean_returns: Any, cov_matrix: Any, params: Any) -> Any:
+def _optimize_mean_variance(
+    mean_returns: "np.ndarray | pd.DataFrame | list",
+    cov_matrix: "np.ndarray | pd.DataFrame | list",
+    params: object,
+) -> object:
     """Implement mean-variance optimization."""
     from scipy.optimize import minimize
 
@@ -158,7 +162,9 @@ def _optimize_mean_variance(mean_returns: Any, cov_matrix: Any, params: Any) -> 
     return result.x
 
 
-def _optimize_risk_parity(cov_matrix: Any, params: Any) -> Any:
+def _optimize_risk_parity(
+    cov_matrix: "np.ndarray | pd.DataFrame | list", params: object
+) -> object:
     """Implement risk parity optimization."""
     from scipy.optimize import minimize
 
@@ -182,7 +188,9 @@ def _optimize_risk_parity(cov_matrix: Any, params: Any) -> Any:
     return result.x
 
 
-def _optimize_minimum_variance(cov_matrix: Any, params: Any) -> Any:
+def _optimize_minimum_variance(
+    cov_matrix: "np.ndarray | pd.DataFrame | list", params: object
+) -> object:
     """Implement minimum variance optimization."""
     from scipy.optimize import minimize
 
@@ -202,7 +210,11 @@ def _optimize_minimum_variance(cov_matrix: Any, params: Any) -> Any:
     return result.x
 
 
-def _optimize_black_litterman(mean_returns: Any, cov_matrix: Any, params: Any) -> Any:
+def _optimize_black_litterman(
+    mean_returns: "np.ndarray | pd.DataFrame | list",
+    cov_matrix: "np.ndarray | pd.DataFrame | list",
+    params: object,
+) -> object:
     """Implement Black-Litterman optimization."""
     num_assets = len(mean_returns)
     market_weights = np.array([1 / num_assets] * num_assets)
@@ -224,7 +236,9 @@ def _optimize_black_litterman(mean_returns: Any, cov_matrix: Any, params: Any) -
     return result.x
 
 
-def _check_constraints(weights: Any, params: Any) -> Any:
+def _check_constraints(
+    weights: "np.ndarray | pd.DataFrame | list", params: object
+) -> object:
     """Check if optimization constraints are satisfied."""
     constraints_satisfied = {
         "weights_sum_to_one": abs(np.sum(weights) - 1.0) < 1e-06,
@@ -330,7 +344,10 @@ def rebalance_portfolio(
         raise
 
 
-def _calculate_tracking_error(current_weights: Any, target_weights: Any) -> Any:
+def _calculate_tracking_error(
+    current_weights: "np.ndarray | pd.DataFrame | list",
+    target_weights: "np.ndarray | pd.DataFrame | list",
+) -> object:
     """Calculate tracking error between current and target weights."""
     all_assets = set(list(current_weights.keys()) + list(target_weights.keys()))
     squared_differences = 0
@@ -464,7 +481,7 @@ def analyze_portfolio_performance(
         raise
 
 
-def _calculate_max_drawdown_duration(drawdowns: Any) -> Any:
+def _calculate_max_drawdown_duration(drawdowns: object) -> object:
     """Calculate the maximum drawdown duration in days."""
     in_drawdown = drawdowns < 0
     drawdown_periods = []
@@ -480,13 +497,17 @@ def _calculate_max_drawdown_duration(drawdowns: Any) -> Any:
     return max(drawdown_periods) if drawdown_periods else 0
 
 
-def _calculate_downside_deviation(returns: Any, target_return: Any = 0) -> Any:
+def _calculate_downside_deviation(
+    returns: "np.ndarray | pd.DataFrame | list", target_return: object = 0
+) -> object:
     """Calculate downside deviation."""
     downside_returns = returns[returns < target_return]
     return np.std(downside_returns) * np.sqrt(252) if len(downside_returns) > 0 else 0
 
 
-def _calculate_sortino_ratio(returns: Any, risk_free_rate: Any) -> Any:
+def _calculate_sortino_ratio(
+    returns: "np.ndarray | pd.DataFrame | list", risk_free_rate: float
+) -> object:
     """Calculate Sortino ratio."""
     excess_returns = returns - risk_free_rate / 252
     downside_deviation = _calculate_downside_deviation(returns)

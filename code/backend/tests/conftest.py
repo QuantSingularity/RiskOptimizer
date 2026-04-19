@@ -4,7 +4,6 @@ Test configuration and fixtures for the RiskOptimizer test suite.
 
 import tempfile
 from datetime import datetime, timedelta
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -14,7 +13,7 @@ import pytest
 pytest_plugins = []
 
 
-def pytest_configure(config: Any) -> Any:
+def pytest_configure(config: object) -> object:
     """Configure pytest with custom markers."""
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
@@ -24,14 +23,14 @@ def pytest_configure(config: Any) -> Any:
 
 
 @pytest.fixture(scope="session")
-def test_data_dir() -> Any:
+def test_data_dir() -> object:
     """Create a temporary directory for test data."""
     with tempfile.TemporaryDirectory() as temp_dir:
         yield temp_dir
 
 
 @pytest.fixture
-def sample_returns_data() -> Any:
+def sample_returns_data() -> object:
     """Generate sample returns data for testing."""
     np.random.seed(42)
     n_periods = 252
@@ -61,7 +60,9 @@ def sample_returns_data() -> Any:
 
 
 @pytest.fixture
-def sample_portfolio_data(sample_returns_data: Any) -> Any:
+def sample_portfolio_data(
+    sample_returns_data: "np.ndarray | pd.DataFrame | list",
+) -> object:
     """Generate sample portfolio data for testing."""
     weights = np.array([0.3, 0.25, 0.2, 0.15, 0.1])
     portfolio_returns = np.dot(sample_returns_data["returns"], weights)
@@ -83,7 +84,9 @@ def sample_portfolio_data(sample_returns_data: Any) -> Any:
 
 
 @pytest.fixture
-def sample_benchmark_data(sample_returns_data: Any) -> Any:
+def sample_benchmark_data(
+    sample_returns_data: "np.ndarray | pd.DataFrame | list",
+) -> object:
     """Generate sample benchmark data for testing."""
     benchmark_weights = np.array([0.4, 0.3, 0.15, 0.1, 0.05])
     benchmark_returns = np.dot(sample_returns_data["returns"], benchmark_weights)
@@ -95,7 +98,7 @@ def sample_benchmark_data(sample_returns_data: Any) -> Any:
 
 
 @pytest.fixture
-def sample_stress_scenarios() -> Any:
+def sample_stress_scenarios() -> object:
     """Generate sample stress test scenarios."""
     return [
         {
@@ -126,7 +129,7 @@ def sample_stress_scenarios() -> Any:
 
 
 @pytest.fixture
-def mock_celery_task() -> Any:
+def mock_celery_task() -> object:
     """Mock Celery task for testing."""
     mock_task = MagicMock()
     mock_task.request.id = "test-task-id-12345"
@@ -136,7 +139,7 @@ def mock_celery_task() -> Any:
 
 
 @pytest.fixture
-def mock_redis_client() -> Any:
+def mock_redis_client() -> object:
     """Mock Redis client for testing."""
     mock_redis = MagicMock()
     mock_redis.ping.return_value = True
@@ -150,7 +153,7 @@ def mock_redis_client() -> Any:
 
 
 @pytest.fixture
-def mock_task_result_manager() -> Any:
+def mock_task_result_manager() -> object:
     """Mock task result manager for testing."""
     with patch("src.tasks.celery_app.task_result_manager") as mock_manager:
         mock_manager.store_task_progress.return_value = None
@@ -161,7 +164,7 @@ def mock_task_result_manager() -> Any:
 
 
 @pytest.fixture
-def optimization_test_cases() -> Any:
+def optimization_test_cases() -> object:
     """Generate test cases for portfolio optimization."""
     return [
         {
@@ -199,7 +202,7 @@ def optimization_test_cases() -> Any:
 
 
 @pytest.fixture
-def monte_carlo_test_cases() -> Any:
+def monte_carlo_test_cases() -> object:
     """Generate test cases for Monte Carlo simulation."""
     return [
         {
@@ -239,7 +242,7 @@ def monte_carlo_test_cases() -> Any:
 
 
 @pytest.fixture
-def performance_analysis_test_data() -> Any:
+def performance_analysis_test_data() -> object:
     """Generate test data for performance analysis."""
     np.random.seed(42)
     n_periods = 504
@@ -262,7 +265,9 @@ def performance_analysis_test_data() -> Any:
 
 
 @pytest.fixture
-def report_generation_test_data(sample_portfolio_data: Any) -> Any:
+def report_generation_test_data(
+    sample_portfolio_data: "np.ndarray | pd.DataFrame | list",
+) -> object:
     """Generate test data for report generation."""
     return {
         "portfolio_data": sample_portfolio_data,
@@ -291,7 +296,7 @@ def report_generation_test_data(sample_portfolio_data: Any) -> Any:
 
 
 @pytest.fixture
-def task_monitoring_test_data() -> Any:
+def task_monitoring_test_data() -> object:
     """Generate test data for task monitoring."""
     return {
         "active_tasks": [
@@ -331,7 +336,9 @@ def task_monitoring_test_data() -> Any:
     }
 
 
-def assert_portfolio_weights_valid(weights: Any, tolerance: Any = 1e-06) -> Any:
+def assert_portfolio_weights_valid(
+    weights: "np.ndarray | pd.DataFrame | list", tolerance: object = 1e-06
+) -> object:
     """Assert that portfolio weights are valid."""
     if isinstance(weights, dict):
         weights = list(weights.values())
@@ -341,7 +348,7 @@ def assert_portfolio_weights_valid(weights: Any, tolerance: Any = 1e-06) -> Any:
     assert all((w >= 0 for w in weights)), "Some weights are negative"
 
 
-def assert_risk_metrics_reasonable(risk_metrics: Any) -> Any:
+def assert_risk_metrics_reasonable(risk_metrics: object) -> object:
     """Assert that risk metrics are reasonable."""
     if "var_95" in risk_metrics:
         assert risk_metrics["var_95"] < 0, "VaR 95% should be negative"
@@ -361,7 +368,7 @@ def assert_risk_metrics_reasonable(risk_metrics: Any) -> Any:
         ), "CVaR 99% should be more extreme than VaR 99%"
 
 
-def assert_performance_metrics_reasonable(performance_metrics: Any) -> Any:
+def assert_performance_metrics_reasonable(performance_metrics: object) -> object:
     """Assert that performance metrics are reasonable."""
     if "total_return" in performance_metrics:
         assert (
@@ -385,7 +392,7 @@ def assert_performance_metrics_reasonable(performance_metrics: Any) -> Any:
         ), "Max drawdown should be negative or zero"
 
 
-def create_test_portfolio(n_assets: Any = 5, total_value: Any = 1000000) -> Any:
+def create_test_portfolio(n_assets: list = 5, total_value: int = 1000000) -> object:
     """Create a test portfolio with specified number of assets."""
     np.random.seed(42)
     weights = np.random.dirichlet(np.ones(n_assets))
@@ -401,7 +408,9 @@ def create_test_portfolio(n_assets: Any = 5, total_value: Any = 1000000) -> Any:
     }
 
 
-def create_test_returns(n_periods: Any = 252, n_assets: Any = 5, seed: Any = 42) -> Any:
+def create_test_returns(
+    n_periods: object = 252, n_assets: list = 5, seed: object = 42
+) -> object:
     """Create test returns data with realistic characteristics."""
     np.random.seed(seed)
     mean_returns = np.random.uniform(0.0005, 0.0015, n_assets)
@@ -417,7 +426,7 @@ def create_test_returns(n_periods: Any = 252, n_assets: Any = 5, seed: Any = 42)
     return returns
 
 
-def validate_monte_carlo_result(result: Any) -> Any:
+def validate_monte_carlo_result(result: object) -> object:
     """Validate Monte Carlo simulation result structure."""
     required_keys = [
         "simulation_parameters",
@@ -440,7 +449,7 @@ def validate_monte_carlo_result(result: Any) -> Any:
     assert_risk_metrics_reasonable(risk_metrics)
 
 
-def validate_optimization_result(result: Any) -> Any:
+def validate_optimization_result(result: object) -> object:
     """Validate portfolio optimization result structure."""
     required_keys = [
         "optimization_method",
@@ -457,7 +466,7 @@ def validate_optimization_result(result: Any) -> Any:
         assert metric in metrics, f"Missing portfolio metric: {metric}"
 
 
-def validate_performance_analysis_result(result: Any) -> Any:
+def validate_performance_analysis_result(result: object) -> object:
     """Validate performance analysis result structure."""
     required_keys = ["performance_summary", "benchmark_comparison", "risk_metrics"]
     for key in required_keys:

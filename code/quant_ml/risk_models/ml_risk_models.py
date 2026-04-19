@@ -11,7 +11,7 @@ This module provides advanced machine learning approaches for risk modeling, inc
 import logging
 import os
 import warnings
-from typing import Any
+from typing import Union
 
 import joblib
 import matplotlib.pyplot as plt
@@ -33,7 +33,7 @@ warnings.filterwarnings("ignore")
 class MLRiskModel:
     """Machine Learning Risk Model for VaR and ES prediction"""
 
-    def __init__(self, model_type: Any = "gbm", quantile: Any = 0.05) -> None:
+    def __init__(self, model_type: str = "gbm", quantile: float = 0.05) -> None:
         """
         Initialize ML Risk Model
 
@@ -50,7 +50,7 @@ class MLRiskModel:
         self.trained = False
         self._initialize_model()
 
-    def _initialize_model(self) -> Any:
+    def _initialize_model(self) -> None:
         """Initialize the ML model based on specified type"""
         if self.model_type == "gbm":
             self.model = GradientBoostingRegressor(
@@ -77,7 +77,9 @@ class MLRiskModel:
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}")
 
-    def _create_features(self, returns: Any, feature_window: Any = 10) -> Any:
+    def _create_features(
+        self, returns: Union[np.ndarray, pd.Series, list], feature_window: int = 10
+    ) -> pd.DataFrame:
         """
         Create features from return series
 
@@ -125,8 +127,11 @@ class MLRiskModel:
         return (X, feature_names)
 
     def _create_targets(
-        self, returns: Any, feature_window: Any = 10, horizon: Any = 1
-    ) -> Any:
+        self,
+        returns: Union[np.ndarray, pd.Series, list],
+        feature_window: int = 10,
+        horizon: int = 1,
+    ) -> np.ndarray:
         """
         Create target values for training
 
@@ -159,11 +164,11 @@ class MLRiskModel:
 
     def fit(
         self,
-        returns: Any,
-        feature_window: Any = 10,
-        horizon: Any = 1,
-        test_size: Any = 0.2,
-    ) -> Any:
+        returns: "np.ndarray | pd.DataFrame | list",
+        feature_window: int = 10,
+        horizon: int = 1,
+        test_size: object = 0.2,
+    ) -> object:
         """
         Fit the ML model to return data
 
@@ -200,8 +205,11 @@ class MLRiskModel:
         return self
 
     def predict_var(
-        self, returns: Any, confidence: Any = 0.95, feature_window: Any = 10
-    ) -> Any:
+        self,
+        returns: "np.ndarray | pd.DataFrame | list",
+        confidence: float = 0.95,
+        feature_window: int = 10,
+    ) -> float:
         """
         Predict Value at Risk (VaR)
 
@@ -227,11 +235,11 @@ class MLRiskModel:
 
     def predict_es(
         self,
-        returns: Any,
-        confidence: Any = 0.95,
-        feature_window: Any = 10,
-        n_samples: Any = 1000,
-    ) -> Any:
+        returns: "np.ndarray | pd.DataFrame | list",
+        confidence: float = 0.95,
+        feature_window: int = 10,
+        n_samples: object = 1000,
+    ) -> float:
         """
         Predict Expected Shortfall (ES)
 
@@ -265,7 +273,7 @@ class MLRiskModel:
         es_pred = np.maximum(es_pred, var_pred * 1.05)
         return es_pred
 
-    def plot_feature_importance(self, top_n: Any = 10) -> Any:
+    def plot_feature_importance(self, top_n: int = 10) -> "plt.Figure":
         """
         Plot feature importance
 
@@ -288,7 +296,7 @@ class MLRiskModel:
         plt.tight_layout()
         return fig
 
-    def save_model(self, filepath: Any) -> Any:
+    def save_model(self, filepath: str) -> None:
         """
         Save model to file
 
@@ -313,7 +321,7 @@ class MLRiskModel:
         logger.info(f"Model saved to {filepath}")
 
     @classmethod
-    def load_model(cls: Any, filepath: Any) -> Any:
+    def load_model(cls, filepath: str) -> "MLRiskModel":
         """
         Load model from file
 
@@ -337,7 +345,7 @@ class MLRiskModel:
 class CopulaMLRiskModel:
     """Copula-based ML Risk Model for portfolio risk estimation"""
 
-    def __init__(self, copula_type: Any = "gaussian", n_scenarios: Any = 10000) -> None:
+    def __init__(self, copula_type: str = "gaussian", n_scenarios: int = 10000) -> None:
         """
         Initialize Copula ML Risk Model
 
@@ -353,7 +361,7 @@ class CopulaMLRiskModel:
         self.asset_names = None
         self.trained = False
 
-    def _fit_marginals(self, returns: Any) -> Any:
+    def _fit_marginals(self, returns: "np.ndarray | pd.DataFrame | list") -> None:
         """
         Fit marginal distributions for each asset
 
@@ -375,7 +383,9 @@ class CopulaMLRiskModel:
             }
         return marginals
 
-    def fit(self, returns: Any) -> Any:
+    def fit(
+        self, returns: "np.ndarray | pd.DataFrame | list"
+    ) -> "MLRiskModel | HybridRiskModel | ExtremeValueRisk":
         """
         Fit the copula model to return data
 
@@ -396,7 +406,7 @@ class CopulaMLRiskModel:
         logger.info(f"Copula model fitted with {self.copula_type} copula")
         return self
 
-    def generate_scenarios(self, n_scenarios: Any = None) -> Any:
+    def generate_scenarios(self, n_scenarios: object = None) -> pd.DataFrame:
         """
         Generate scenarios from the fitted copula model
 
@@ -453,7 +463,9 @@ class CopulaMLRiskModel:
         scenarios_df = pd.DataFrame(scenarios, columns=self.asset_names)
         return scenarios_df
 
-    def _inverse_skewed_normal(self, u: Any, mean: Any, std: Any, skew: Any) -> Any:
+    def _inverse_skewed_normal(
+        self, u: object, mean: object, std: object, skew: object
+    ) -> np.ndarray:
         """
         Inverse CDF of skewed normal distribution
 
@@ -473,7 +485,9 @@ class CopulaMLRiskModel:
         x = mean + std * x
         return x
 
-    def calculate_var(self, weights: Any, confidence: Any = 0.95) -> Any:
+    def calculate_var(
+        self, weights: "np.ndarray | pd.DataFrame | list", confidence: float = 0.95
+    ) -> float:
         """
         Calculate Value at Risk (VaR) for a portfolio
 
@@ -498,7 +512,9 @@ class CopulaMLRiskModel:
         var = max(0.001, var)
         return var
 
-    def calculate_es(self, weights: Any, confidence: Any = 0.95) -> Any:
+    def calculate_es(
+        self, weights: "np.ndarray | pd.DataFrame | list", confidence: float = 0.95
+    ) -> float:
         """
         Calculate Expected Shortfall (ES) for a portfolio
 
@@ -525,8 +541,10 @@ class CopulaMLRiskModel:
         return es
 
     def calculate_risk_metrics(
-        self, weights: Any, confidence_levels: Any = [0.95, 0.99]
-    ) -> Any:
+        self,
+        weights: "np.ndarray | pd.DataFrame | list",
+        confidence_levels: object = [0.95, 0.99],
+    ) -> dict:
         """
         Calculate various risk metrics for a portfolio
 
@@ -561,7 +579,9 @@ class CopulaMLRiskModel:
             metrics[f"es_{int(conf * 100)}"] = es
         return metrics
 
-    def plot_return_distribution(self, weights: Any, n_bins: Any = 50) -> Any:
+    def plot_return_distribution(
+        self, weights: "np.ndarray | pd.DataFrame | list", n_bins: int = 50
+    ) -> "plt.Figure":
         """
         Plot return distribution for a portfolio
 
@@ -622,7 +642,7 @@ class HybridRiskModel:
     """Hybrid Risk Model combining traditional and ML approaches"""
 
     def __init__(
-        self, traditional_weight: Any = 0.5, ml_model_type: Any = "gbm"
+        self, traditional_weight: float = 0.5, ml_model_type: str = "gbm"
     ) -> None:
         """
         Initialize Hybrid Risk Model
@@ -637,7 +657,12 @@ class HybridRiskModel:
         self.copula_model = CopulaMLRiskModel()
         self.trained = False
 
-    def fit(self, returns: Any, feature_window: Any = 10, horizon: Any = 1) -> Any:
+    def fit(
+        self,
+        returns: "np.ndarray | pd.DataFrame | list",
+        feature_window: int = 10,
+        horizon: int = 1,
+    ) -> "MLRiskModel | HybridRiskModel | ExtremeValueRisk":
         """
         Fit the hybrid model to return data
 
@@ -659,11 +684,11 @@ class HybridRiskModel:
 
     def calculate_var(
         self,
-        returns: Any = None,
-        weights: Any = None,
-        confidence: Any = 0.95,
-        feature_window: Any = 10,
-    ) -> Any:
+        returns: "np.ndarray | pd.DataFrame | list" = None,
+        weights: "np.ndarray | pd.DataFrame | list" = None,
+        confidence: float = 0.95,
+        feature_window: int = 10,
+    ) -> float:
         """
         Calculate Value at Risk (VaR) using hybrid approach
 
@@ -699,11 +724,11 @@ class HybridRiskModel:
 
     def calculate_es(
         self,
-        returns: Any = None,
-        weights: Any = None,
-        confidence: Any = 0.95,
-        feature_window: Any = 10,
-    ) -> Any:
+        returns: "np.ndarray | pd.DataFrame | list" = None,
+        weights: "np.ndarray | pd.DataFrame | list" = None,
+        confidence: float = 0.95,
+        feature_window: int = 10,
+    ) -> float:
         """
         Calculate Expected Shortfall (ES) using hybrid approach
 
@@ -740,11 +765,11 @@ class HybridRiskModel:
 
     def calculate_risk_metrics(
         self,
-        returns: Any = None,
-        weights: Any = None,
-        confidence_levels: Any = [0.95, 0.99],
-        feature_window: Any = 10,
-    ) -> Any:
+        returns: "np.ndarray | pd.DataFrame | list" = None,
+        weights: "np.ndarray | pd.DataFrame | list" = None,
+        confidence_levels: object = [0.95, 0.99],
+        feature_window: int = 10,
+    ) -> dict:
         """
         Calculate various risk metrics using hybrid approach
 

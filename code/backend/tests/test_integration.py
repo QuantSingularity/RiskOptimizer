@@ -4,7 +4,6 @@ Tests end-to-end workflows and API integration.
 """
 
 from datetime import datetime
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -14,7 +13,7 @@ import pandas as pd
 class TestAPIIntegration:
     """Integration tests for API endpoints."""
 
-    def setup_method(self) -> Any:
+    def setup_method(self) -> None:
         """Set up test data for API integration tests."""
         np.random.seed(42)
         self.portfolio_data = {
@@ -139,7 +138,7 @@ class TestAPIIntegration:
 class TestWorkflowIntegration:
     """Integration tests for complete workflows."""
 
-    def setup_method(self) -> Any:
+    def setup_method(self) -> None:
         """Set up test data for workflow integration tests."""
         np.random.seed(42)
         self.test_portfolio = {
@@ -159,7 +158,7 @@ class TestWorkflowIntegration:
         n_periods = 1000
         self.historical_returns = self._generate_realistic_returns(n_periods)
 
-    def _generate_realistic_returns(self, n_periods: Any) -> Any:
+    def _generate_realistic_returns(self, n_periods: object) -> object:
         """Generate realistic historical returns with market characteristics."""
         np.random.seed(42)
         asset_params = {
@@ -201,11 +200,11 @@ class TestWorkflowIntegration:
     @patch("src.tasks.report_tasks.task_result_manager")
     def test_complete_risk_analysis_workflow(
         self,
-        mock_report_manager: Any,
-        mock_portfolio_manager: Any,
-        mock_risk_manager: Any,
-        mock_celery_manager: Any,
-    ) -> Any:
+        mock_report_manager: "MagicMock",
+        mock_portfolio_manager: "MagicMock",
+        mock_risk_manager: "MagicMock",
+        mock_celery_manager: "MagicMock",
+    ) -> object:
         """Test complete risk analysis workflow from start to finish."""
         from src.tasks.report_tasks import generate_risk_report
         from src.tasks.risk_tasks import monte_carlo_simulation, stress_test_portfolio
@@ -254,8 +253,8 @@ class TestWorkflowIntegration:
 
     @patch("src.tasks.portfolio_tasks.task_result_manager")
     def test_portfolio_optimization_and_rebalancing_workflow(
-        self, mock_task_manager: Any
-    ) -> Any:
+        self, mock_task_manager: "MagicMock"
+    ) -> object:
         """Test complete portfolio optimization and rebalancing workflow."""
         from src.tasks.portfolio_tasks import optimize_portfolio, rebalance_portfolio
 
@@ -301,7 +300,7 @@ class TestWorkflowIntegration:
         assert analysis["total_turnover"] >= 0
         assert analysis["estimated_costs"] >= 0
 
-    def test_performance_monitoring_workflow(self) -> Any:
+    def test_performance_monitoring_workflow(self) -> None:
         """Test performance monitoring and alerting workflow."""
         portfolio_returns = np.dot(
             self.historical_returns["returns"], [0.4, 0.25, 0.2, 0.1, 0.05]
@@ -372,7 +371,7 @@ class TestWorkflowIntegration:
 class TestSystemIntegration:
     """Integration tests for system-level functionality."""
 
-    def test_task_queue_integration(self) -> Any:
+    def test_task_queue_integration(self) -> None:
         """Test task queue system integration."""
         task_queue_stats = {
             "active_tasks": 5,
@@ -394,7 +393,7 @@ class TestSystemIntegration:
         assert failure_rate < 0.05
         assert task_queue_stats["average_task_duration"] < 300
 
-    def test_caching_system_integration(self) -> Any:
+    def test_caching_system_integration(self) -> None:
         """Test caching system integration."""
         cache_stats = {
             "total_keys": 1500,
@@ -410,7 +409,7 @@ class TestSystemIntegration:
         assert cache_stats["hit_rate"] > 0.7
         assert cache_stats["memory_usage_mb"] > 0
 
-    def test_database_integration(self) -> Any:
+    def test_database_integration(self) -> None:
         """Test database system integration."""
         db_stats = {
             "connection_pool_size": 20,
@@ -427,7 +426,7 @@ class TestSystemIntegration:
         )
         assert slow_query_rate < 0.01
 
-    def test_monitoring_system_integration(self) -> Any:
+    def test_monitoring_system_integration(self) -> None:
         """Test monitoring and observability system integration."""
         system_metrics = {
             "cpu_usage_percent": 45.2,
@@ -449,7 +448,7 @@ class TestSystemIntegration:
 class TestLoadIntegration:
     """Load testing and performance integration tests."""
 
-    def test_concurrent_task_processing(self) -> Any:
+    def test_concurrent_task_processing(self) -> None:
         """Test system behavior under concurrent task load."""
         concurrent_tasks = 50
         np.random.seed(42)
@@ -461,7 +460,7 @@ class TestLoadIntegration:
         assert max_execution_time < 300
         assert task_throughput > 10
 
-    def test_memory_usage_under_load(self) -> Any:
+    def test_memory_usage_under_load(self) -> None:
         """Test memory usage patterns under load."""
         memory_usage = {
             "baseline_mb": 512,

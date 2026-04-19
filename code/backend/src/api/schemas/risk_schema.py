@@ -8,7 +8,9 @@ from typing import Any, Dict, List
 from src.core.exceptions import ValidationError
 
 
-def validate_returns_data(returns: Any, field_name: str = "returns") -> List[float]:
+def validate_returns_data(
+    returns: "np.ndarray | pd.DataFrame | list", field_name: str = "returns"
+) -> List[float]:
     """
     Validate returns data.
 
@@ -45,7 +47,7 @@ def validate_returns_data(returns: Any, field_name: str = "returns") -> List[flo
     return returns
 
 
-def validate_confidence_level(confidence: Any) -> float:
+def validate_confidence_level(confidence: object) -> float:
     """
     Validate confidence level.
 
@@ -73,7 +75,7 @@ def validate_confidence_level(confidence: Any) -> float:
     return float(confidence)
 
 
-def validate_risk_free_rate(risk_free_rate: Any) -> float:
+def validate_risk_free_rate(risk_free_rate: float) -> float:
     """
     Validate risk-free rate.
 

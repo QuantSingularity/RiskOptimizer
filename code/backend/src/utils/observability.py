@@ -19,7 +19,7 @@ correlation_id: ContextVar[Optional[str]] = ContextVar("correlation_id", default
 class CorrelationIdFilter:
     """Filter to add correlation ID to log records."""
 
-    def filter(self, record: Any) -> Any:
+    def filter(self, record: object) -> object:
         """Add correlation ID to log record."""
         corr_id = correlation_id.get()
         if not corr_id and has_request_context():
@@ -253,7 +253,7 @@ def log_security_event(
     )
 
 
-def apply_correlation_middleware(app: Any) -> None:
+def apply_correlation_middleware(app: object) -> None:
     """
     Apply correlation ID middleware to Flask app.
 

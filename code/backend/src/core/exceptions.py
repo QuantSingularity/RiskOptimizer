@@ -36,7 +36,7 @@ class ValidationError(RiskOptimizerException):
         self,
         message: str = "Validation failed",
         field: Optional[str] = None,
-        value: Any = None,
+        value: int = None,
     ) -> None:
         details = {}
         if field:

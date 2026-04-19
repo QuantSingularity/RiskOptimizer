@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any
+from typing import Dict
 
 import pandas as pd
 from pypfopt import expected_returns, risk_models
@@ -31,7 +31,9 @@ def load_prices(tickers: list, data_dir: str = DATA_DIR) -> pd.DataFrame:
     return prices
 
 
-def mean_variance_optimization(prices: pd.DataFrame, target_risk: float = 0.2) -> dict:
+def mean_variance_optimization(
+    prices: pd.DataFrame, target_risk: float = 0.2
+) -> Dict[str, object]:
     """
     Performs Markowitz Mean-Variance Optimization to find the portfolio
     with the maximum Sharpe ratio and the minimum volatility.
@@ -60,8 +62,10 @@ def mean_variance_optimization(prices: pd.DataFrame, target_risk: float = 0.2) -
 
 
 def discrete_allocation_suggestion(
-    prices: pd.DataFrame, weights: dict, total_portfolio_value: float = 100000.0
-) -> dict:
+    prices: pd.DataFrame,
+    weights: Dict[str, float],
+    total_portfolio_value: float = 100_000.0,
+) -> Dict[str, object]:
     """
     Calculates the number of shares to purchase for a given set of weights.
     """
@@ -79,7 +83,7 @@ def discrete_allocation_suggestion(
     return {"allocation": allocation, "leftover": leftover}
 
 
-def run_portfolio_optimization() -> Any:
+def run_portfolio_optimization() -> object:
     """Main function to run all portfolio optimization components."""
     try:
         prices = load_prices(TICKERS)

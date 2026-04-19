@@ -12,7 +12,7 @@ beyond traditional mean-variance optimization to include:
 
 import logging
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import joblib
 import numpy as np
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class AdvancedPortfolioOptimizer:
     """Advanced portfolio optimization using multiple AI techniques."""
 
-    def __init__(self, risk_tolerance: Any = 5) -> None:
+    def __init__(self, risk_tolerance: object = 5) -> None:
         """
         Initialize the optimizer with risk tolerance level.
 
@@ -211,7 +211,7 @@ class AdvancedPortfolioOptimizer:
         }
         return optimal_weights, performance_metrics
 
-    def save_model(self, filepath: Any) -> None:
+    def save_model(self, filepath: str) -> None:
         """Save the trained model to disk."""
         if not self.trained:
             raise ValueError("Model must be trained before saving")
@@ -229,7 +229,7 @@ class AdvancedPortfolioOptimizer:
         logger.info(f"Model saved to {filepath}")
 
     @classmethod
-    def load_model(cls, filepath: Any) -> "AdvancedPortfolioOptimizer":
+    def load_model(cls, filepath: str) -> "AdvancedPortfolioOptimizer":
         """Load a trained model from disk."""
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Model file not found: {filepath}")

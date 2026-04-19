@@ -98,26 +98,26 @@ query_monitor = QueryPerformanceMonitor()
 
 @event.listens_for(Engine, "before_cursor_execute")
 def receive_before_cursor_execute(
-    conn: Any,
-    cursor: Any,
-    statement: Any,
-    parameters: Any,
-    context: Any,
-    executemany: Any,
-) -> Any:
+    conn: object,
+    cursor: object,
+    statement: object,
+    parameters: object,
+    context: object,
+    executemany: "np.ndarray | pd.DataFrame | list",
+) -> object:
     """Record query start time."""
     context._query_start_time = time.time()
 
 
 @event.listens_for(Engine, "after_cursor_execute")
 def receive_after_cursor_execute(
-    conn: Any,
-    cursor: Any,
-    statement: Any,
-    parameters: Any,
-    context: Any,
-    executemany: Any,
-) -> Any:
+    conn: object,
+    cursor: object,
+    statement: object,
+    parameters: object,
+    context: object,
+    executemany: "np.ndarray | pd.DataFrame | list",
+) -> object:
     """Log query execution time."""
     if hasattr(context, "_query_start_time"):
         duration = time.time() - context._query_start_time

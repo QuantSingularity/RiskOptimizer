@@ -1,6 +1,5 @@
 import unittest
 from datetime import datetime, timedelta
-from typing import Any
 from unittest.mock import ANY, MagicMock
 
 import bcrypt
@@ -19,7 +18,7 @@ config.security.lockout_time = 300
 
 class TestAuthService(unittest.TestCase):
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         self.auth_service = AuthService()
         self.auth_service.user_repo = MagicMock()
         self.auth_service.cache = MagicMock()
@@ -28,7 +27,7 @@ class TestAuthService(unittest.TestCase):
         self.auth_service.cache.get.return_value = None
         self.auth_service.cache.set.return_value = True
 
-    def test_hash_password(self) -> Any:
+    def test_hash_password(self) -> None:
         password = "testpassword123"
         hashed_password = self.auth_service.hash_password(password)
         self.assertIsNotNone(hashed_password)
@@ -36,13 +35,13 @@ class TestAuthService(unittest.TestCase):
             bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))
         )
 
-    def test_hash_password_invalid_input(self) -> Any:
+    def test_hash_password_invalid_input(self) -> None:
         with self.assertRaises(ValidationError):
             self.auth_service.hash_password(None)
         with self.assertRaises(ValidationError):
             self.auth_service.hash_password("")
 
-    def test_verify_password_success(self) -> Any:
+    def test_verify_password_success(self) -> None:
         password = "testpassword123"
         hashed_password = bcrypt.hashpw(
             password.encode("utf-8"),
@@ -50,7 +49,7 @@ class TestAuthService(unittest.TestCase):
         ).decode("utf-8")
         self.assertTrue(self.auth_service.verify_password(password, hashed_password))
 
-    def test_verify_password_failure(self) -> Any:
+    def test_verify_password_failure(self) -> None:
         password = "testpassword123"
         wrong_password = "wrongpassword"
         hashed_password = bcrypt.hashpw(
@@ -61,7 +60,7 @@ class TestAuthService(unittest.TestCase):
             self.auth_service.verify_password(wrong_password, hashed_password)
         )
 
-    def test_generate_tokens(self) -> Any:
+    def test_generate_tokens(self) -> None:
         user_id = 1
         email = "test@example.com"
         role = "user"
@@ -87,7 +86,7 @@ class TestAuthService(unittest.TestCase):
         self.assertEqual(refresh_payload["email"], email)
         self.assertEqual(refresh_payload["type"], "refresh")
 
-    def test_verify_token_access_success(self) -> Any:
+    def test_verify_token_access_success(self) -> None:
         user_id = 1
         email = "test@example.com"
         role = "user"
@@ -96,7 +95,7 @@ class TestAuthService(unittest.TestCase):
         self.assertEqual(payload["user_id"], user_id)
         self.assertEqual(payload["email"], email)
 
-    def test_verify_token_refresh_success(self) -> Any:
+    def test_verify_token_refresh_success(self) -> None:
         user_id = 1
         email = "test@example.com"
         role = "user"
@@ -105,7 +104,7 @@ class TestAuthService(unittest.TestCase):
         self.assertEqual(payload["user_id"], user_id)
         self.assertEqual(payload["email"], email)
 
-    def test_verify_token_expired(self) -> Any:
+    def test_verify_token_expired(self) -> None:
         expired_payload = {
             "user_id": 1,
             "email": "test@example.com",
@@ -120,13 +119,13 @@ class TestAuthService(unittest.TestCase):
             self.auth_service.verify_token(expired_token, "access")
         self.assertIn("expired", str(cm.exception))
 
-    def test_verify_token_invalid_signature(self) -> Any:
+    def test_verify_token_invalid_signature(self) -> None:
         invalid_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
         with self.assertRaises(AuthenticationError) as cm:
             self.auth_service.verify_token(invalid_token, "access")
         self.assertIn("Invalid token", str(cm.exception))
 
-    def test_verify_token_wrong_type(self) -> Any:
+    def test_verify_token_wrong_type(self) -> None:
         user_id = 1
         email = "test@example.com"
         role = "user"
@@ -135,7 +134,7 @@ class TestAuthService(unittest.TestCase):
             self.auth_service.verify_token(tokens["access_token"], "refresh")
         self.assertIn("Invalid token type", str(cm.exception))
 
-    def test_refresh_access_token_success(self) -> Any:
+    def test_refresh_access_token_success(self) -> None:
         user_id = 1
         email = "test@example.com"
         role = "user"
@@ -154,30 +153,30 @@ class TestAuthService(unittest.TestCase):
         self.assertIn("expires_in", new_access_token_data)
         self.auth_service.user_repo.get_by_id.assert_called_once_with(user_id, ANY)
 
-    def test_refresh_access_token_invalid_refresh_token(self) -> Any:
+    def test_refresh_access_token_invalid_refresh_token(self) -> None:
         with self.assertRaises(AuthenticationError) as cm:
             self.auth_service.refresh_access_token("invalid_refresh_token")
         self.assertIn("Invalid token", str(cm.exception))
 
-    def test_blacklist_token(self) -> Any:
+    def test_blacklist_token(self) -> None:
         token = self.auth_service.generate_tokens(1, "test@example.com", "user")[
             "access_token"
         ]
         self.auth_service.blacklist_token(token)
         self.auth_service.cache.set.assert_called_once()
 
-    def test_is_token_blacklisted(self) -> Any:
+    def test_is_token_blacklisted(self) -> None:
         token = "some_token"
         self.auth_service.cache.exists.return_value = True
         self.assertTrue(self.auth_service.is_token_blacklisted(token))
         self.auth_service.cache.exists.assert_called_once_with(f"blacklist:{token}")
 
-    def test_is_token_not_blacklisted(self) -> Any:
+    def test_is_token_not_blacklisted(self) -> None:
         token = "some_token"
         self.auth_service.cache.exists.return_value = False
         self.assertFalse(self.auth_service.is_token_blacklisted(token))
 
-    def test_authenticate_user_success(self) -> Any:
+    def test_authenticate_user_success(self) -> None:
         email = "test@example.com"
         password = "testpassword123"
         hashed_password = bcrypt.hashpw(
@@ -206,7 +205,7 @@ class TestAuthService(unittest.TestCase):
             details={"email": email, "ip_address": ANY},
         )
 
-    def test_authenticate_user_invalid_credentials(self) -> Any:
+    def test_authenticate_user_invalid_credentials(self) -> None:
         email = "test@example.com"
         password = "wrongpassword"
         mock_user = MagicMock()
@@ -231,7 +230,7 @@ class TestAuthService(unittest.TestCase):
             },
         )
 
-    def test_authenticate_user_account_locked(self) -> Any:
+    def test_authenticate_user_account_locked(self) -> None:
         email = "test@example.com"
         password = "testpassword123"
         self.auth_service.cache.get.return_value = str(
@@ -247,7 +246,7 @@ class TestAuthService(unittest.TestCase):
             details={"email": email, "ip_address": ANY},
         )
 
-    def test_register_user_success(self) -> Any:
+    def test_register_user_success(self) -> None:
         email = "newuser@example.com"
         username = "newuser"
         password = "newpassword123"
@@ -273,7 +272,7 @@ class TestAuthService(unittest.TestCase):
             details={"email": email, "username": username, "ip_address": ANY},
         )
 
-    def test_register_user_conflict(self) -> Any:
+    def test_register_user_conflict(self) -> None:
         email = "existing@example.com"
         username = "existinguser"
         password = "password123"
@@ -294,7 +293,7 @@ class TestAuthService(unittest.TestCase):
             },
         )
 
-    def test_logout_user(self) -> Any:
+    def test_logout_user(self) -> None:
         access_token = "access_token_value"
         refresh_token = "refresh_token_value"
         self.auth_service.blacklist_token = MagicMock()
@@ -307,17 +306,17 @@ class TestAuthService(unittest.TestCase):
             details={"access_token_prefix": access_token[:10]},
         )
 
-    def test_account_not_locked_below_limit(self) -> Any:
+    def test_account_not_locked_below_limit(self) -> None:
         email = "user@example.com"
         self.auth_service.cache.get.return_value = "2"
         self.assertFalse(self.auth_service._is_account_locked(email))
 
-    def test_account_locked_at_limit(self) -> Any:
+    def test_account_locked_at_limit(self) -> None:
         email = "user@example.com"
         self.auth_service.cache.get.return_value = "3"
         self.assertTrue(self.auth_service._is_account_locked(email))
 
-    def test_verify_token_blacklisted(self) -> Any:
+    def test_verify_token_blacklisted(self) -> None:
         tokens = self.auth_service.generate_tokens(1, "t@t.com", "user")
         self.auth_service.cache.exists.return_value = True
         with self.assertRaises(AuthenticationError) as cm:

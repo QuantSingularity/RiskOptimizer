@@ -11,7 +11,7 @@ This service provides integration with blockchain smart contracts for:
 import json
 import logging
 import os
-from typing import Any
+from typing import Dict
 
 from dotenv import load_dotenv
 from eth_account import Account
@@ -91,7 +91,7 @@ NETWORKS = {
 }
 
 
-def _get_raw_transaction(signed_tx: Any) -> bytes:
+def _get_raw_transaction(signed_tx: "np.ndarray | pd.DataFrame | list") -> bytes:
     """
     Extract raw transaction bytes from a signed transaction.
     Handles web3.py v5 (.rawTransaction) and v6+ (.raw_transaction).
@@ -108,7 +108,7 @@ def _get_raw_transaction(signed_tx: Any) -> bytes:
 class BlockchainService:
     """Service for blockchain integration and smart contract interaction."""
 
-    def __init__(self, network: Any = "ethereum") -> None:
+    def __init__(self, network: str = "ethereum") -> None:
         """
         Initialize the blockchain service.
 
@@ -147,7 +147,7 @@ class BlockchainService:
         """Check if connected to blockchain network."""
         return self.w3.is_connected()
 
-    def get_network_info(self) -> Any:
+    def get_network_info(self) -> Dict[str, object]:
         """Get information about the connected network."""
         return {
             "name": self.network_config["name"],
@@ -157,11 +157,11 @@ class BlockchainService:
             "gas_price": self.w3.eth.gas_price if self.is_connected() else None,
         }
 
-    def validate_address(self, address: Any) -> bool:
+    def validate_address(self, address: str) -> bool:
         """Validate Ethereum address format."""
         return self.w3.is_address(address)
 
-    def get_portfolio(self, address: Any) -> Any:
+    def get_portfolio(self, address: str) -> Dict[str, object]:
         """
         Get portfolio from blockchain.
 
@@ -189,7 +189,9 @@ class BlockchainService:
             logger.error(f"Error getting portfolio from blockchain: {e}")
             return None
 
-    def update_portfolio(self, address: Any, assets: Any, allocations_pct: Any) -> Any:
+    def update_portfolio(
+        self, address: str, assets: list, allocations_pct: object
+    ) -> Dict[str, object]:
         """
         Update portfolio on blockchain.
 
@@ -239,7 +241,7 @@ class BlockchainService:
             logger.error(f"Error updating portfolio on blockchain: {e}")
             return None
 
-    def calculate_volatility(self, lookback_days: Any = 30) -> Any:
+    def calculate_volatility(self, lookback_days: object = 30) -> bool:
         """
         Calculate market volatility using on-chain risk management contract.
 
@@ -258,7 +260,9 @@ class BlockchainService:
             logger.error(f"Error calculating volatility on blockchain: {e}")
             return None
 
-    def get_transaction_history(self, address: Any, limit: Any = 10) -> Any:
+    def get_transaction_history(
+        self, address: str, limit: object = 10
+    ) -> Dict[str, object]:
         """
         Get transaction history for an address.
 
@@ -300,7 +304,9 @@ class BlockchainService:
             logger.error(f"Error getting transaction history: {e}")
             return []
 
-    def get_gas_estimate(self, assets: Any, allocations_pct: Any) -> Any:
+    def get_gas_estimate(
+        self, assets: list, allocations_pct: object
+    ) -> Dict[str, object]:
         """
         Estimate gas for portfolio update.
 
@@ -323,7 +329,7 @@ class BlockchainService:
             logger.error(f"Error estimating gas: {e}")
             return None
 
-    def switch_network(self, network: Any) -> bool:
+    def switch_network(self, network: str) -> bool:
         """
         Switch to a different blockchain network.
 
@@ -363,7 +369,7 @@ class BlockchainService:
             logger.error(f"Error switching network: {e}")
             return False
 
-    def get_supported_networks(self) -> Any:
+    def get_supported_networks(self) -> Dict[str, object]:
         """Get list of supported blockchain networks."""
         return {
             network: {

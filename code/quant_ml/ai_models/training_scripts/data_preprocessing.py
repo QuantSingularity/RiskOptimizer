@@ -1,11 +1,9 @@
-from typing import Any
-
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 
-def preprocess_data(filepath: Any) -> pd.DataFrame:
+def preprocess_data(filepath: str) -> pd.DataFrame:
     """
     Loads and preprocesses OHLCV data from a CSV file.
 

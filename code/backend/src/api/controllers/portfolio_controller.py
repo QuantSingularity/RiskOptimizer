@@ -42,7 +42,9 @@ portfolio_bp = Blueprint("portfolio", __name__, url_prefix="/api/v1/portfolios")
 
 
 def create_success_response(
-    data: Any, message: Optional[str] = None, meta: Optional[Dict[str, Any]] = None
+    data: "np.ndarray | pd.DataFrame | list",
+    message: Optional[str] = None,
+    meta: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Create standardized success response.

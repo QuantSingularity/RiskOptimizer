@@ -7,7 +7,6 @@ import logging
 import os
 from datetime import datetime
 from functools import wraps
-from typing import Any
 
 import redis
 from celery import Celery
@@ -89,29 +88,29 @@ except Exception:
     redis_client = None
 
 
-def get_task_status(task_id: Any) -> Any:
+def get_task_status(task_id: str) -> object:
     """Get the status of a task by ID."""
     return celery_app.AsyncResult(task_id)
 
 
-def cancel_task(task_id: Any) -> Any:
+def cancel_task(task_id: str) -> object:
     """Cancel a task by ID."""
     celery_app.control.revoke(task_id, terminate=True)
 
 
-def get_active_tasks() -> Any:
+def get_active_tasks() -> object:
     """Get list of active tasks."""
     inspect = celery_app.control.inspect()
     return inspect.active()
 
 
-def get_scheduled_tasks() -> Any:
+def get_scheduled_tasks() -> object:
     """Get list of scheduled tasks."""
     inspect = celery_app.control.inspect()
     return inspect.scheduled()
 
 
-def get_worker_stats() -> Any:
+def get_worker_stats() -> object:
     """Get worker statistics."""
     inspect = celery_app.control.inspect()
     return inspect.stats()
@@ -123,7 +122,9 @@ class TaskResultManager:
     def __init__(self) -> None:
         self.redis_client = redis_client
 
-    def store_task_progress(self, task_id: Any, progress_data: Any) -> Any:
+    def store_task_progress(
+        self, task_id: str, progress_data: "np.ndarray | pd.DataFrame | list"
+    ) -> object:
         """Store task progress information."""
         if not self.redis_client:
             return
@@ -134,7 +135,7 @@ class TaskResultManager:
         except Exception as e:
             logger.warning(f"Could not store task progress: {e}")
 
-    def get_task_progress(self, task_id: Any) -> Any:
+    def get_task_progress(self, task_id: str) -> object:
         """Get task progress information."""
         if not self.redis_client:
             return {}
@@ -144,7 +145,9 @@ class TaskResultManager:
         except Exception:
             return {}
 
-    def store_task_metadata(self, task_id: Any, metadata: Any) -> Any:
+    def store_task_metadata(
+        self, task_id: str, metadata: "np.ndarray | pd.DataFrame | list"
+    ) -> object:
         """Store task metadata."""
         if not self.redis_client:
             return
@@ -155,7 +158,7 @@ class TaskResultManager:
         except Exception as e:
             logger.warning(f"Could not store task metadata: {e}")
 
-    def get_task_metadata(self, task_id: Any) -> Any:
+    def get_task_metadata(self, task_id: str) -> object:
         """Get task metadata."""
         if not self.redis_client:
             return {}
@@ -199,7 +202,7 @@ class TaskValidationError(TaskError):
     """Exception raised when task input validation fails."""
 
 
-def task_with_progress(**kwargs) -> Any:
+def task_with_progress(**kwargs) -> object:
     """
     Decorator for Celery tasks that report progress via TaskResultManager.
 

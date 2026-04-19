@@ -1,7 +1,6 @@
 import unittest
 from datetime import datetime, timezone
 from decimal import Decimal, getcontext
-from typing import Any
 from unittest.mock import MagicMock
 
 from src.core.exceptions import NotFoundError, ValidationError
@@ -16,7 +15,7 @@ def _now():
 
 class TestPortfolioService(unittest.TestCase):
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         self.portfolio_service = PortfolioService()
         self.portfolio_service.portfolio_repo = MagicMock()
         self.portfolio_service.user_repo = MagicMock()
@@ -26,7 +25,7 @@ class TestPortfolioService(unittest.TestCase):
         self.portfolio_service.cache.set.return_value = True
         self.portfolio_service.cache.delete.return_value = True
 
-    def test_get_portfolio_by_address_success(self) -> Any:
+    def test_get_portfolio_by_address_success(self) -> None:
         user_address = "test_address"
         mock_portfolio_data = {
             "total_value": Decimal("1000.00"),
@@ -46,7 +45,7 @@ class TestPortfolioService(unittest.TestCase):
         self.portfolio_service.portfolio_repo.get_portfolio_with_allocations.assert_called_once()
         self.portfolio_service.cache.set.assert_called_once()
 
-    def test_get_portfolio_by_address_from_cache(self) -> Any:
+    def test_get_portfolio_by_address_from_cache(self) -> None:
         user_address = "test_address"
         cached_portfolio_data = {
             "total_value": "1000.00",
@@ -59,7 +58,7 @@ class TestPortfolioService(unittest.TestCase):
         self.assertEqual(result["total_value"], Decimal("1000.00"))
         self.portfolio_service.portfolio_repo.get_portfolio_with_allocations.assert_not_called()
 
-    def test_get_portfolio_by_address_not_found(self) -> Any:
+    def test_get_portfolio_by_address_not_found(self) -> None:
         user_address = "non_existent_address"
         self.portfolio_service.portfolio_repo.get_portfolio_with_allocations.side_effect = NotFoundError(
             "Portfolio not found"
@@ -67,7 +66,7 @@ class TestPortfolioService(unittest.TestCase):
         with self.assertRaises(NotFoundError):
             self.portfolio_service.get_portfolio_by_address(user_address)
 
-    def test_save_portfolio_success(self) -> Any:
+    def test_save_portfolio_success(self) -> None:
         user_address = "test_address"
         allocations = {"BTC": 50.0, "ETH": 50.0}
         name = "My Portfolio"
@@ -87,7 +86,7 @@ class TestPortfolioService(unittest.TestCase):
         self.portfolio_service.audit_service.log_action.assert_called_once()
         self.portfolio_service.cache.delete.assert_called_once()
 
-    def test_create_portfolio_success(self) -> Any:
+    def test_create_portfolio_success(self) -> None:
         user_id = 1
         user_address = "new_address"
         name = "New Portfolio"
@@ -113,7 +112,7 @@ class TestPortfolioService(unittest.TestCase):
         self.portfolio_service.portfolio_repo.create.assert_called_once()
         self.portfolio_service.audit_service.log_action.assert_called_once()
 
-    def test_update_portfolio_success(self) -> Any:
+    def test_update_portfolio_success(self) -> None:
         portfolio_id = 1
         data = {"name": "Updated Portfolio", "total_value": 2000.0}
         old_portfolio = MagicMock()
@@ -145,7 +144,7 @@ class TestPortfolioService(unittest.TestCase):
         self.portfolio_service.cache.delete.assert_called_once()
         self.portfolio_service.audit_service.log_action.assert_called_once()
 
-    def test_delete_portfolio_success(self) -> Any:
+    def test_delete_portfolio_success(self) -> None:
         portfolio_id = 1
         mock_portfolio = MagicMock(
             id=portfolio_id,
@@ -162,7 +161,7 @@ class TestPortfolioService(unittest.TestCase):
         self.portfolio_service.cache.delete.assert_called_once()
         self.portfolio_service.audit_service.log_action.assert_called_once()
 
-    def test_get_user_portfolios_success(self) -> Any:
+    def test_get_user_portfolios_success(self) -> None:
         user_id = 1
         mock_portfolios = [
             MagicMock(
@@ -193,7 +192,7 @@ class TestPortfolioService(unittest.TestCase):
         self.assertEqual(len(result), 2)
         self.portfolio_service.portfolio_repo.get_by_user_id.assert_called_once()
 
-    def test_validate_portfolio_input_valid(self) -> Any:
+    def test_validate_portfolio_input_valid(self) -> None:
         user_address = "test_address"
         allocations = {"BTC": 50.0, "ETH": 50.0}
         name = "Valid Portfolio"
@@ -201,13 +200,13 @@ class TestPortfolioService(unittest.TestCase):
             user_address, allocations, name
         )
 
-    def test_validate_portfolio_input_invalid_address(self) -> Any:
+    def test_validate_portfolio_input_invalid_address(self) -> None:
         with self.assertRaises(ValidationError):
             self.portfolio_service._validate_portfolio_input(
                 None, {"BTC": 100.0}, "Name"
             )
 
-    def test_validate_portfolio_input_invalid_allocations(self) -> Any:
+    def test_validate_portfolio_input_invalid_allocations(self) -> None:
         with self.assertRaises(ValidationError):
             self.portfolio_service._validate_portfolio_input("address", {}, "Name")
         with self.assertRaises(ValidationError):
@@ -215,35 +214,35 @@ class TestPortfolioService(unittest.TestCase):
                 "address", {"BTC": 120.0}, "Name"
             )
 
-    def test_normalize_allocations(self) -> Any:
+    def test_normalize_allocations(self) -> None:
         allocations = {"BTC": 25.0, "ETH": 25.0, "ADA": 50.0}
         normalized = self.portfolio_service._normalize_allocations(allocations)
         self.assertAlmostEqual(sum(normalized.values()), 100.0, places=5)
         self.assertAlmostEqual(normalized["BTC"], 25.0, places=5)
 
-    def test_get_portfolio_by_address_invalid_input(self) -> Any:
+    def test_get_portfolio_by_address_invalid_input(self) -> None:
         with self.assertRaises(ValidationError):
             self.portfolio_service.get_portfolio_by_address("")
         with self.assertRaises(ValidationError):
             self.portfolio_service.get_portfolio_by_address(None)
 
-    def test_create_portfolio_user_not_found(self) -> Any:
+    def test_create_portfolio_user_not_found(self) -> None:
         self.portfolio_service.user_repo.get_by_id.return_value = None
         with self.assertRaises(NotFoundError):
             self.portfolio_service.create_portfolio(1, "address", "name")
 
-    def test_update_portfolio_not_found(self) -> Any:
+    def test_update_portfolio_not_found(self) -> None:
         self.portfolio_service.portfolio_repo.get_by_id.return_value = None
         with self.assertRaises(NotFoundError):
             self.portfolio_service.update_portfolio(999, {"name": "x"})
 
-    def test_update_portfolio_invalid_field(self) -> Any:
+    def test_update_portfolio_invalid_field(self) -> None:
         old_portfolio = MagicMock()
         self.portfolio_service.portfolio_repo.get_by_id.return_value = old_portfolio
         with self.assertRaises(ValidationError):
             self.portfolio_service.update_portfolio(1, {"invalid_field": "value"})
 
-    def test_normalize_allocations_zero_total(self) -> Any:
+    def test_normalize_allocations_zero_total(self) -> None:
         with self.assertRaises(ValidationError):
             self.portfolio_service._normalize_allocations({"BTC": 0.0, "ETH": 0.0})
 

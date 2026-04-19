@@ -140,3 +140,14 @@ docs/
 5. **Troubleshooting:** Visit [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues
 
 ---
+
+## Model Performance & Validation
+
+See [ML_MODEL_PERFORMANCE.md](ML_MODEL_PERFORMANCE.md) for full empirical validation:
+
+- **Backtested VaR**: All methods pass Kupiec unconditional coverage test (p > 0.05)
+- **GBM VaR Model**: Test RMSE 0.0041, 94.7 % coverage at 95 % confidence
+- **Hybrid VaR** (GBM + Historical): Best coverage at 95.1 %, pinball loss 0.00081
+- **EVT (POT)**: Confirmed fat-tailed distributions (ξ > 0) for all assets
+- **Max-Sharpe Portfolio**: Out-of-sample Sharpe 1.15 vs. 0.83 equal-weight baseline
+- **Parallel Engine**: 5.9× speedup on 8-core CPU for Monte Carlo (100k scenarios)

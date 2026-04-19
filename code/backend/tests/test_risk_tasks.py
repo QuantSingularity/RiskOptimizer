@@ -2,7 +2,6 @@
 Unit tests for risk calculation tasks.
 """
 
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -21,7 +20,7 @@ from src.tasks.risk_tasks import (
 class TestMonteCarloSimulation:
     """Test cases for Monte Carlo simulation task."""
 
-    def setup_method(self) -> Any:
+    def setup_method(self) -> None:
         """Set up test data."""
         self.portfolio_data = {
             "weights": [0.4, 0.3, 0.3],
@@ -31,8 +30,8 @@ class TestMonteCarloSimulation:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_monte_carlo_simulation_success(
-        self, mock_task_manager: Any, mock_celery_manager: Any
-    ) -> Any:
+        self, mock_task_manager: "MagicMock", mock_celery_manager: "MagicMock"
+    ) -> object:
         """Test successful Monte Carlo simulation."""
         mock_self = MagicMock()
         mock_self.request.id = "test-task-id"
@@ -47,7 +46,7 @@ class TestMonteCarloSimulation:
         assert result["simulation_parameters"]["time_horizon"] == 252
         assert mock_task_manager.store_task_progress.called
 
-    def test_monte_carlo_validation_errors(self) -> Any:
+    def test_monte_carlo_validation_errors(self) -> None:
         """Test validation errors in Monte Carlo simulation."""
         mock_self = MagicMock()
         mock_self.request.id = "test-task-id"
@@ -63,8 +62,8 @@ class TestMonteCarloSimulation:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_monte_carlo_risk_metrics(
-        self, mock_task_manager: Any, mock_celery_manager: Any
-    ) -> Any:
+        self, mock_task_manager: "MagicMock", mock_celery_manager: "MagicMock"
+    ) -> object:
         """Test that risk metrics are calculated correctly."""
         mock_self = MagicMock()
         mock_self.request.id = "test-task-id"
@@ -83,7 +82,7 @@ class TestMonteCarloSimulation:
 class TestVarCvarCalculation:
     """Test cases for VaR/CVaR calculation task."""
 
-    def setup_method(self) -> Any:
+    def setup_method(self) -> None:
         """Set up test data."""
         np.random.seed(42)
         returns = np.random.normal(0.001, 0.02, (252, 3))
@@ -95,8 +94,8 @@ class TestVarCvarCalculation:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_var_cvar_calculation_success(
-        self, mock_task_manager: Any, mock_celery_manager: Any
-    ) -> Any:
+        self, mock_task_manager: "MagicMock", mock_celery_manager: "MagicMock"
+    ) -> object:
         """Test successful VaR/CVaR calculation."""
         mock_self = MagicMock()
         mock_self.request.id = "test-task-id"
@@ -113,7 +112,7 @@ class TestVarCvarCalculation:
         assert result["cvar"]["95%"] <= result["var"]["95%"]
         assert result["cvar"]["99%"] <= result["var"]["99%"]
 
-    def test_var_cvar_validation_errors(self) -> Any:
+    def test_var_cvar_validation_errors(self) -> None:
         """Test validation errors in VaR/CVaR calculation."""
         mock_self = MagicMock()
         mock_self.request.id = "test-task-id"
@@ -126,7 +125,7 @@ class TestVarCvarCalculation:
 class TestEfficientFrontierCalculation:
     """Test cases for efficient frontier calculation task."""
 
-    def setup_method(self) -> Any:
+    def setup_method(self) -> None:
         """Set up test data."""
         np.random.seed(42)
         returns = np.random.normal(0.001, 0.02, (252, 4))
@@ -138,8 +137,8 @@ class TestEfficientFrontierCalculation:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_efficient_frontier_calculation_success(
-        self, mock_task_manager: Any, mock_celery_manager: Any
-    ) -> Any:
+        self, mock_task_manager: "MagicMock", mock_celery_manager: "MagicMock"
+    ) -> object:
         """Test successful efficient frontier calculation."""
         mock_self = MagicMock()
         mock_self.request.id = "test-task-id"
@@ -161,7 +160,7 @@ class TestEfficientFrontierCalculation:
         assert abs(sum(max_sharpe_weights) - 1.0) < 1e-06
         assert abs(sum(min_vol_weights) - 1.0) < 1e-06
 
-    def test_efficient_frontier_validation_errors(self) -> Any:
+    def test_efficient_frontier_validation_errors(self) -> None:
         """Test validation errors in efficient frontier calculation."""
         mock_self = MagicMock()
         mock_self.request.id = "test-task-id"
@@ -174,7 +173,7 @@ class TestEfficientFrontierCalculation:
 class TestStressTestPortfolio:
     """Test cases for portfolio stress testing task."""
 
-    def setup_method(self) -> Any:
+    def setup_method(self) -> None:
         """Set up test data."""
         np.random.seed(42)
         returns = np.random.normal(0.001, 0.02, (252, 3))
@@ -191,8 +190,8 @@ class TestStressTestPortfolio:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_stress_test_success(
-        self, mock_task_manager: Any, mock_celery_manager: Any
-    ) -> Any:
+        self, mock_task_manager: "MagicMock", mock_celery_manager: "MagicMock"
+    ) -> object:
         """Test successful stress testing."""
         mock_self = MagicMock()
         mock_self.request.id = "test-task-id"
@@ -217,7 +216,7 @@ class TestStressTestPortfolio:
 class TestCalculatePortfolioMetrics:
     """Test cases for portfolio metrics calculation task."""
 
-    def test_calculate_portfolio_metrics_success(self) -> Any:
+    def test_calculate_portfolio_metrics_success(self) -> None:
         """Test successful portfolio metrics calculation."""
         mock_self = MagicMock()
         mock_self.request.id = "test-task-id"
@@ -238,7 +237,7 @@ class TestCalculatePortfolioMetrics:
 class TestRiskTasksIntegration:
     """Integration tests for risk calculation tasks."""
 
-    def setup_method(self) -> Any:
+    def setup_method(self) -> None:
         """Set up integration test data."""
         np.random.seed(42)
         dates = pd.date_range("2020-01-01", "2023-12-31", freq="D")
@@ -263,8 +262,8 @@ class TestRiskTasksIntegration:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_monte_carlo_with_realistic_data(
-        self, mock_task_manager: Any, mock_celery_manager: Any
-    ) -> Any:
+        self, mock_task_manager: "MagicMock", mock_celery_manager: "MagicMock"
+    ) -> object:
         """Test Monte Carlo simulation with realistic market data."""
         mock_self = MagicMock()
         mock_self.request.id = "integration-test-id"
@@ -281,8 +280,8 @@ class TestRiskTasksIntegration:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_efficient_frontier_with_realistic_data(
-        self, mock_task_manager: Any, mock_celery_manager: Any
-    ) -> Any:
+        self, mock_task_manager: "MagicMock", mock_celery_manager: "MagicMock"
+    ) -> object:
         """Test efficient frontier calculation with realistic market data."""
         mock_self = MagicMock()
         mock_self.request.id = "integration-test-id"
@@ -299,7 +298,7 @@ class TestRiskTasksIntegration:
 
 
 @pytest.fixture
-def sample_portfolio_data() -> Any:
+def sample_portfolio_data() -> object:
     """Fixture providing sample portfolio data."""
     np.random.seed(42)
     returns = np.random.normal(0.001, 0.02, (252, 3))
@@ -307,7 +306,7 @@ def sample_portfolio_data() -> Any:
 
 
 @pytest.fixture
-def sample_assets_data() -> Any:
+def sample_assets_data() -> object:
     """Fixture providing sample assets data."""
     np.random.seed(42)
     returns = np.random.normal(0.001, 0.02, (252, 4))
@@ -324,8 +323,8 @@ class TestRiskTasksPerformance:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_monte_carlo_performance(
-        self, mock_task_manager: Any, mock_celery_manager: Any
-    ) -> Any:
+        self, mock_task_manager: "MagicMock", mock_celery_manager: "MagicMock"
+    ) -> object:
         """Test Monte Carlo simulation performance with large datasets."""
         mock_self = MagicMock()
         mock_self.request.id = "performance-test-id"
@@ -347,8 +346,8 @@ class TestRiskTasksPerformance:
     @patch("src.tasks.celery_app.task_result_manager")
     @patch("src.tasks.risk_tasks.task_result_manager")
     def test_efficient_frontier_performance(
-        self, mock_task_manager: Any, mock_celery_manager: Any
-    ) -> Any:
+        self, mock_task_manager: "MagicMock", mock_celery_manager: "MagicMock"
+    ) -> object:
         """Test efficient frontier calculation performance with many assets."""
         mock_self = MagicMock()
         mock_self.request.id = "performance-test-id"

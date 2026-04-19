@@ -166,6 +166,9 @@ terraform.rc
 *.sock
 *.sqlite
 *.sqlite3
+*.db
+*.db-shm
+*.db-wal
 /tmp/
 /temp/
 .sass-cache/

@@ -5,7 +5,6 @@ Tests the SQLAlchemy session management and model definitions
 using a transient in-memory SQLite database.
 """
 
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -39,7 +38,7 @@ def _create_tables(engine):
 # ---------------------------------------------------------------------------
 
 
-def test_engine_creation() -> Any:
+def test_engine_creation() -> object:
     """Test that an in-memory SQLite engine can be created."""
     engine = _make_engine()
     assert engine is not None
@@ -48,7 +47,7 @@ def test_engine_creation() -> Any:
         assert result.fetchone()[0] == 1
 
 
-def test_session_commit_rollback() -> Any:
+def test_session_commit_rollback() -> object:
     """Test session commit and rollback behave correctly."""
     engine = _make_engine()
     _create_tables(engine)
@@ -64,7 +63,7 @@ def test_session_commit_rollback() -> Any:
         session.close()
 
 
-def test_get_db_session_context_manager() -> Any:
+def test_get_db_session_context_manager() -> object:
     """Test that get_db_session yields a session and commits on clean exit."""
     with patch("src.infrastructure.database.session.SessionLocal") as mock_factory:
         mock_session = MagicMock()
@@ -77,7 +76,7 @@ def test_get_db_session_context_manager() -> Any:
         mock_session.close.assert_called_once()
 
 
-def test_get_db_session_rolls_back_on_error() -> Any:
+def test_get_db_session_rolls_back_on_error() -> object:
     """Test that get_db_session rolls back when an exception occurs."""
     with patch("src.infrastructure.database.session.SessionLocal") as mock_factory:
         mock_session = MagicMock()
@@ -97,7 +96,7 @@ def test_get_db_session_rolls_back_on_error() -> Any:
 # ---------------------------------------------------------------------------
 
 
-def test_all_tables_created() -> Any:
+def test_all_tables_created() -> object:
     """Test that all expected tables are created by Base.metadata.create_all."""
     engine = _make_engine()
     _create_tables(engine)
@@ -119,7 +118,7 @@ def test_all_tables_created() -> Any:
         assert table in tables, f"Expected table '{table}' not found"
 
 
-def test_user_model_columns() -> Any:
+def test_user_model_columns() -> object:
     """Test the User model has required columns."""
     engine = _make_engine()
     _create_tables(engine)
@@ -138,7 +137,7 @@ def test_user_model_columns() -> Any:
         assert expected_col in cols, f"Column '{expected_col}' missing from users table"
 
 
-def test_portfolio_model_columns() -> Any:
+def test_portfolio_model_columns() -> object:
     """Test the Portfolio model has required columns."""
     engine = _make_engine()
     _create_tables(engine)
@@ -152,7 +151,7 @@ def test_portfolio_model_columns() -> Any:
         ), f"Column '{expected_col}' missing from portfolios table"
 
 
-def test_allocation_model_columns() -> Any:
+def test_allocation_model_columns() -> object:
     """Test the Allocation model has required columns."""
     engine = _make_engine()
     _create_tables(engine)
@@ -171,7 +170,7 @@ def test_allocation_model_columns() -> Any:
 # ---------------------------------------------------------------------------
 
 
-def test_check_db_connection_success() -> Any:
+def test_check_db_connection_success() -> object:
     """Test check_db_connection returns True on healthy engine."""
     with patch("src.infrastructure.database.session.engine") as mock_engine:
         mock_conn = MagicMock()
@@ -184,7 +183,7 @@ def test_check_db_connection_success() -> Any:
         assert result is True
 
 
-def test_check_db_connection_failure() -> Any:
+def test_check_db_connection_failure() -> object:
     """Test check_db_connection returns False when engine raises."""
     with patch("src.infrastructure.database.session.engine") as mock_engine:
         mock_engine.connect.side_effect = Exception("Connection refused")

@@ -425,7 +425,7 @@ def export_portfolio_data(
 
 
 @celery_app.task(bind=True)
-def generate_daily_reports(self) -> Any:
+def generate_daily_reports(self) -> object:
     """
     Generate daily reports for all active portfolios.
     This is a scheduled task that runs daily.
@@ -483,7 +483,7 @@ def generate_daily_reports(self) -> Any:
         raise
 
 
-def _get_file_size(file_path: Any) -> Any:
+def _get_file_size(file_path: object) -> object:
     """Get file size in bytes."""
     try:
         import os
@@ -493,7 +493,9 @@ def _get_file_size(file_path: Any) -> Any:
         return 0
 
 
-def _create_chart_image(data: Any, chart_type: Any = "line") -> Any:
+def _create_chart_image(
+    data: "np.ndarray | pd.DataFrame | list", chart_type: str = "line"
+) -> object:
     """Create chart image for inclusion in reports."""
     try:
         plt.figure(figsize=(8, 6))

@@ -8,7 +8,6 @@ AI/ML model layer for enhanced performance.
 import logging
 import os
 import sys
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -43,7 +42,7 @@ class FallbackPortfolioOptimizer:
     def __init__(self) -> None:
         self.risk_tolerance = 5
 
-    def optimize_portfolio(self, market_data: pd.DataFrame) -> Any:
+    def optimize_portfolio(self, market_data: pd.DataFrame) -> object:
         """Optimize portfolio weights using minimum variance approach."""
         price_cols = [c for c in market_data.columns if c != "market_index"]
         prices = market_data[price_cols]
@@ -81,10 +80,10 @@ class FallbackPortfolioOptimizer:
     def monte_carlo_simulation(
         self,
         market_data: pd.DataFrame,
-        weights: Any,
+        weights: "np.ndarray | pd.DataFrame | list",
         num_simulations: int = 1000,
         time_horizon: int = 252,
-    ) -> Any:
+    ) -> object:
         """Run Monte Carlo simulation for portfolio risk assessment."""
         price_cols = [c for c in market_data.columns if c != "market_index"]
         prices = market_data[price_cols]
@@ -117,12 +116,12 @@ class FallbackPortfolioOptimizer:
 class AIOptimizationService:
     """Service for AI-driven portfolio optimization."""
 
-    def __init__(self, model_path: Any = None) -> None:
+    def __init__(self, model_path: object = None) -> None:
         self.model_path = model_path or DEFAULT_MODEL_PATH
         self.optimizer = None
         self.load_model()
 
-    def load_model(self) -> Any:
+    def load_model(self) -> object:
         """Load the trained model, falling back to the classical optimizer."""
         try:
             if AdvancedPortfolioOptimizer is not None and os.path.exists(
@@ -137,7 +136,7 @@ class AIOptimizationService:
             logger.warning(f"Error loading AI model ({e}); using fallback optimizer.")
             self.optimizer = FallbackPortfolioOptimizer()
 
-    def process_market_data(self, data: Any) -> Any:
+    def process_market_data(self, data: "np.ndarray | pd.DataFrame | list") -> object:
         """Process market data for optimization."""
         if isinstance(data, dict):
             df = pd.DataFrame(data)
@@ -147,7 +146,11 @@ class AIOptimizationService:
             df.set_index("date", inplace=True)
         return df
 
-    def optimize_portfolio(self, market_data: Any, risk_tolerance: Any = 5) -> Any:
+    def optimize_portfolio(
+        self,
+        market_data: "np.ndarray | pd.DataFrame | list",
+        risk_tolerance: object = 5,
+    ) -> object:
         """Generate optimized portfolio allocation."""
         df = self.process_market_data(market_data)
         self.optimizer.risk_tolerance = risk_tolerance
@@ -163,11 +166,11 @@ class AIOptimizationService:
 
     def run_risk_simulation(
         self,
-        market_data: Any,
-        weights: Any,
-        num_simulations: Any = 1000,
-        time_horizon: Any = 252,
-    ) -> Any:
+        market_data: "np.ndarray | pd.DataFrame | list",
+        weights: "np.ndarray | pd.DataFrame | list",
+        num_simulations: object = 1000,
+        time_horizon: int = 252,
+    ) -> object:
         """Run Monte Carlo simulation for risk assessment."""
         df = self.process_market_data(market_data)
         simulation, risk_metrics = self.optimizer.monte_carlo_simulation(
@@ -192,7 +195,7 @@ class AIOptimizationService:
             },
         }
 
-    def get_model_info(self) -> Any:
+    def get_model_info(self) -> object:
         """Get information about the loaded model."""
         return {
             "model_path": self.model_path,

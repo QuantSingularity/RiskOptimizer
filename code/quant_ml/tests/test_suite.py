@@ -67,7 +67,7 @@ def _make_1d_returns(n=1000, seed=42):
 class TestExtremeValueTheory(unittest.TestCase):
     """Comprehensive tests for ExtremeValueRisk."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         from risk_models.extreme_value_theory import ExtremeValueRisk
 
         self.EVT = ExtremeValueRisk
@@ -76,151 +76,151 @@ class TestExtremeValueTheory(unittest.TestCase):
 
     # --- POT fitting ---
 
-    def test_pot_fitting_sets_fitted_flag(self):
+    def test_pot_fitting_sets_fitted_flag(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.05)
         self.assertTrue(self.model.fitted)
 
-    def test_pot_fitting_stores_params(self):
+    def test_pot_fitting_stores_params(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.05)
         self.assertIsNotNone(self.model.pot_params)
         self.assertIn("shape", self.model.pot_params)
         self.assertIn("scale", self.model.pot_params)
         self.assertIn("threshold", self.model.pot_params)
 
-    def test_pot_gpd_params_property(self):
+    def test_pot_gpd_params_property(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.05)
         shape, scale = self.model.gpd_params
         self.assertIsNotNone(shape)
         self.assertGreater(scale, 0)
         self.assertLess(abs(shape), 2.0)
 
-    def test_pot_explicit_threshold(self):
+    def test_pot_explicit_threshold(self) -> None:
         threshold = np.percentile(self.returns, 5)
         self.model.fit_pot(self.returns, threshold=threshold)
         self.assertTrue(self.model.fitted)
 
-    def test_pot_with_series_input(self):
+    def test_pot_with_series_input(self) -> None:
         series = pd.Series(self.returns)
         self.model.fit_pot(series, threshold_quantile=0.1)
         self.assertTrue(self.model.fitted)
 
-    def test_pot_with_dataframe_input(self):
+    def test_pot_with_dataframe_input(self) -> None:
         df = pd.DataFrame({"col": self.returns})
         self.model.fit_pot(df, threshold_quantile=0.1)
         self.assertTrue(self.model.fitted)
 
     # --- Block Maxima fitting ---
 
-    def test_block_maxima_returns_dict(self):
+    def test_block_maxima_returns_dict(self) -> None:
         result = self.model.fit_block_maxima(self.returns, block_size=20)
         self.assertIsInstance(result, dict)
 
-    def test_block_maxima_dict_keys(self):
+    def test_block_maxima_dict_keys(self) -> None:
         result = self.model.fit_block_maxima(self.returns, block_size=20)
         self.assertIn("shape", result)
         self.assertIn("loc", result)
         self.assertIn("scale", result)
         self.assertIn("block_maxima", result)
 
-    def test_block_maxima_count(self):
+    def test_block_maxima_count(self) -> None:
         result = self.model.fit_block_maxima(self.returns, block_size=20)
         expected_blocks = len(self.returns) // 20
         self.assertEqual(len(result["block_maxima"]), expected_blocks)
 
-    def test_block_maxima_sets_fitted(self):
+    def test_block_maxima_sets_fitted(self) -> None:
         self.model.fit_block_maxima(self.returns, block_size=20)
         self.assertTrue(self.model.fitted)
 
     # --- VaR calculation ---
 
-    def test_var_evt_is_positive(self):
+    def test_var_evt_is_positive(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         var = self.model.calculate_var(0.95, method="evt")
         self.assertGreater(var, 0)
 
-    def test_var_increases_with_confidence(self):
+    def test_var_increases_with_confidence(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         var_95 = self.model.calculate_var(0.95, method="evt")
         var_99 = self.model.calculate_var(0.99, method="evt")
         self.assertGreater(var_99, var_95)
 
-    def test_var_historical_positive(self):
+    def test_var_historical_positive(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         var = self.model.calculate_var(0.95, method="historical")
         self.assertGreater(var, 0)
 
-    def test_var_normal_positive(self):
+    def test_var_normal_positive(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         var = self.model.calculate_var(0.95, method="normal")
         self.assertGreater(var, 0)
 
-    def test_var_invalid_method_raises(self):
+    def test_var_invalid_method_raises(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         with self.assertRaises(ValueError):
             self.model.calculate_var(0.95, method="bogus")
 
-    def test_var_unfitted_raises(self):
+    def test_var_unfitted_raises(self) -> None:
         with self.assertRaises(ValueError):
             self.model.calculate_var(0.95)
 
-    def test_var_block_maxima_path(self):
+    def test_var_block_maxima_path(self) -> None:
         self.model.fit_block_maxima(self.returns, block_size=20)
         var = self.model.calculate_var(0.95, method="evt")
         self.assertGreater(var, 0)
 
     # --- ES calculation ---
 
-    def test_es_greater_than_var(self):
+    def test_es_greater_than_var(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         var_95 = self.model.calculate_var(0.95, method="evt")
         es_95 = self.model.calculate_es(0.95, method="evt")
         self.assertGreater(es_95, var_95)
 
-    def test_es_increases_with_confidence(self):
+    def test_es_increases_with_confidence(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         es_95 = self.model.calculate_es(0.95)
         es_99 = self.model.calculate_es(0.99)
         self.assertGreater(es_99, es_95)
 
-    def test_es_historical_positive(self):
+    def test_es_historical_positive(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         es = self.model.calculate_es(0.95, method="historical")
         self.assertGreater(es, 0)
 
-    def test_es_normal_positive(self):
+    def test_es_normal_positive(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         es = self.model.calculate_es(0.95, method="normal")
         self.assertGreater(es, 0)
 
-    def test_es_unfitted_raises(self):
+    def test_es_unfitted_raises(self) -> None:
         with self.assertRaises(ValueError):
             self.model.calculate_es(0.95)
 
     # --- Scenario generation ---
 
-    def test_generate_scenarios_correct_length(self):
+    def test_generate_scenarios_correct_length(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         scenarios = self.model.generate_scenarios(n_scenarios=100)
         self.assertEqual(len(scenarios), 100)
 
-    def test_generate_scenarios_historical(self):
+    def test_generate_scenarios_historical(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         scenarios = self.model.generate_scenarios(100, method="historical")
         self.assertEqual(len(scenarios), 100)
 
-    def test_generate_scenarios_normal(self):
+    def test_generate_scenarios_normal(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
         scenarios = self.model.generate_scenarios(100, method="normal")
         self.assertEqual(len(scenarios), 100)
 
-    def test_simulate_extreme_scenarios_count(self):
+    def test_simulate_extreme_scenarios_count(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.05)
         scenarios = self.model.simulate_extreme_scenarios(
             n_scenarios=50, confidence=0.90
         )
         self.assertEqual(len(scenarios), 50)
 
-    def test_simulate_extreme_scenarios_all_positive(self):
+    def test_simulate_extreme_scenarios_all_positive(self) -> None:
         self.model.fit_pot(self.returns, threshold_quantile=0.05)
         scenarios = self.model.simulate_extreme_scenarios(
             n_scenarios=50, confidence=0.90
@@ -229,7 +229,7 @@ class TestExtremeValueTheory(unittest.TestCase):
 
     # --- Tail dependence ---
 
-    def test_tail_dependence_in_range(self):
+    def test_tail_dependence_in_range(self) -> None:
         np.random.seed(42)
         x = self.returns
         y = 0.7 * x + 0.3 * np.random.normal(0, np.std(x), len(x))
@@ -237,7 +237,7 @@ class TestExtremeValueTheory(unittest.TestCase):
         self.assertGreaterEqual(td, 0.0)
         self.assertLessEqual(td, 1.0)
 
-    def test_tail_dependence_alias(self):
+    def test_tail_dependence_alias(self) -> None:
         np.random.seed(42)
         x = self.returns
         y = np.random.normal(0, 0.02, len(x))
@@ -245,7 +245,7 @@ class TestExtremeValueTheory(unittest.TestCase):
         td2 = self.model.calculate_tail_dependence(x, y)
         self.assertAlmostEqual(td1, td2)
 
-    def test_tail_dependence_copula_method(self):
+    def test_tail_dependence_copula_method(self) -> None:
         np.random.seed(42)
         x = self.returns
         y = 0.5 * x + 0.5 * np.random.normal(0, np.std(x), len(x))
@@ -253,7 +253,7 @@ class TestExtremeValueTheory(unittest.TestCase):
         self.assertGreaterEqual(td, 0.0)
         self.assertLessEqual(td, 1.0)
 
-    def test_tail_dependence_invalid_method_raises(self):
+    def test_tail_dependence_invalid_method_raises(self) -> None:
         with self.assertRaises(ValueError):
             self.model.calculate_tail_dependence(
                 self.returns, self.returns, method="bogus"
@@ -261,7 +261,7 @@ class TestExtremeValueTheory(unittest.TestCase):
 
     # --- Plotting (smoke tests) ---
 
-    def test_plot_tail_distribution_returns_figure(self):
+    def test_plot_tail_distribution_returns_figure(self) -> None:
         import matplotlib.pyplot as plt
 
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
@@ -269,7 +269,7 @@ class TestExtremeValueTheory(unittest.TestCase):
         self.assertIsInstance(fig, plt.Figure)
         plt.close(fig)
 
-    def test_plot_mean_excess_returns_figure(self):
+    def test_plot_mean_excess_returns_figure(self) -> None:
         import matplotlib.pyplot as plt
 
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
@@ -277,7 +277,7 @@ class TestExtremeValueTheory(unittest.TestCase):
         self.assertIsInstance(fig, plt.Figure)
         plt.close(fig)
 
-    def test_plot_return_level_returns_figure(self):
+    def test_plot_return_level_returns_figure(self) -> None:
         import matplotlib.pyplot as plt
 
         self.model.fit_pot(self.returns, threshold_quantile=0.1)
@@ -294,7 +294,7 @@ class TestExtremeValueTheory(unittest.TestCase):
 class TestMLRiskModels(unittest.TestCase):
     """Comprehensive tests for MLRiskModel and CopulaMLRiskModel."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         from risk_models.ml_risk_models import (
             CopulaMLRiskModel,
             HybridRiskModel,
@@ -309,58 +309,58 @@ class TestMLRiskModels(unittest.TestCase):
 
     # --- MLRiskModel ---
 
-    def test_ml_gbm_training(self):
+    def test_ml_gbm_training(self) -> None:
         model = self.MLRiskModel(model_type="gbm")
         model.fit(self.returns, feature_window=10)
         self.assertTrue(model.trained)
 
-    def test_ml_rf_training(self):
+    def test_ml_rf_training(self) -> None:
         model = self.MLRiskModel(model_type="rf")
         model.fit(self.returns, feature_window=10)
         self.assertTrue(model.trained)
 
-    def test_ml_feature_names_set(self):
+    def test_ml_feature_names_set(self) -> None:
         model = self.MLRiskModel(model_type="gbm")
         model.fit(self.returns, feature_window=10)
         self.assertIsNotNone(model.feature_names)
         self.assertGreater(len(model.feature_names), 0)
 
-    def test_ml_feature_importance_set(self):
+    def test_ml_feature_importance_set(self) -> None:
         model = self.MLRiskModel(model_type="gbm")
         model.fit(self.returns, feature_window=10)
         self.assertIsNotNone(model.feature_importance)
 
-    def test_ml_var_prediction_length(self):
+    def test_ml_var_prediction_length(self) -> None:
         model = self.MLRiskModel(model_type="gbm")
         model.fit(self.returns, feature_window=10)
         preds = model.predict_var(self.returns, confidence=0.95)
         self.assertEqual(len(preds), len(self.returns) - 10)
 
-    def test_ml_var_prediction_positive(self):
+    def test_ml_var_prediction_positive(self) -> None:
         model = self.MLRiskModel(model_type="gbm")
         model.fit(self.returns, feature_window=10)
         preds = model.predict_var(self.returns, confidence=0.95)
         self.assertTrue(np.all(preds > 0))
 
-    def test_ml_es_prediction_length(self):
+    def test_ml_es_prediction_length(self) -> None:
         model = self.MLRiskModel(model_type="gbm")
         model.fit(self.returns, feature_window=10)
         preds = model.predict_es(self.returns, confidence=0.95)
         self.assertEqual(len(preds), len(self.returns) - 10)
 
-    def test_ml_es_ge_var(self):
+    def test_ml_es_ge_var(self) -> None:
         model = self.MLRiskModel(model_type="gbm")
         model.fit(self.returns, feature_window=10)
         var_p = model.predict_var(self.returns, confidence=0.95)
         es_p = model.predict_es(self.returns, confidence=0.95)
         self.assertTrue(np.all(es_p >= var_p))
 
-    def test_ml_untrained_raises(self):
+    def test_ml_untrained_raises(self) -> None:
         model = self.MLRiskModel(model_type="gbm")
         with self.assertRaises(ValueError):
             model.predict_var(self.returns)
 
-    def test_ml_save_load(self):
+    def test_ml_save_load(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             model = self.MLRiskModel(model_type="gbm")
             model.fit(self.returns, feature_window=10)
@@ -372,56 +372,56 @@ class TestMLRiskModels(unittest.TestCase):
             self.assertEqual(loaded.model_type, model.model_type)
             self.assertEqual(loaded.quantile, model.quantile)
 
-    def test_ml_invalid_model_type_raises(self):
+    def test_ml_invalid_model_type_raises(self) -> None:
         with self.assertRaises(ValueError):
             self.MLRiskModel(model_type="xyz")
 
     # --- CopulaMLRiskModel ---
 
-    def test_copula_fitting_sets_trained(self):
+    def test_copula_fitting_sets_trained(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="gaussian")
         model.fit(self.returns)
         self.assertTrue(model.trained)
 
-    def test_copula_asset_names(self):
+    def test_copula_asset_names(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="gaussian")
         model.fit(self.returns)
         self.assertEqual(list(model.asset_names), list(self.returns.columns))
 
-    def test_copula_correlation_matrix_shape(self):
+    def test_copula_correlation_matrix_shape(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="gaussian")
         model.fit(self.returns)
         n = len(self.returns.columns)
         self.assertEqual(model.correlation_matrix.shape, (n, n))
 
-    def test_copula_var_positive(self):
+    def test_copula_var_positive(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="gaussian")
         model.fit(self.returns)
         var = model.calculate_var(self.weights, confidence=0.95)
         self.assertGreater(var, 0)
 
-    def test_copula_var_increases_with_confidence(self):
+    def test_copula_var_increases_with_confidence(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="gaussian")
         model.fit(self.returns)
         var_95 = model.calculate_var(self.weights, confidence=0.95)
         var_99 = model.calculate_var(self.weights, confidence=0.99)
         self.assertGreater(var_99, var_95)
 
-    def test_copula_es_gt_var(self):
+    def test_copula_es_gt_var(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="gaussian")
         model.fit(self.returns)
         var = model.calculate_var(self.weights, confidence=0.95)
         es = model.calculate_es(self.weights, confidence=0.95)
         self.assertGreater(es, var)
 
-    def test_copula_risk_metrics_keys(self):
+    def test_copula_risk_metrics_keys(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="gaussian")
         model.fit(self.returns)
         metrics = model.calculate_risk_metrics(self.weights)
         for key in ["var_95", "es_95", "var_99", "es_99", "mean", "std"]:
             self.assertIn(key, metrics)
 
-    def test_copula_risk_metrics_ordering(self):
+    def test_copula_risk_metrics_ordering(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="gaussian")
         model.fit(self.returns)
         metrics = model.calculate_risk_metrics(self.weights)
@@ -429,24 +429,24 @@ class TestMLRiskModels(unittest.TestCase):
         self.assertGreater(metrics["es_99"], metrics["es_95"])
         self.assertGreater(metrics["es_95"], metrics["var_95"])
 
-    def test_copula_generate_scenarios_shape(self):
+    def test_copula_generate_scenarios_shape(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="gaussian", n_scenarios=500)
         model.fit(self.returns)
         scenarios = model.generate_scenarios(n_scenarios=200)
         self.assertEqual(scenarios.shape, (200, len(self.returns.columns)))
 
-    def test_copula_untrained_raises(self):
+    def test_copula_untrained_raises(self) -> None:
         model = self.CopulaMLRiskModel()
         with self.assertRaises(ValueError):
             model.calculate_var(self.weights)
 
-    def test_copula_t_type(self):
+    def test_copula_t_type(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="t")
         model.fit(self.returns)
         var = model.calculate_var(self.weights, confidence=0.95)
         self.assertGreater(var, 0)
 
-    def test_copula_array_weights(self):
+    def test_copula_array_weights(self) -> None:
         model = self.CopulaMLRiskModel(copula_type="gaussian")
         model.fit(self.returns)
         weights_arr = np.array([0.4, 0.3, 0.3])
@@ -455,27 +455,27 @@ class TestMLRiskModels(unittest.TestCase):
 
     # --- HybridRiskModel ---
 
-    def test_hybrid_fitting(self):
+    def test_hybrid_fitting(self) -> None:
         model = self.HybridRiskModel(traditional_weight=0.7)
         model.fit(self.returns)
         self.assertTrue(model.trained)
         self.assertTrue(model.ml_model.trained)
         self.assertTrue(model.copula_model.trained)
 
-    def test_hybrid_var_positive(self):
+    def test_hybrid_var_positive(self) -> None:
         model = self.HybridRiskModel(traditional_weight=0.7)
         model.fit(self.returns)
         var = model.calculate_var(self.returns, self.weights, confidence=0.95)
         self.assertGreater(var, 0)
 
-    def test_hybrid_es_gt_var(self):
+    def test_hybrid_es_gt_var(self) -> None:
         model = self.HybridRiskModel(traditional_weight=0.7)
         model.fit(self.returns)
         var = model.calculate_var(self.returns, self.weights, confidence=0.95)
         es = model.calculate_es(self.returns, self.weights, confidence=0.95)
         self.assertGreater(es, var)
 
-    def test_hybrid_untrained_raises(self):
+    def test_hybrid_untrained_raises(self) -> None:
         model = self.HybridRiskModel()
         with self.assertRaises(ValueError):
             model.calculate_var(self.returns, self.weights)
@@ -489,7 +489,7 @@ class TestMLRiskModels(unittest.TestCase):
 class TestParallelRiskEngine(unittest.TestCase):
     """Comprehensive tests for ParallelRiskEngine."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         from risk_engine.parallel_risk_engine import ParallelRiskEngine
         from risk_models.ml_risk_models import CopulaMLRiskModel
 
@@ -499,7 +499,7 @@ class TestParallelRiskEngine(unittest.TestCase):
         self.copula = CopulaMLRiskModel(copula_type="gaussian", n_scenarios=500)
         self.copula.fit(self.returns)
 
-    def test_parallel_monte_carlo_keys(self):
+    def test_parallel_monte_carlo_keys(self) -> None:
         result = self.engine.parallel_monte_carlo(
             self.copula, self.weights, n_scenarios=500
         )
@@ -507,7 +507,7 @@ class TestParallelRiskEngine(unittest.TestCase):
         self.assertIn("risk_metrics", result)
         self.assertIn("time_taken", result)
 
-    def test_parallel_monte_carlo_risk_metrics(self):
+    def test_parallel_monte_carlo_risk_metrics(self) -> None:
         result = self.engine.parallel_monte_carlo(
             self.copula, self.weights, n_scenarios=500
         )
@@ -518,7 +518,7 @@ class TestParallelRiskEngine(unittest.TestCase):
             result["risk_metrics"]["es_95"], result["risk_metrics"]["var_95"]
         )
 
-    def test_parallel_portfolio_optimization_keys(self):
+    def test_parallel_portfolio_optimization_keys(self) -> None:
         result = self.engine.parallel_portfolio_optimization(
             self.returns, n_portfolios=100
         )
@@ -527,7 +527,7 @@ class TestParallelRiskEngine(unittest.TestCase):
         self.assertIn("min_volatility_portfolio", result)
         self.assertIn("time_taken", result)
 
-    def test_parallel_portfolio_optimization_weights_sum(self):
+    def test_parallel_portfolio_optimization_weights_sum(self) -> None:
         result = self.engine.parallel_portfolio_optimization(
             self.returns, n_portfolios=100
         )
@@ -535,7 +535,7 @@ class TestParallelRiskEngine(unittest.TestCase):
         total = sum(weights.values())
         self.assertAlmostEqual(total, 1.0, places=5)
 
-    def test_parallel_batch_risk_calculation(self):
+    def test_parallel_batch_risk_calculation(self) -> None:
         single_returns = self.returns.iloc[:, 0]
         result = self.engine.parallel_batch_risk_calculation(
             single_returns,
@@ -547,7 +547,7 @@ class TestParallelRiskEngine(unittest.TestCase):
         self.assertIn("historical", result["risk_metrics"])
         self.assertIn("var_95", result["risk_metrics"]["parametric"])
 
-    def test_parallel_stress_testing_keys(self):
+    def test_parallel_stress_testing_keys(self) -> None:
         result = self.engine.parallel_stress_testing(
             self.returns, self.weights, n_custom_scenarios=10
         )
@@ -555,7 +555,7 @@ class TestParallelRiskEngine(unittest.TestCase):
         self.assertIn("custom_scenarios_summary", result)
         self.assertIn("time_taken", result)
 
-    def test_parallel_backtest_keys(self):
+    def test_parallel_backtest_keys(self) -> None:
         single_returns = self.returns.iloc[:, 0]
         result = self.engine.parallel_backtest(
             single_returns,
@@ -568,7 +568,7 @@ class TestParallelRiskEngine(unittest.TestCase):
         self.assertIn("windows", result)
         self.assertIn("time_taken", result)
 
-    def test_parallel_sensitivity_analysis_keys(self):
+    def test_parallel_sensitivity_analysis_keys(self) -> None:
         result = self.engine.parallel_sensitivity_analysis(
             self.returns, self.weights, shock_range=(-0.05, 0.05), n_points=5
         )
@@ -576,14 +576,14 @@ class TestParallelRiskEngine(unittest.TestCase):
         self.assertIn("sensitivities", result)
         self.assertIn("time_taken", result)
 
-    def test_parallel_sensitivity_has_all_factors(self):
+    def test_parallel_sensitivity_has_all_factors(self) -> None:
         result = self.engine.parallel_sensitivity_analysis(
             self.returns, self.weights, shock_range=(-0.05, 0.05), n_points=5
         )
         for col in self.returns.columns:
             self.assertIn(col, result["sensitivities"])
 
-    def test_parallel_risk_decomposition_volatility(self):
+    def test_parallel_risk_decomposition_volatility(self) -> None:
         result = self.engine.parallel_risk_decomposition(
             self.returns, self.weights, risk_measure="volatility"
         )
@@ -591,7 +591,7 @@ class TestParallelRiskEngine(unittest.TestCase):
         self.assertIn("component_contributions", result)
         self.assertGreater(result["portfolio_risk"], 0)
 
-    def test_n_jobs_default(self):
+    def test_n_jobs_default(self) -> None:
         import multiprocessing
 
         engine = ParallelRiskEngine(n_jobs=None)
@@ -606,7 +606,7 @@ class TestParallelRiskEngine(unittest.TestCase):
 class TestReportingFramework(unittest.TestCase):
     """Comprehensive tests for ReportTemplate and ReportGenerator."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         from reporting.reporting_framework import ReportGenerator, ReportTemplate
 
         self.ReportTemplate = ReportTemplate
@@ -615,7 +615,7 @@ class TestReportingFramework(unittest.TestCase):
         self.weights = {"Asset_1": 0.4, "Asset_2": 0.3, "Asset_3": 0.3}
         self.report_dir = tempfile.mkdtemp()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.report_dir, ignore_errors=True)
 
     def _make_template(self):
@@ -627,24 +627,24 @@ class TestReportingFramework(unittest.TestCase):
             ],
         )
 
-    def test_template_title(self):
+    def test_template_title(self) -> None:
         t = self._make_template()
         self.assertEqual(t.title, "Risk Analysis Report")
 
-    def test_template_section_count(self):
+    def test_template_section_count(self) -> None:
         t = self._make_template()
         self.assertEqual(len(t.sections), 2)
 
-    def test_template_section_title(self):
+    def test_template_section_title(self) -> None:
         t = self._make_template()
         self.assertEqual(t.sections[0]["title"], "Portfolio Overview")
 
-    def test_template_add_section(self):
+    def test_template_add_section(self) -> None:
         t = self._make_template()
         t.add_section("New Section", "content")
         self.assertEqual(len(t.sections), 3)
 
-    def test_template_save_load(self):
+    def test_template_save_load(self) -> None:
         t = self._make_template()
         path = os.path.join(self.report_dir, "template.json")
         self.assertTrue(t.save(path))
@@ -653,30 +653,30 @@ class TestReportingFramework(unittest.TestCase):
         self.assertEqual(loaded.title, t.title)
         self.assertEqual(len(loaded.sections), len(t.sections))
 
-    def test_template_save_load_preserves_section_titles(self):
+    def test_template_save_load_preserves_section_titles(self) -> None:
         t = self._make_template()
         path = os.path.join(self.report_dir, "template.json")
         t.save(path)
         loaded = self.ReportTemplate.load(path)
         self.assertEqual(loaded.sections[0]["title"], t.sections[0]["title"])
 
-    def test_template_has_id(self):
+    def test_template_has_id(self) -> None:
         t = self._make_template()
         self.assertIsNotNone(t.id)
 
-    def test_template_has_timestamps(self):
+    def test_template_has_timestamps(self) -> None:
         t = self._make_template()
         self.assertIsNotNone(t.created_at)
         self.assertIsNotNone(t.updated_at)
 
-    def test_html_report_created(self):
+    def test_html_report_created(self) -> None:
         t = self._make_template()
         gen = self.ReportGenerator(t)
         path = os.path.join(self.report_dir, "report.html")
         gen.generate_html(path, data={"portfolio_name": "Test", "date": "2024-01-01"})
         self.assertTrue(os.path.exists(path))
 
-    def test_html_report_contains_title(self):
+    def test_html_report_contains_title(self) -> None:
         t = self._make_template()
         gen = self.ReportGenerator(t)
         path = os.path.join(self.report_dir, "report.html")
@@ -685,7 +685,7 @@ class TestReportingFramework(unittest.TestCase):
             content = f.read()
         self.assertIn("Risk Analysis Report", content)
 
-    def test_html_report_contains_sections(self):
+    def test_html_report_contains_sections(self) -> None:
         t = self._make_template()
         gen = self.ReportGenerator(t)
         path = os.path.join(self.report_dir, "report.html")
@@ -695,7 +695,7 @@ class TestReportingFramework(unittest.TestCase):
         self.assertIn("Portfolio Overview", content)
         self.assertIn("Risk Metrics", content)
 
-    def test_pdf_report_graceful(self):
+    def test_pdf_report_graceful(self) -> None:
         t = self._make_template()
         gen = self.ReportGenerator(t)
         path = os.path.join(self.report_dir, "report.pdf")
@@ -704,14 +704,14 @@ class TestReportingFramework(unittest.TestCase):
         except (ImportError, Exception):
             pass  # PDF generation is optional
 
-    def test_template_remove_section(self):
+    def test_template_remove_section(self) -> None:
         t = self._make_template()
         section_id = t.sections[0]["id"]
         result = t.remove_section(section_id)
         self.assertTrue(result)
         self.assertEqual(len(t.sections), 1)
 
-    def test_template_update_section(self):
+    def test_template_update_section(self) -> None:
         t = self._make_template()
         section_id = t.sections[0]["id"]
         result = t.update_section(section_id, title="Updated Title")
@@ -727,7 +727,7 @@ class TestReportingFramework(unittest.TestCase):
 class TestRiskAnalysis(unittest.TestCase):
     """Tests for risk_models/risk_analysis.py utilities."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         np.random.seed(42)
         n = 200
         data = np.random.multivariate_normal(
@@ -735,20 +735,20 @@ class TestRiskAnalysis(unittest.TestCase):
         )
         self.returns_df = pd.DataFrame(data, columns=["AAPL", "MSFT"])
 
-    def test_historical_var_positive(self):
+    def test_historical_var_positive(self) -> None:
         from risk_models.risk_analysis import historical_var
 
         var = historical_var(self.returns_df, confidence_level=0.95)
         self.assertTrue((var < 0).all(), "Historical VaR should be negative (losses)")
 
-    def test_historical_var_more_conservative_at_99(self):
+    def test_historical_var_more_conservative_at_99(self) -> None:
         from risk_models.risk_analysis import historical_var
 
         var_95 = historical_var(self.returns_df, confidence_level=0.95)
         var_99 = historical_var(self.returns_df, confidence_level=0.99)
         self.assertTrue((var_99 <= var_95).all())
 
-    def test_monte_carlo_var_returns_series(self):
+    def test_monte_carlo_var_returns_series(self) -> None:
         from risk_models.risk_analysis import monte_carlo_var
 
         result = monte_carlo_var(
@@ -757,14 +757,14 @@ class TestRiskAnalysis(unittest.TestCase):
         self.assertIsInstance(result, pd.Series)
         self.assertEqual(len(result), len(self.returns_df.columns))
 
-    def test_correlation_matrix_shape(self):
+    def test_correlation_matrix_shape(self) -> None:
         from risk_models.risk_analysis import calculate_correlation_matrix
 
         corr = calculate_correlation_matrix(self.returns_df)
         n = len(self.returns_df.columns)
         self.assertEqual(corr.shape, (n, n))
 
-    def test_correlation_matrix_diagonal(self):
+    def test_correlation_matrix_diagonal(self) -> None:
         from risk_models.risk_analysis import calculate_correlation_matrix
 
         corr = calculate_correlation_matrix(self.returns_df)
@@ -772,13 +772,13 @@ class TestRiskAnalysis(unittest.TestCase):
             np.diag(corr.values), np.ones(corr.shape[0])
         )
 
-    def test_stress_test_returns_series(self):
+    def test_stress_test_returns_series(self) -> None:
         from risk_models.risk_analysis import stress_test
 
         result = stress_test(self.returns_df, scenario_multiplier=3.0)
         self.assertIsInstance(result, pd.Series)
 
-    def test_stress_test_all_negative(self):
+    def test_stress_test_all_negative(self) -> None:
         from risk_models.risk_analysis import stress_test
 
         result = stress_test(self.returns_df, scenario_multiplier=3.0)
@@ -793,7 +793,7 @@ class TestRiskAnalysis(unittest.TestCase):
 class TestPortfolioOptimization(unittest.TestCase):
     """Tests for risk_models/portfolio_optimization.py utilities."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         np.random.seed(42)
         n = 300
         data = np.random.multivariate_normal(
@@ -813,20 +813,20 @@ class TestPortfolioOptimization(unittest.TestCase):
         )
         self.prices = prices
 
-    def test_mean_variance_returns_dict(self):
+    def test_mean_variance_returns_dict(self) -> None:
         from risk_models.portfolio_optimization import mean_variance_optimization
 
         result = mean_variance_optimization(self.prices)
         self.assertIsInstance(result, dict)
 
-    def test_mean_variance_has_weights(self):
+    def test_mean_variance_has_weights(self) -> None:
         from risk_models.portfolio_optimization import mean_variance_optimization
 
         result = mean_variance_optimization(self.prices)
         self.assertIn("max_sharpe_weights", result)
         self.assertIn("min_vol_weights", result)
 
-    def test_mean_variance_weights_sum_to_one(self):
+    def test_mean_variance_weights_sum_to_one(self) -> None:
         from risk_models.portfolio_optimization import mean_variance_optimization
 
         result = mean_variance_optimization(self.prices)

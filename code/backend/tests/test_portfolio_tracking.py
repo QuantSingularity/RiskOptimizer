@@ -5,7 +5,6 @@ Patches Web3 in its canonical location (blockchain.services.blockchain_service)
 rather than in the proxy stub, so mocks are correctly intercepted.
 """
 
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -25,7 +24,7 @@ class TestPortfolioTracking:
     """Test suite for portfolio tracking functionality."""
 
     @pytest.fixture
-    def sample_portfolio(self) -> Any:
+    def sample_portfolio(self) -> None:
         """Sample portfolio data for testing."""
         return {
             "user_address": "0x1234567890123456789012345678901234567890",
@@ -34,7 +33,7 @@ class TestPortfolioTracking:
         }
 
     @pytest.fixture
-    def sample_market_data(self) -> Any:
+    def sample_market_data(self) -> None:
         """Sample market data for testing."""
         dates = pd.date_range(start="2022-01-01", end="2023-01-01", freq="B")
         assets = ["BTC", "ETH", "AAPL", "MSFT", "GOOGL", "market_index"]
@@ -51,7 +50,9 @@ class TestPortfolioTracking:
     # AI optimisation tests (no blockchain)
     # ------------------------------------------------------------------
 
-    def test_portfolio_optimization(self, sample_market_data: Any) -> None:
+    def test_portfolio_optimization(
+        self, sample_market_data: "np.ndarray | pd.DataFrame | list"
+    ) -> None:
         """Test portfolio optimization with AI models."""
         optimizer = AIOptimizationService()
         result = optimizer.optimize_portfolio(sample_market_data, risk_tolerance=5)
@@ -69,7 +70,9 @@ class TestPortfolioTracking:
                 assert asset in allocations, f"Missing asset: {asset}"
 
     def test_risk_simulation(
-        self, sample_market_data: Any, sample_portfolio: Any
+        self,
+        sample_market_data: "np.ndarray | pd.DataFrame | list",
+        sample_portfolio: object,
     ) -> None:
         """Test Monte Carlo risk simulation."""
         optimizer = AIOptimizationService()
@@ -102,7 +105,7 @@ class TestPortfolioTracking:
 
     @patch(f"{_BC_MODULE}.Web3")
     def test_blockchain_portfolio_retrieval(
-        self, mock_web3: Any, sample_portfolio: Any
+        self, mock_web3: "MagicMock", sample_portfolio: object
     ) -> None:
         """Test portfolio retrieval from blockchain (mocked)."""
         mock_contract = MagicMock()
@@ -126,7 +129,7 @@ class TestPortfolioTracking:
 
     @patch(f"{_BC_MODULE}.Web3")
     def test_blockchain_portfolio_update(
-        self, mock_web3: Any, sample_portfolio: Any
+        self, mock_web3: "MagicMock", sample_portfolio: object
     ) -> None:
         """Test portfolio update on blockchain (mocked)."""
         mock_contract = MagicMock()
@@ -175,7 +178,7 @@ class TestPortfolioTracking:
         assert result["gas_used"] == 100000
 
     def test_portfolio_optimization_with_risk_tolerance(
-        self, sample_market_data: Any
+        self, sample_market_data: "np.ndarray | pd.DataFrame | list"
     ) -> None:
         """Test portfolio optimization with different risk tolerance levels."""
         optimizer = AIOptimizationService()
@@ -189,7 +192,7 @@ class TestPortfolioTracking:
             assert abs(sum(weights.values()) - 1.0) < 0.01
 
     @patch(f"{_BC_MODULE}.Web3")
-    def test_multi_network_support(self, mock_web3: Any) -> None:
+    def test_multi_network_support(self, mock_web3: "MagicMock") -> None:
         """Test blockchain service with multiple networks."""
         mock_web3.return_value.is_connected.return_value = True
 
@@ -206,7 +209,9 @@ class TestPortfolioTracking:
         assert service.network == "polygon"
 
     def test_integrated_portfolio_optimization_and_tracking(
-        self, sample_market_data: Any, sample_portfolio: Any
+        self,
+        sample_market_data: "np.ndarray | pd.DataFrame | list",
+        sample_portfolio: object,
     ) -> None:
         """Test integration between AI optimization and blockchain tracking (mocked blockchain)."""
         ai_service = AIOptimizationService()

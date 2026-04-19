@@ -73,7 +73,7 @@ def jwt_required(roles: Optional[Union[str, List[str]]] = None) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args, **kwargs) -> object:
             try:
                 # Get token from header
                 token = get_token_from_header()
@@ -153,7 +153,7 @@ def optional_jwt(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
+    def wrapper(*args, **kwargs) -> object:
         try:
             # Initialize g.user as None
             g.user = None

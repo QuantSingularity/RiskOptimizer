@@ -152,7 +152,7 @@ def monitor_performance(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
+    def wrapper(*args, **kwargs) -> object:
         start_time = time.time()
         try:
             result = func(*args, **kwargs)
@@ -259,7 +259,7 @@ def get_performance_report() -> Dict[str, Any]:
         return {"error": str(e)}
 
 
-def apply_performance_monitoring(app: Any) -> None:
+def apply_performance_monitoring(app: object) -> None:
     """
     Apply performance monitoring to all API endpoints.
 

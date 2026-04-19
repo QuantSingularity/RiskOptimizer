@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 from src.core.exceptions import ValidationError
 
 
-def validate_email(email: Any) -> str:
+def validate_email(email: object) -> str:
     """
     Validate email address.
 
@@ -28,7 +28,7 @@ def validate_email(email: Any) -> str:
     return email
 
 
-def validate_password(password: Any) -> str:
+def validate_password(password: object) -> str:
     """
     Validate password.
 
@@ -77,7 +77,7 @@ def validate_password(password: Any) -> str:
     return password
 
 
-def validate_username(username: Any) -> str:
+def validate_username(username: str) -> str:
     """
     Validate username.
 
@@ -115,7 +115,7 @@ def validate_username(username: Any) -> str:
     return username
 
 
-def validate_wallet_address(wallet_address: Any) -> Optional[str]:
+def validate_wallet_address(wallet_address: str) -> Optional[str]:
     """
     Validate wallet address.
 

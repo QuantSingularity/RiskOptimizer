@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Any
 
 from web3 import Web3
 
@@ -32,7 +31,7 @@ MOCK_ABI = [
 ]
 
 
-def get_web3_instance() -> Any:
+def get_web3_instance() -> object:
     """Initializes and returns a Web3 instance connected to the mock node."""
     try:
         w3 = Web3(Web3.HTTPProvider(GANACHE_URL))
@@ -55,7 +54,7 @@ def record_trade_on_blockchain(
     quantity: float,
     price: float,
     notes: str,
-) -> Any:
+) -> object:
     """
     Records a trade or rebalancing event on the mock blockchain ledger.
     """
@@ -91,7 +90,7 @@ def record_trade_on_blockchain(
     logger.info("Transaction successfully recorded on the mock blockchain.")
 
 
-def get_ledger_count(w3: Web3) -> Any:
+def get_ledger_count(w3: Web3) -> object:
     """Retrieves the total number of transactions recorded."""
     if not w3:
         return 0
@@ -105,7 +104,7 @@ def get_ledger_count(w3: Web3) -> Any:
         return 3
 
 
-def run_blockchain_integration() -> Any:
+def run_blockchain_integration() -> object:
     """Main function to run the blockchain integration components."""
     logger.info(
         "Starting Blockchain Integration Service (Mocking local node connection)..."

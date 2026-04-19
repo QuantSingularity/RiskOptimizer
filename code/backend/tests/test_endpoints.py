@@ -6,7 +6,6 @@ run without any network services.
 """
 
 import json
-from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -46,7 +45,7 @@ def client(app):
 # ---------------------------------------------------------------------------
 
 
-def test_root_endpoint(client) -> Any:
+def test_root_endpoint(client) -> object:
     """GET / should return API name and version."""
     with patch(
         "src.infrastructure.database.session.check_db_connection",
@@ -61,7 +60,7 @@ def test_root_endpoint(client) -> Any:
         assert "name" in data or "src" in str(data)
 
 
-def test_health_endpoint_ok(client) -> Any:
+def test_health_endpoint_ok(client) -> object:
     """GET /health should return status ok when DB and cache are up."""
     with patch(
         "src.infrastructure.database.session.check_db_connection",
@@ -77,7 +76,7 @@ def test_health_endpoint_ok(client) -> Any:
         assert "version" in data
 
 
-def test_health_endpoint_degraded(client) -> Any:
+def test_health_endpoint_degraded(client) -> object:
     """GET /health returns 503 when DB is down."""
     with patch(
         "src.infrastructure.database.session.check_db_connection",
@@ -97,7 +96,7 @@ def test_health_endpoint_degraded(client) -> Any:
 # ---------------------------------------------------------------------------
 
 
-def test_register_missing_body(client) -> Any:
+def test_register_missing_body(client) -> object:
     """POST /api/v1/auth/register without body returns 400."""
     response = client.post(
         "/api/v1/auth/register", data="", content_type="application/json"
@@ -105,7 +104,7 @@ def test_register_missing_body(client) -> Any:
     assert response.status_code in (400, 422)
 
 
-def test_login_missing_body(client) -> Any:
+def test_login_missing_body(client) -> object:
     """POST /api/v1/auth/login without body returns 400."""
     response = client.post(
         "/api/v1/auth/login", data="", content_type="application/json"
@@ -113,7 +112,7 @@ def test_login_missing_body(client) -> Any:
     assert response.status_code in (400, 422)
 
 
-def test_login_invalid_credentials(client) -> Any:
+def test_login_invalid_credentials(client) -> object:
     """POST /api/v1/auth/login with bad credentials returns 401."""
     with patch(
         "src.domain.services.auth_service.auth_service.authenticate_user",
@@ -131,7 +130,7 @@ def test_login_invalid_credentials(client) -> Any:
 # ---------------------------------------------------------------------------
 
 
-def test_var_endpoint_requires_auth(client) -> Any:
+def test_var_endpoint_requires_auth(client) -> object:
     """POST /api/v1/risk/var without Authorization header returns 401."""
     payload = json.dumps({"returns": [0.01, -0.02, 0.03], "confidence": 0.95})
     response = client.post(
@@ -140,7 +139,7 @@ def test_var_endpoint_requires_auth(client) -> Any:
     assert response.status_code == 401
 
 
-def test_cvar_endpoint_requires_auth(client) -> Any:
+def test_cvar_endpoint_requires_auth(client) -> object:
     """POST /api/v1/risk/cvar without Authorization header returns 401."""
     payload = json.dumps({"returns": [0.01, -0.02, 0.03]})
     response = client.post(
@@ -149,7 +148,7 @@ def test_cvar_endpoint_requires_auth(client) -> Any:
     assert response.status_code == 401
 
 
-def test_portfolio_endpoint_requires_auth(client) -> Any:
+def test_portfolio_endpoint_requires_auth(client) -> object:
     """GET /api/v1/portfolios/address/0x1234 without token returns 401."""
     response = client.get("/api/v1/portfolios/address/0x1234")
     assert response.status_code == 401
@@ -164,7 +163,7 @@ def _auth_headers():
     return {"Authorization": "Bearer test_token"}
 
 
-def test_var_endpoint_with_valid_data(client) -> Any:
+def test_var_endpoint_with_valid_data(client) -> object:
     """POST /api/v1/risk/var with mocked auth returns 200."""
     from decimal import Decimal
 
@@ -193,7 +192,7 @@ def test_var_endpoint_with_valid_data(client) -> Any:
         assert "value_at_risk" in data["data"]
 
 
-def test_var_endpoint_missing_returns(client) -> Any:
+def test_var_endpoint_missing_returns(client) -> object:
     """POST /api/v1/risk/var without returns field returns 400."""
     with patch(
         "src.api.middleware.auth_middleware.auth_service.verify_token",
@@ -212,7 +211,7 @@ def test_var_endpoint_missing_returns(client) -> Any:
         assert response.status_code in (400, 422)
 
 
-def test_cvar_endpoint_with_valid_data(client) -> Any:
+def test_cvar_endpoint_with_valid_data(client) -> object:
     """POST /api/v1/risk/cvar with mocked auth returns 200."""
     from decimal import Decimal
 

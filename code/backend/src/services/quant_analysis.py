@@ -1,5 +1,5 @@
 from decimal import Decimal, getcontext
-from typing import Any, List
+from typing import List
 
 import numpy as np
 from scipy.stats import norm
@@ -16,7 +16,9 @@ getcontext().prec = 28
 class RiskMetrics:
 
     @staticmethod
-    def calculate_var(returns: Any, confidence: Any = 0.95) -> Any:
+    def calculate_var(
+        returns: "np.ndarray | pd.DataFrame | list", confidence: float = 0.95
+    ) -> float:
         """
         Calculate Value at Risk (VaR) using the parametric method.
         Returns a positive Decimal representing the magnitude of potential loss.
@@ -38,7 +40,9 @@ class RiskMetrics:
         return Decimal(str(abs(var)))
 
     @staticmethod
-    def calculate_cvar(returns: Any, confidence: Any = 0.95) -> Any:
+    def calculate_cvar(
+        returns: "np.ndarray | pd.DataFrame | list", confidence: float = 0.95
+    ) -> object:
         """
         Calculate Conditional Value at Risk (CVaR), also known as Expected Shortfall.
         Returns a positive Decimal representing the expected loss beyond the VaR threshold.
@@ -61,7 +65,10 @@ class RiskMetrics:
         return Decimal(str(cvar))
 
     @staticmethod
-    def efficient_frontier(returns: Any, cov_matrix: Any) -> Any:
+    def efficient_frontier(
+        returns: "np.ndarray | pd.DataFrame | list",
+        cov_matrix: "np.ndarray | pd.DataFrame | list",
+    ) -> object:
         """
         Calculate the optimal portfolio weights for the efficient frontier (max Sharpe ratio).
         Uses the PyPortfolioOpt library.
@@ -85,7 +92,9 @@ class RiskMetrics:
         return {asset: str(weight) for asset, weight in cleaned_weights.items()}
 
     @staticmethod
-    def calculate_sharpe_ratio(returns: Any, risk_free_rate: Any = 0.02) -> Any:
+    def calculate_sharpe_ratio(
+        returns: "np.ndarray | pd.DataFrame | list", risk_free_rate: float = 0.02
+    ) -> object:
         """
         Calculate the Sharpe Ratio of a portfolio.
 
@@ -111,7 +120,7 @@ class RiskMetrics:
         return Decimal(str(sharpe_ratio))
 
     @staticmethod
-    def calculate_max_drawdown(returns: Any) -> Any:
+    def calculate_max_drawdown(returns: "np.ndarray | pd.DataFrame | list") -> object:
         """
         Calculate Maximum Drawdown of a portfolio.
         Returns a non-negative Decimal representing the magnitude of the worst drawdown.
@@ -134,7 +143,9 @@ class RiskMetrics:
         return Decimal(str(max_drawdown))
 
     @staticmethod
-    def calculate_expected_return(returns: Any) -> Any:
+    def calculate_expected_return(
+        returns: "np.ndarray | pd.DataFrame | list",
+    ) -> object:
         """
         Calculate the expected (mean) return of a portfolio.
 
@@ -151,7 +162,7 @@ class RiskMetrics:
         return Decimal(str(mean))
 
     @staticmethod
-    def calculate_volatility(returns: Any) -> Any:
+    def calculate_volatility(returns: "np.ndarray | pd.DataFrame | list") -> object:
         """
         Calculate the volatility (standard deviation) of a portfolio.
 

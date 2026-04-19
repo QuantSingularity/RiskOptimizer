@@ -6,7 +6,7 @@ Provides a Redis-backed cache with JSON serialization and graceful fallback.
 import json
 import logging
 import os
-from typing import Any, Optional
+from typing import Optional
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,11 +55,11 @@ class RedisCache:
             self._available = False
             logger.warning(f"Redis unavailable, running without cache: {e}")
 
-    def _serialize(self, value: Any) -> str:
+    def _serialize(self, value: int) -> str:
         """Serialize value to JSON string."""
         return json.dumps(value, default=str)
 
-    def _deserialize(self, value: Optional[str]) -> Any:
+    def _deserialize(self, value: Optional[str]) -> object:
         """Deserialize JSON string to Python object."""
         if value is None:
             return None
@@ -68,7 +68,7 @@ class RedisCache:
         except (json.JSONDecodeError, TypeError):
             return value
 
-    def get(self, key: str) -> Any:
+    def get(self, key: str) -> object:
         """
         Get a value from the cache.
 
@@ -87,7 +87,7 @@ class RedisCache:
             logger.warning(f"Redis GET error for key '{key}': {e}")
             return None
 
-    def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
+    def set(self, key: str, value: int, ttl: int = 3600) -> bool:
         """
         Set a value in the cache.
 

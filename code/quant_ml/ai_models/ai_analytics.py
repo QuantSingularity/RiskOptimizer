@@ -1,7 +1,7 @@
 import logging
 import os
 import warnings
-from typing import Any
+from typing import List
 
 import nltk
 import pandas as pd
@@ -42,7 +42,7 @@ def load_price_data(ticker: str, data_dir: str = DATA_DIR) -> pd.DataFrame:
         raise
 
 
-def prophet_forecast(df: pd.DataFrame, ticker: str, periods: int = 30) -> Any:
+def prophet_forecast(df: pd.DataFrame, ticker: str, periods: int = 30) -> pd.DataFrame:
     """
     Trains a Prophet model and forecasts future price movements.
 
@@ -67,7 +67,7 @@ def prophet_forecast(df: pd.DataFrame, ticker: str, periods: int = 30) -> Any:
 
 
 def analyze_sentiment(
-    text_list: list,
+    text_list: List[str],
     positive_threshold: float = 0.05,
     negative_threshold: float = -0.05,
 ) -> pd.DataFrame:
@@ -101,7 +101,7 @@ def analyze_sentiment(
     return df_sentiment
 
 
-def run_ai_analytics(ticker_to_forecast: str) -> Any:
+def run_ai_analytics(ticker_to_forecast: str) -> pd.DataFrame:
     """Main function to run all AI analytics components."""
     try:
         df_prices = load_price_data(ticker_to_forecast)
