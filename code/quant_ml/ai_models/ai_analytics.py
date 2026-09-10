@@ -13,7 +13,6 @@ logging.basicConfig(
 )
 warnings.filterwarnings("ignore")
 
-# FIX: nltk raises LookupError (not nltk.downloader.DownloadError) when data is missing
 try:
     nltk.data.find("sentiment/vader_lexicon.zip")
 except LookupError:

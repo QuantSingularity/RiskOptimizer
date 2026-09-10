@@ -388,8 +388,6 @@ class ParallelRiskEngine:
             if model == "parametric":
                 mean = np.mean(returns_array)
                 std = np.std(returns_array)
-                # FIX: use ppf(1 - conf) so z_score is negative (left-tail), giving
-                # var = -(mean + z_neg * std) = -mean + |z| * std  (positive VaR)
                 z_score = stats.norm.ppf(1 - conf)
                 var = -(mean + z_score * std)
                 es = max(0.0, -(mean - std * stats.norm.pdf(-z_score) / (1 - conf)))

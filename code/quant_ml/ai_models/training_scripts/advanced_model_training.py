@@ -18,8 +18,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# FIX: insert the parent of training_scripts (i.e. ai_models/) so that the
-# sibling module optimization_model can be imported directly.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from optimization_model import AdvancedPortfolioOptimizer

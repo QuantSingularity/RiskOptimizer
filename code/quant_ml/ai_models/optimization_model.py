@@ -215,7 +215,6 @@ class AdvancedPortfolioOptimizer:
         """Save the trained model to disk."""
         if not self.trained:
             raise ValueError("Model must be trained before saving")
-        # FIX: use abspath to handle bare filename edge case where dirname returns ""
         save_dir = os.path.dirname(os.path.abspath(filepath))
         os.makedirs(save_dir, exist_ok=True)
         joblib.dump(
@@ -280,7 +279,6 @@ class AdvancedPortfolioOptimizer:
         var_95 = np.percentile(final_values, 5)
         var_99 = np.percentile(final_values, 1)
         expected_value = final_values.mean()
-        # FIX: compute max_drawdown properly (avoid dividing by near-zero max)
         running_max = np.maximum.accumulate(simulation_results, axis=0)
         drawdowns = np.where(
             running_max > 0,

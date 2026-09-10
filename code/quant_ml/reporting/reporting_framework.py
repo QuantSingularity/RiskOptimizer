@@ -24,7 +24,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# FIX: import markdown at module level with a graceful fallback
 try:
     import markdown as _markdown_module
 
@@ -241,7 +240,6 @@ class ReportGenerator:
             autoescape=jinja2.select_autoescape(["html", "xml"]),
         )
 
-    # FIX: added _get_html_template as the canonical name called by generate_html
     def _get_html_template(self) -> str:
         """Return the HTML template string. Delegates to _create_html_template."""
         return self._create_html_template()
@@ -392,7 +390,6 @@ class ReportGenerator:
             if section.get("type", "text") == "text":
                 content = section.get("content", "")
                 if isinstance(content, str) and ("##" in content or "*" in content):
-                    # FIX: use module-level helper instead of inline __import__
                     processed_section["content"] = _md_to_html(content)
             elif section.get("type", "text") == "chart":
                 if isinstance(
@@ -432,7 +429,6 @@ class ReportGenerator:
         Returns:
             html: Rendered HTML
         """
-        # FIX: docstring moved to top of method (was unreachable after try/except)
         template = jinja2.Template(template_str)
         html = template.render(**context)
         return html

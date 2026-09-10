@@ -17,7 +17,6 @@ def preprocess_data(filepath: str) -> pd.DataFrame:
         DataFrame with normalised, scaled features.
     """
     df = pd.read_csv(filepath)
-    # FIX: normalise column names to lowercase so we handle both 'Close' and 'close'
     df.columns = df.columns.str.lower()
     df = df.ffill()
     df["log_returns"] = np.log(df["close"] / df["close"].shift(1))
