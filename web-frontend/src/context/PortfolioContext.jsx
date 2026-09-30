@@ -66,7 +66,7 @@ export const PortfolioProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Simulate async fetch — returns demo data (no backend needed)
+  // Simulate async fetch - returns demo data (no backend needed)
   const fetchPortfolio = useCallback(async (_address) => {
     setLoading(true);
     setError(null);

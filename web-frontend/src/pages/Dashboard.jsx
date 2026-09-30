@@ -244,7 +244,7 @@ const Dashboard = () => {
                 </IconButton>
               </Box>
               <Typography variant="h4" sx={{ my: 1, fontWeight: 600 }}>
-                {sharpeRatio?.toFixed(2) ?? "—"}
+                {sharpeRatio?.toFixed(2) ?? "-"}
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 <TrendingUpIcon
@@ -318,7 +318,7 @@ const Dashboard = () => {
                     Beta
                   </Typography>
                   <Typography variant="h6">
-                    {riskMetrics?.beta?.toFixed(2) ?? "—"}
+                    {riskMetrics?.beta?.toFixed(2) ?? "-"}
                   </Typography>
                 </Grid>
               </Grid>

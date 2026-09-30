@@ -602,7 +602,7 @@ def calculate_risk_metrics() -> Response:
             risk_free_rate=validated_data.get("risk_free_rate", 0.0),
         )
 
-        # Create success response — convert Decimal values to float for JSON serialization
+        # Create success response - convert Decimal values to float for JSON serialization
         serializable_metrics = {
             k: float(v) if hasattr(v, "__float__") else v for k, v in metrics.items()
         }
@@ -743,7 +743,7 @@ def calculate_efficient_frontier() -> Response:
             points=validated_data.get("points", 20),
         )
 
-        # Create success response — serialize Decimal values to float
+        # Create success response - serialize Decimal values to float
         serialized_points = []
         for point in frontier_points:
             serialized_point = {}

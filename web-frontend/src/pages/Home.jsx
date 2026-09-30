@@ -334,7 +334,7 @@ const Home = () => {
       <Box sx={{ borderTop: "1px solid", borderColor: "divider", py: 3 }}>
         <Container maxWidth="lg">
           <Typography variant="caption" color="text.secondary">
-            RiskOptimizer — quantitative portfolio risk. For research and
+            RiskOptimizer - quantitative portfolio risk. For research and
             educational use; not investment advice.
           </Typography>
         </Container>

@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 from src.services.ai_optimization import AIOptimizationService
 
-# Import BlockchainService via the proxy — the class itself lives in
+# Import BlockchainService via the proxy - the class itself lives in
 # blockchain.services.blockchain_service, which is where Web3 must be patched.
 from src.services.blockchain_service import BlockchainService
 
@@ -100,7 +100,7 @@ class TestPortfolioTracking:
         assert rm["value_at_risk_99"] > 0
 
     # ------------------------------------------------------------------
-    # Blockchain tests — patch Web3 where it is *consumed*
+    # Blockchain tests - patch Web3 where it is *consumed*
     # ------------------------------------------------------------------
 
     @patch(f"{_BC_MODULE}.Web3")
@@ -142,7 +142,7 @@ class TestPortfolioTracking:
         """Test portfolio update on blockchain (mocked)."""
         mock_contract = MagicMock()
 
-        # Mock signed transaction — support both web3.py v5 and v6 attribute names
+        # Mock signed transaction - support both web3.py v5 and v6 attribute names
         mock_signed_tx = MagicMock()
         mock_signed_tx.raw_transaction = b"rawbytes"
         mock_signed_tx.rawTransaction = b"rawbytes"

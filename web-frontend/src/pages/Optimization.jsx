@@ -563,7 +563,7 @@ const Optimization = () => {
                       },
                       {
                         label: "Sharpe Ratio",
-                        value: results.sharpe_ratio?.toFixed(2) ?? "—",
+                        value: results.sharpe_ratio?.toFixed(2) ?? "-",
                         color: "primary.main",
                         sub:
                           results.sharpe_ratio > 2

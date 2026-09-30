@@ -2,7 +2,7 @@
 Risk analysis utilities for RiskOptimizer.
 
 Provides historical VaR, Monte Carlo VaR, GARCH volatility forecasting,
-correlation analysis, and stress testing — all with proper type annotations.
+correlation analysis, and stress testing - all with proper type annotations.
 """
 
 import logging

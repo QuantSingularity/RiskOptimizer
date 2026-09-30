@@ -40,8 +40,8 @@ function pickMetric(envelope, keys) {
   return typeof firstNum === "number" ? firstNum : null;
 }
 
-const pct = (v) => (v == null ? "—" : `${(v * 100).toFixed(2)}%`);
-const num = (v) => (v == null ? "—" : v.toFixed(3));
+const pct = (v) => (v == null ? "-" : `${(v * 100).toFixed(2)}%`);
+const num = (v) => (v == null ? "-" : v.toFixed(3));
 
 const RiskAnalysis = () => {
   const [raw, setRaw] = useState(SAMPLE);

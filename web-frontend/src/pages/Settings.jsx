@@ -63,7 +63,7 @@ const Settings = () => {
     setAccount((prev) => ({ ...prev, [field]: e.target.value }));
   };
 
-  // Correct handler for Switch — uses e.target.checked, not e.target.value
+  // Correct handler for Switch - uses e.target.checked, not e.target.value
   const handlePrefSwitch = (field) => (e) => {
     setPrefs((prev) => ({ ...prev, [field]: e.target.checked }));
   };
@@ -206,7 +206,7 @@ const Settings = () => {
                       color="text.secondary"
                       sx={{ mt: 1 }}
                     >
-                      Assets: {onchainCheck.data.assets?.join(", ") || "—"} on{" "}
+                      Assets: {onchainCheck.data.assets?.join(", ") || "-"} on{" "}
                       {onchainCheck.data.network || "chain"}
                     </Typography>
                   )}
@@ -429,7 +429,7 @@ const Settings = () => {
                   Display (Shortened)
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {walletAddress ? formatAddress(walletAddress) : "—"}
+                  {walletAddress ? formatAddress(walletAddress) : "-"}
                 </Typography>
               </Box>
               <Button
