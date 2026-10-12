@@ -2,6 +2,10 @@
 Tasks package initialization
 """
 
+from src.services.quant_ml_bridge import ensure_quant_ml
+
+ensure_quant_ml()
+
 from .celery_app import celery_app
 from .maintenance_tasks import (
     cache_warmup,

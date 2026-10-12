@@ -89,6 +89,8 @@ def register_error_handlers(app: Flask) -> None:
             status_code = 429
         elif error.__class__.__name__ == "CalculationError":
             status_code = 422
+        elif error.__class__.__name__ == "ModelError":
+            status_code = 503
 
         logger.error(
             f"{error.__class__.__name__}: {str(error)}",

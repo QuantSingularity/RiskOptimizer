@@ -31,13 +31,24 @@ tests, and the Python Web3 integration service.
 
 ### `quant_ml/`
 
-All Python quantitative and ML services.
+Installable Python library (`pip install -e quant_ml`) with a `src/` layout. The
+backend reaches it through `backend/src/services/quant_ml_bridge.py`.
 
-| Sub-package    | Purpose                                                 |
-| -------------- | ------------------------------------------------------- |
-| `risk_engine/` | Parallel Monte Carlo, backtesting, sensitivity analysis |
-| `risk_models/` | EVT, ML risk models, portfolio optimisation, GARCH      |
-| `ai_models/`   | Prophet forecasting, sentiment analysis, RL optimiser   |
-| `reporting/`   | HTML/PDF report generation, scheduling, archiving       |
-| `data/`        | Historical OHLCV CSV files                              |
-| `tests/`       | Comprehensive test suite                                |
+| Sub-package     | Purpose                                                                   |
+| --------------- | ------------------------------------------------------------------------- |
+| `data/`         | Historical price loading and bundled datasets                             |
+| `optimization/` | ML, classical and mean-variance portfolio optimizers                      |
+| `forecasting/`  | Price forecasting and sentiment analysis                                  |
+| `risk/`         | EVT, ML, copula and hybrid risk models, analytics, parallel risk engine   |
+| `training/`     | Model training pipeline and CLI                                           |
+| `reporting/`    | Report templates, escaped HTML and PDF generation, scheduling and archive |
+| `settings.py`   | Paths and constants, overridable through environment variables            |
+| `tests/`        | `unit/`, `integration/` and `performance/` suites                         |
+
+### Backend API surface for `quant_ml`
+
+| Route prefix           | Capability                                                                  |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `/api/v1/optimization` | ML portfolio optimization, frontier, simulation, forecast, sentiment, model |
+| `/api/v1/quant`        | EVT, ML, copula and hybrid risk, engine analytics, mean-variance, reports   |
+| `/api/v1/tasks`        | Celery task submission and status                                           |

@@ -40,6 +40,12 @@ PyPortfolioOpt==1.5.5
 
 # AI/ML Optimization
 scikit-learn==1.3.2
+nltk>=3.8.1
+prophet>=1.1.4
+arch>=6.2.0
+statsmodels>=0.14.0
+cvxpy>=1.3.0
+markdown>=3.5.0
 # cvxpy is not used in the current implementation, but keeping it as a dev dependency
 # for potential future use in optimization.
 
@@ -60,7 +66,7 @@ reportlab==4.0.7
 matplotlib==3.8.2
 plotly==5.17.0
 jinja2==3.1.2
-openpyxl==3.1.2 # Required by pandas ExcelWriter for xlsx report export
+openpyxl>=3.1.5 # Required by pandas ExcelWriter for xlsx report export
 
 # Utilities
 python-dateutil==2.8.2

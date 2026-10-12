@@ -11,10 +11,14 @@ from flask_cors import CORS
 from src.api.controllers.auth_controller import auth_bp
 from src.api.controllers.blockchain_controller import blockchain_bp
 from src.api.controllers.monitoring_controller import monitoring_bp
+from src.api.controllers.my_portfolio_controller import my_portfolio_bp
+from src.api.controllers.optimization_controller import optimization_bp
 from src.api.controllers.portfolio_controller import portfolio_bp
+from src.api.controllers.quant_controller import quant_bp
 from src.api.controllers.risk_controller import risk_bp
 from src.api.middleware.error_middleware import error_handling_middleware
 from src.api.middleware.rate_limit_middleware import apply_rate_limiting
+from src.api.task_controller import tasks_bp
 from src.core.config import config
 from src.core.logging import configure_logging, get_logger
 from src.infrastructure.cache.redis_cache import redis_cache
@@ -62,6 +66,10 @@ def create_app() -> Flask:
     app.register_blueprint(risk_bp)
     app.register_blueprint(monitoring_bp)
     app.register_blueprint(blockchain_bp)
+    app.register_blueprint(optimization_bp)
+    app.register_blueprint(my_portfolio_bp)
+    app.register_blueprint(quant_bp)
+    app.register_blueprint(tasks_bp)
 
     # Apply rate limiting to API endpoints
     apply_rate_limiting(app)

@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { PieChart } from "react-native-chart-kit"; // Import PieChart
+import apiService from "../../services/apiService";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -44,58 +45,12 @@ const PortfolioDetailScreen = ({ route, navigation }) => {
   const fetchPortfolioDetails = useCallback(async () => {
     setError("");
     try {
-      // Simulate fetching details - replace with actual API call if backend provides allocation
-      // const response = await apiService.getPortfolioDetails(portfolioId);
-      // Mock data simulation if backend doesn't provide allocation percentages easily
-      const mockAssets = [
-        {
-          id: "1",
-          symbol: "AAPL",
-          name: "Apple Inc.",
-          quantity: 10,
-          value: 1750,
-          allocation_percentage: 35,
-          performance: 5.2,
-        },
-        {
-          id: "2",
-          symbol: "MSFT",
-          name: "Microsoft Corp.",
-          quantity: 5,
-          value: 1500,
-          allocation_percentage: 30,
-          performance: 3.1,
-        },
-        {
-          id: "3",
-          symbol: "TSLA",
-          name: "Tesla Inc.",
-          quantity: 3,
-          value: 750,
-          allocation_percentage: 15,
-          performance: -2.5,
-        },
-        {
-          id: "4",
-          symbol: "BTC-USD",
-          name: "Bitcoin",
-          quantity: 0.05,
-          value: 1000,
-          allocation_percentage: 20,
-          performance: 10.8,
-        },
-      ];
-      const mockDetails = {
-        id: portfolioId,
-        name: portfolioName || `Portfolio ${portfolioId}`,
-        description: "My main investment portfolio focused on tech and crypto.",
-        currency: "USD",
-        total_value: 5000,
-        risk_score: 0.65,
-        assets: mockAssets,
-      };
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate delay
-      setPortfolioDetails(mockDetails);
+      const response = await apiService.getPortfolioDetails(portfolioId);
+      const payload = response.data?.data ?? response.data;
+      if (!payload) {
+        throw new Error("Empty portfolio response");
+      }
+      setPortfolioDetails(payload);
     } catch (err) {
       console.error("Failed to fetch portfolio details:", err);
       setError("Could not load portfolio details.");
@@ -256,6 +211,7 @@ const PortfolioDetailScreen = ({ route, navigation }) => {
 
   const renderAssetItem = ({ item }) => (
     <ListItem
+      testID={`asset-item-${item.symbol}`}
       bottomDivider
       onPress={() =>
         navigation.navigate("AssetDetailPortfolio", { symbol: item.symbol })
@@ -267,7 +223,7 @@ const PortfolioDetailScreen = ({ route, navigation }) => {
           {item.symbol} <Text style={styles.assetName}>({item.name})</Text>
         </ListItem.Title>
         <ListItem.Subtitle style={styles.assetDetails}>
-          Qty: {item.quantity} | Value: {portfolioDetails?.currency}{" "}
+          Qty: {item.quantity ?? "N/A"} | Value: {portfolioDetails?.currency}{" "}
           {item.value?.toLocaleString(undefined, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
@@ -275,7 +231,7 @@ const PortfolioDetailScreen = ({ route, navigation }) => {
         </ListItem.Subtitle>
         <ListItem.Subtitle style={styles.assetDetails}>
           Allocation: {item.allocation_percentage?.toFixed(2)}% | Perf:{" "}
-          {item.performance?.toFixed(2)}%
+          {item.performance == null ? "N/A" : `${item.performance.toFixed(2)}%`}
         </ListItem.Subtitle>
       </ListItem.Content>
       <ListItem.Chevron color={theme.colors.grey2} />
@@ -285,7 +241,11 @@ const PortfolioDetailScreen = ({ route, navigation }) => {
   if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator
+          testID="loading-indicator"
+          size="large"
+          color={theme.colors.primary}
+        />
       </View>
     );
   }
@@ -293,8 +253,17 @@ const PortfolioDetailScreen = ({ route, navigation }) => {
   if (error && !portfolioDetails) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Button title="Retry" onPress={fetchPortfolioDetails} />
+        <Text testID="error-message" style={styles.errorText}>
+          {error}
+        </Text>
+        <Button
+          testID="retry-button"
+          title="Retry"
+          onPress={() => {
+            setLoading(true);
+            fetchPortfolioDetails();
+          }}
+        />
       </View>
     );
   }
@@ -319,7 +288,12 @@ const PortfolioDetailScreen = ({ route, navigation }) => {
       }
     >
       {error && (
-        <Text style={[styles.errorText, { padding: 15 }]}>{error}</Text>
+        <Text
+          testID="error-message"
+          style={[styles.errorText, { padding: 15 }]}
+        >
+          {error}
+        </Text>
       )}
       <Card containerStyle={styles.summaryCard}>
         <Text style={styles.summaryLabel}>Total Value</Text>
@@ -437,6 +411,7 @@ const PortfolioDetailScreen = ({ route, navigation }) => {
           </Text>
         )}
         <Button
+          testID="add-asset-button"
           icon={
             <Icon
               name="plus"

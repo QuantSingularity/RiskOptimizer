@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quant-ml"
+version = "1.0.0"
+description = "Quantitative risk, portfolio optimization, forecasting and reporting library for RiskOptimizer"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "scikit-learn>=1.3",
+    "joblib>=1.3",
+    "matplotlib>=3.7",
+    "arch>=6.2",
+    "PyPortfolioOpt>=1.5.5",
+    "nltk>=3.8.1",
+    "jinja2>=3.1.2",
+    "markdown>=3.5",
+    "psutil>=5.9",
+    "reportlab>=4.0",
+    "statsmodels>=0.14",
+    "cvxpy>=1.3",
+]
+
+[project.optional-dependencies]
+forecasting = ["prophet>=1.1.4"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.4", "pypdf>=4.0"]
+
+[project.scripts]
+quant-ml-train = "quant_ml.training.cli:main"
+quant-ml-forecast = "quant_ml.forecasting.pipeline:main"
+quant-ml-evaluate = "quant_ml.training.evaluate:main"
+quant-ml-benchmark = "quant_ml.training.benchmark:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+quant_ml = ["py.typed", "data/datasets/*.csv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -p no:cacheprovider"
+markers = [
+    "slow: long running tests",
+    "performance: statistical calibration and performance checks",
+]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["E501", "B008"]

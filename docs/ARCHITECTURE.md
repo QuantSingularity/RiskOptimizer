@@ -97,40 +97,42 @@ web-frontend/
 
 ### Backend Module Mapping
 
-| Module                | File Path                           | Responsibility                    | Dependencies       |
-| --------------------- | ----------------------------------- | --------------------------------- | ------------------ |
-| **App Entry**         | `code/backend/app.py`               | Flask app initialization, routing | Flask, Blueprints  |
-| **API Controllers**   | `code/backend/src/api/controllers/` | HTTP request handling             | Schemas, Services  |
-| **- Auth**            | `auth_controller.py`                | User authentication endpoints     | Auth Service       |
-| **- Risk**            | `risk_controller.py`                | Risk calculation endpoints        | Risk Service       |
-| **- Portfolio**       | `portfolio_controller.py`           | Portfolio management              | Portfolio Service  |
-| **- Monitoring**      | `monitoring_controller.py`          | System monitoring                 | Performance Utils  |
-| **Middleware**        | `code/backend/src/api/middleware/`  | Request/response processing       | -                  |
-| **- Auth MW**         | `auth_middleware.py`                | JWT validation                    | PyJWT              |
-| **- Rate Limit**      | `rate_limit_middleware.py`          | Request throttling                | Redis              |
-| **- Error MW**        | `error_middleware.py`               | Error handling                    | Custom Exceptions  |
-| **Schemas**           | `code/backend/src/api/schemas/`     | Request validation                | -                  |
-| **Domain Services**   | `code/backend/src/domain/services/` | Business logic                    | -                  |
-| **- Risk Service**    | `risk_service.py`                   | Risk calculations                 | Quant Analysis     |
-| **- Portfolio Svc**   | `portfolio_service.py`              | Portfolio operations              | Repository         |
-| **- Auth Service**    | `auth_service.py`                   | Authentication logic              | Bcrypt, JWT        |
-| **Core**              | `code/backend/src/core/`            | Core utilities                    | -                  |
-| **- Config**          | `config.py`                         | Configuration management          | python-dotenv      |
-| **- Logging**         | `logging.py`                        | Structured logging                | structlog          |
-| **- Exceptions**      | `exceptions.py`                     | Custom exception classes          | -                  |
-| **Infrastructure**    | `code/backend/src/infrastructure/`  | External integrations             | -                  |
-| **- Database**        | `database/`                         | ORM models, repositories          | SQLAlchemy         |
-| **- Cache**           | `cache/redis_cache.py`              | Redis caching                     | redis-py           |
-| **Services**          | `code/backend/src/services/`        | Specialized services              | -                  |
-| **- Quant Analysis**  | `quant_analysis.py`                 | Mathematical calculations         | NumPy, SciPy       |
-| **- AI Optimization** | `ai_optimization.py`                | ML-based optimization             | scikit-learn       |
-| **- Blockchain**      | `blockchain_service.py`             | Web3 integration                  | web3.py            |
-| **Tasks**             | `code/backend/src/tasks/`           | Async tasks                       | Celery             |
-| **- Celery App**      | `celery_app.py`                     | Celery configuration              | -                  |
-| **- Maintenance**     | `maintenance_tasks.py`              | Background jobs                   | -                  |
-| **Risk Models**       | `code/risk_models/`                 | Standalone risk calculations      | -                  |
-| **AI Models**         | `code/ai_models/`                   | ML model training & inference     | TensorFlow/PyTorch |
-| **Blockchain**        | `code/blockchain/`                  | Smart contracts & Web3            | Solidity, Hardhat  |
+| Module                | File Path                                                | Responsibility                                              | Dependencies                               |
+| --------------------- | -------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------ |
+| **App Entry**         | `code/backend/app.py`                                    | Flask app initialization, routing                           | Flask, Blueprints                          |
+| **API Controllers**   | `code/backend/src/api/controllers/`                      | HTTP request handling                                       | Schemas, Services                          |
+| **- Auth**            | `auth_controller.py`                                     | User authentication endpoints                               | Auth Service                               |
+| **- Risk**            | `risk_controller.py`                                     | Risk calculation endpoints                                  | Risk Service                               |
+| **- Portfolio**       | `portfolio_controller.py`                                | Portfolio management                                        | Portfolio Service                          |
+| **- Monitoring**      | `monitoring_controller.py`                               | System monitoring                                           | Performance Utils                          |
+| **Middleware**        | `code/backend/src/api/middleware/`                       | Request/response processing                                 | -                                          |
+| **- Auth MW**         | `auth_middleware.py`                                     | JWT validation                                              | PyJWT                                      |
+| **- Rate Limit**      | `rate_limit_middleware.py`                               | Request throttling                                          | Redis                                      |
+| **- Error MW**        | `error_middleware.py`                                    | Error handling                                              | Custom Exceptions                          |
+| **Schemas**           | `code/backend/src/api/schemas/`                          | Request validation                                          | -                                          |
+| **Domain Services**   | `code/backend/src/domain/services/`                      | Business logic                                              | -                                          |
+| **- Risk Service**    | `risk_service.py`                                        | Risk calculations                                           | Quant Analysis                             |
+| **- Portfolio Svc**   | `portfolio_service.py`                                   | Portfolio operations                                        | Repository                                 |
+| **- Auth Service**    | `auth_service.py`                                        | Authentication logic                                        | Bcrypt, JWT                                |
+| **Core**              | `code/backend/src/core/`                                 | Core utilities                                              | -                                          |
+| **- Config**          | `config.py`                                              | Configuration management                                    | python-dotenv                              |
+| **- Logging**         | `logging.py`                                             | Structured logging                                          | structlog                                  |
+| **- Exceptions**      | `exceptions.py`                                          | Custom exception classes                                    | -                                          |
+| **Infrastructure**    | `code/backend/src/infrastructure/`                       | External integrations                                       | -                                          |
+| **- Database**        | `database/`                                              | ORM models, repositories                                    | SQLAlchemy                                 |
+| **- Cache**           | `cache/redis_cache.py`                                   | Redis caching                                               | redis-py                                   |
+| **Services**          | `code/backend/src/services/`                             | Specialized services                                        | -                                          |
+| **- Quant Analysis**  | `quant_analysis.py`                                      | Mathematical calculations                                   | NumPy, SciPy                               |
+| **- AI Optimization** | `ai_optimization.py`                                     | ML portfolio optimization, forecasts, sentiment             | scikit-learn, statsmodels                  |
+| **- Quant Risk**      | `quant_risk_service.py`                                  | EVT, ML, copula and hybrid risk, engine analytics, reports  | quant_ml                                   |
+| **- Quant Bridge**    | `quant_ml_bridge.py`                                     | Makes the library importable by the backend                 | -                                          |
+| **- Blockchain**      | `blockchain_service.py`                                  | Web3 integration                                            | web3.py                                    |
+| **Tasks**             | `code/backend/src/tasks/`                                | Async tasks                                                 | Celery                                     |
+| **- Celery App**      | `celery_app.py`                                          | Celery configuration                                        | -                                          |
+| **- Quant Tasks**     | `risk_tasks.py`, `portfolio_tasks.py`, `report_tasks.py` | Async risk, optimization and report jobs backed by quant_ml | Celery, quant_ml                           |
+| **- Maintenance**     | `maintenance_tasks.py`                                   | Background jobs                                             | -                                          |
+| **Quant Library**     | `code/quant_ml/src/quant_ml/`                            | Data, optimization, forecasting, risk, training, reporting  | NumPy, SciPy, scikit-learn, PyPortfolioOpt |
+| **Blockchain**        | `code/blockchain/`                                       | Smart contracts & Web3                                      | Solidity, Hardhat                          |
 
 ## Data Flow
 

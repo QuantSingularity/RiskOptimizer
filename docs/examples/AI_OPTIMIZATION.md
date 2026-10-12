@@ -1,269 +1,184 @@
-# AI and Machine Learning Examples
+# Quant Models and Optimization Examples
 
-Examples of AI-powered features in RiskOptimizer.
-
-## Example 1: Train Custom Optimization Model
-
-Train a neural network for portfolio optimization.
+Examples for the models in `code/quant_ml`. Every Python snippet on this page runs against the bundled datasets. Install the library first:
 
 ```bash
-# Train optimization model with custom dataset
-./scripts/model_training.sh \
-  -m optimization \
-  -d data/market_data.csv \
-  -e 200 \
-  -p '{"learning_rate": 0.001, "batch_size": 32, "hidden_layers": [64, 32]}'
-
-# Output:
-# Training optimization model...
-# Epoch 1/200: loss=0.0523
-# ...
-# Epoch 200/200: loss=0.0012
-# Model saved to: code/ai_models/trained_models/optimization_model_20250115.h5
-# Evaluation metrics:
-#   MAE: 0.0015
-#   RMSE: 0.0023
-#   R²: 0.94
+pip install -e "code/quant_ml[dev]"
 ```
 
-## Example 2: AI-Powered Portfolio Optimization
+## Example 1: Train and use the portfolio optimizer
 
-Use trained AI models for portfolio allocation.
+Train from the command line (also runs a hold-out evaluation):
+
+```bash
+./scripts/model_training.sh -m optimization -s AAPL MSFT GOOGL BTC_USD --visualize
+```
+
+Or from Python:
 
 ```python
-from src.services.ai_optimization import PortfolioOptimizer
+from quant_ml.data import load_close_prices
+from quant_ml.optimization import AdvancedPortfolioOptimizer
+from quant_ml.training.trainer import train_and_save
+
+symbols = ["AAPL", "MSFT", "GOOGL", "BTC_USD"]
+model, report, path = train_and_save("optimizer.joblib", symbols=symbols)
+print("Hold-out metrics:", report["prediction_metrics"])
+
+prices = load_close_prices(symbols)
+loaded = AdvancedPortfolioOptimizer.load_model(path)
+weights, metrics = loaded.optimize_portfolio(prices, max_weight=0.4, method="max_sharpe")
+
+for asset, weight in weights.items():
+    print(f"{asset}: {weight:.2%}")
+print(metrics)
+```
+
+## Example 2: Optimization methods
+
+```python
+from quant_ml.data import load_close_prices
+from quant_ml.optimization import optimize_weights
+
+returns = load_close_prices(["AAPL", "MSFT", "GOOGL", "AMZN"]).pct_change().dropna()
+
+for method in ("mean_variance", "minimum_variance", "risk_parity"):
+    result = optimize_weights(returns, method, {"max_weight_per_asset": 0.5})
+    print(method, {k: round(v, 3) for k, v in result["weights"].items()})
+
+views = [{"assets": {"AAPL": 1.0}, "return": 0.30, "confidence": 0.7}]
+blended = optimize_weights(returns, "black_litterman", {"views": views})
+print("black_litterman", {k: round(v, 3) for k, v in blended["weights"].items()})
+```
+
+Bounds are enforced, not just reported, and `constraints_satisfied` in the result confirms them.
+
+## Example 3: Price forecast with validation evidence
+
+```python
+from quant_ml.forecasting import forecast_prices
+
+result = forecast_prices("AAPL", periods=10)
+
+print("Selected model:", result["model"], "| beats naive:", result["beats_naive"])
+print("Validation:", result["validation"]["scores"])
+for row in result["forecast"][:3]:
+    print(row["date"], round(row["yhat"], 2), round(row["yhat_lower"], 2), round(row["yhat_upper"], 2))
+```
+
+`model="auto"` validates naive, drift and damped ETS over rolling windows and only leaves the naive forecast when another model wins consistently. `model="prophet"` is available on request and returns a warning when it does not beat the baseline.
+
+## Example 4: Sentiment
+
+```python
+from quant_ml.forecasting import analyze_sentiment, summarize_sentiment
+
+frame = analyze_sentiment(
+    [
+        "Shares surge in a record rally after strong earnings",
+        "Company files for bankruptcy as sales plunge",
+    ]
+)
+print(frame[["compound", "sentiment"]])
+print(summarize_sentiment(frame))
+```
+
+## Example 5: Risk models on one portfolio
+
+```python
 import numpy as np
 
-# Load AI optimizer
-optimizer = PortfolioOptimizer(
-    model_path='code/ai_models/trained_models/optimization_model.h5'
-)
+from quant_ml.data import load_close_prices
+from quant_ml.risk import CopulaMLRiskModel, ExtremeValueRisk, HybridRiskModel, MLRiskModel
 
-# Historical returns
-returns_data = {
-    'AAPL': np.array([0.02, -0.01, 0.015, 0.025, -0.008]),
-    'MSFT': np.array([0.015, 0.01, -0.005, 0.018, 0.012]),
-    'GOOGL': np.array([0.01, 0.02, -0.01, -0.005, 0.015]),
-    'AMZN': np.array([0.025, -0.015, 0.02, 0.01, -0.012])
-}
+returns = load_close_prices(["AAPL", "MSFT", "TSLA", "BTC_USD"]).pct_change().dropna()
+weights = np.array([0.3, 0.3, 0.2, 0.2])
+portfolio = returns.to_numpy() @ weights
 
-# Optimize using AI
-optimal_weights = optimizer.ai_optimize(
-    returns=returns_data,
-    risk_tolerance=0.5,  # Medium risk
-    time_horizon=252  # 1 year
-)
+evt = ExtremeValueRisk(seed=0).fit_pot(portfolio, threshold_quantile=0.05)
+print("EVT 99% VaR/ES:", round(evt.calculate_var(0.99), 4), round(evt.calculate_es(0.99), 4))
 
-print("AI-Optimized Portfolio:")
-for asset, weight in optimal_weights.items():
-    print(f"  {asset}: {weight*100:.2f}%")
+copula = CopulaMLRiskModel("t", 20000, seed=1).fit(returns)
+print("Copula metrics:", {k: round(v, 4) for k, v in copula.calculate_risk_metrics(weights).items()})
+
+ml = MLRiskModel("gbm").fit(returns, weights=weights)
+print("ML next-day 95% VaR:", round(ml.forecast_var(returns, 0.95), 4))
+
+hybrid = HybridRiskModel(0.5, "rf", seed=1).fit(returns, weights=weights)
+print("Hybrid:", {k: round(v, 4) for k, v in hybrid.calculate_risk_metrics(returns, weights).items()})
 ```
 
-## Example 3: Market Prediction with LSTM
+All VaR and expected shortfall figures are one period losses as positive fractions of portfolio value.
 
-Predict market trends using LSTM neural networks.
+## Example 6: Backtest the models
 
 ```python
-from code.risk_models.ml_risk_models import LSTMPredictor
-import numpy as np
+from quant_ml.data import load_close_prices
+from quant_ml.risk import ParallelRiskEngine
 
-# Initialize predictor
-predictor = LSTMPredictor(
-    input_dim=5,  # 5 features
-    sequence_length=60  # 60 days lookback
-)
+returns = load_close_prices(["AAPL", "MSFT", "TSLA", "BTC_USD"]).pct_change().dropna()
+engine = ParallelRiskEngine(n_jobs=1, seed=1)
 
-# Historical data (price, volume, etc.)
-historical_data = np.random.rand(252, 5)  # 1 year of data
-
-# Train model
-predictor.fit(historical_data, epochs=100)
-
-# Predict next 5 days
-predictions = predictor.predict(steps=5)
-
-print("Market Predictions (next 5 days):")
-print(predictions)
+result = engine.parallel_backtest(returns, ["historical", "evt", "parametric"], 0.95)
+for model, stats in result["summary"].items():
+    print(model, f"breach rate {stats['breach_rate']:.3f}", f"Kupiec p {stats['kupiec_pvalue']:.2f}")
 ```
 
-## Example 4: Anomaly Detection
+A breach rate close to 5% and a Kupiec p-value above 0.01 mean the 95% VaR is well calibrated. The same checks run for all models with `./scripts/model_training.sh --evaluate-only --strict`.
 
-Detect unusual market patterns using machine learning.
-
-```python
-from code/risk_models.ml_risk_models import AnomalyDetector
-
-# Initialize detector with Isolation Forest
-detector = AnomalyDetector(method='isolation_forest')
-
-# Historical returns
-returns = np.array([
-    0.01, 0.02, -0.01, 0.015, 0.018,
-    -0.12,  # Anomaly: unusual large loss
-    0.01, 0.02, -0.008, 0.012
-])
-
-# Detect anomalies
-anomalies = detector.detect(returns)
-
-print("Detected Anomalies:")
-for idx, is_anomaly in enumerate(anomalies):
-    if is_anomaly:
-        print(f"  Day {idx}: {returns[idx]:.4f}")
-```
-
-## Example 5: Risk Prediction
-
-Predict future risk levels using ML models.
-
-```python
-from code/risk_models/ml_risk_models import RiskPredictor
-
-# Initialize predictor
-predictor = RiskPredictor(model_type='gru')  # GRU neural network
-
-# Historical volatility and returns
-historical_features = {
-    'returns': [0.01, -0.02, 0.015, -0.008, 0.025],
-    'volatility': [0.15, 0.18, 0.16, 0.20, 0.17],
-    'volume': [1000000, 1200000, 950000, 1100000, 1050000]
-}
-
-# Train predictor
-predictor.fit(historical_features, epochs=150)
-
-# Predict risk for next period
-risk_forecast = predictor.predict_risk(horizon=5)
-
-print(f"Predicted Risk (next 5 days): {risk_forecast:.4f}")
-```
-
-## Example 6: Reinforcement Learning for Trading
-
-Use reinforcement learning for adaptive strategies.
-
-```python
-from code/ai_models.rl_agent import PortfolioAgent
-import gym
-
-# Create trading environment
-env = gym.make('PortfolioTrading-v0')
-
-# Initialize RL agent
-agent = PortfolioAgent(
-    state_dim=env.observation_space.shape[0],
-    action_dim=env.action_space.shape[0],
-    algorithm='PPO'  # Proximal Policy Optimization
-)
-
-# Train agent
-episodes = 1000
-for episode in range(episodes):
-    state = env.reset()
-    done = False
-    total_reward = 0
-
-    while not done:
-        action = agent.select_action(state)
-        next_state, reward, done, info = env.step(action)
-        agent.store_transition(state, action, reward, next_state, done)
-        state = next_state
-        total_reward += reward
-
-    agent.update()
-
-    if episode % 100 == 0:
-        print(f"Episode {episode}: Reward = {total_reward:.2f}")
-
-# Use trained agent
-optimal_action = agent.select_action(current_state, deterministic=True)
-print(f"Recommended Action: {optimal_action}")
-```
-
-## Example 7: Feature Engineering for ML
-
-Create features for machine learning models.
+## Example 7: Generate a PDF risk report
 
 ```python
 import pandas as pd
-import numpy as np
 
-def engineer_features(prices_df):
-    """Create ML features from price data."""
-    features = pd.DataFrame(index=prices_df.index)
+from quant_ml.reporting import ReportGenerator, ReportTemplate
 
-    # Returns
-    features['returns'] = prices_df.pct_change()
+template = ReportTemplate("Weekly Risk Report", author="Risk Desk")
+template.add_section("Summary", "Tail risk is **stable** this week.", "text")
+template.add_section("Metrics", {"data_key": "metrics", "options": {"show_index": False}}, "table")
 
-    # Rolling statistics
-    features['rolling_mean_20'] = prices_df.rolling(20).mean()
-    features['rolling_std_20'] = prices_df.rolling(20).std()
-
-    # Technical indicators
-    features['rsi'] = calculate_rsi(prices_df, period=14)
-    features['macd'] = calculate_macd(prices_df)
-
-    # Volatility
-    features['volatility'] = features['returns'].rolling(20).std()
-
-    # Momentum
-    features['momentum_10'] = prices_df.pct_change(10)
-
-    return features.dropna()
-
-# Use engineered features
-prices = pd.read_csv('data/AAPL_historical.csv', index_col=0)['Close']
-features = engineer_features(prices)
-
-print("Engineered Features:")
-print(features.head())
+data = {"metrics": pd.DataFrame({"Model": ["historical", "evt"], "VaR 99%": [0.052, 0.056]})}
+print("written:", ReportGenerator(template).generate_pdf("weekly_risk.pdf", data))
 ```
 
-## Example 8: Hyperparameter Tuning
+Section text and table cells are escaped, so untrusted content cannot inject markup.
 
-Optimize model hyperparameters.
+### Email delivery
+
+Scheduled and task generated reports are emailed when SMTP is configured through environment variables:
+
+| Variable                                       | Purpose                                         |
+| :--------------------------------------------- | :---------------------------------------------- |
+| `QUANT_ML_SMTP_HOST`, `QUANT_ML_SMTP_SENDER`   | Required to enable delivery                     |
+| `QUANT_ML_SMTP_PORT`                           | Default 587 (465 with `QUANT_ML_SMTP_SSL=true`) |
+| `QUANT_ML_SMTP_USER`, `QUANT_ML_SMTP_PASSWORD` | Optional authentication                         |
+| `QUANT_ML_SMTP_TLS`                            | STARTTLS, default `true`                        |
+
+Without them the result reports `delivered: false` with the reason.
+
+## Example 8: The same models through the API
 
 ```python
-from sklearn.model_selection import GridSearchCV
-from code.risk_models.ml_risk_models import RiskPredictor
+import requests
 
-# Define hyperparameter grid
-param_grid = {
-    'hidden_units': [32, 64, 128],
-    'learning_rate': [0.001, 0.0001],
-    'dropout_rate': [0.2, 0.3, 0.5],
-    'batch_size': [16, 32, 64]
-}
+base = "http://localhost:8080/api/v1"
+headers = {"Authorization": "Bearer <token>"}
 
-# Initialize model
-model = RiskPredictor()
+optimized = requests.post(
+    f"{base}/optimization/optimize",
+    json={"symbols": ["AAPL", "MSFT", "GOOGL"], "method": "max_sharpe", "max_weight": 0.5},
+    headers=headers,
+).json()["data"]
 
-# Perform grid search
-grid_search = GridSearchCV(
-    model,
-    param_grid,
-    cv=5,  # 5-fold cross-validation
-    scoring='neg_mean_squared_error',
-    n_jobs=-1
-)
+risk = requests.post(
+    f"{base}/quant/risk/evt",
+    json={"symbols": ["AAPL", "MSFT"], "weights": {"AAPL": 0.6, "MSFT": 0.4}},
+    headers=headers,
+).json()["data"]
 
-# Fit with data
-X_train, y_train = prepare_data()  # Your data preparation
-grid_search.fit(X_train, y_train)
-
-print("Best Hyperparameters:")
-print(grid_search.best_params_)
-print(f"Best Score: {-grid_search.best_score_:.4f}")
+report = requests.post(
+    f"{base}/quant/reports/risk",
+    json={"symbols": ["AAPL", "MSFT"], "format": "pdf", "recipients": ["desk@example.com"]},
+    headers=headers,
+).json()["data"]
 ```
-
-## Training Best Practices
-
-1. **Data Split:** 70% train, 15% validation, 15% test
-2. **Normalization:** Scale features to [0, 1] or standardize
-3. **Cross-validation:** Use k-fold for robust evaluation
-4. **Early stopping:** Prevent overfitting
-5. **Model checkpointing:** Save best models during training
-6. **Hyperparameter tuning:** Use grid search or Bayesian optimization
-7. **Ensemble methods:** Combine multiple models for better predictions
-
-See [BASIC_USAGE.md](BASIC_USAGE.md) for simpler examples.

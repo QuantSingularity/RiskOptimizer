@@ -39,17 +39,20 @@ RiskOptimizer/
 │   │   ├── src/api/controllers/  # auth, portfolio, risk, blockchain, monitoring
 │   │   ├── src/domain/services/  # auth, portfolio, risk, audit services
 │   │   ├── src/infrastructure/   # database, cache, repositories
-│   │   ├── src/services/         # blockchain_service, quant_analysis, ai_optimization
+│   │   ├── src/services/         # blockchain_service, quant_analysis, ai_optimization, quant_risk_service
 │   │   ├── src/tasks/            # Celery background tasks
 │   │   └── tests/                # Backend test suite (unit and integration)
 │   ├── blockchain/               # Hardhat project
 │   │   ├── contracts/            # PortfolioLedger, PortfolioTracker, RiskManagement
 │   │   └── test/                 # Hardhat test suite
-│   └── quant_ml/
-│       ├── risk_engine/          # Parallel Monte Carlo (joblib + multiprocessing)
-│       ├── risk_models/          # VaR, extreme value theory, GARCH, MLP regressor
-│       ├── ai_models/            # PyPortfolioOpt optimization, Prophet + VADER sentiment
-│       └── tests/                # quant_ml test suite
+│   └── quant_ml/                 # Installable quant library (src layout)
+│       ├── src/quant_ml/data/          # Price loading and bundled datasets
+│       ├── src/quant_ml/optimization/  # ML, classical, mean-variance, risk parity, Black-Litterman
+│       ├── src/quant_ml/forecasting/   # Validated price forecasting, sentiment analysis
+│       ├── src/quant_ml/risk/          # EVT, ML, copula, hybrid models, engine, simulation, stress
+│       ├── src/quant_ml/training/      # Training pipeline, evaluation, CLI
+│       ├── src/quant_ml/reporting/     # HTML and PDF reports, scheduling, archive, email delivery
+│       └── tests/                      # unit, integration and performance suites
 ├── web-frontend/                 # React (Vite) dashboard
 ├── mobile-frontend/              # React Native + Expo app
 ├── infrastructure/               # Docker, Kubernetes, Terraform, Ansible, monitoring
@@ -62,34 +65,34 @@ RiskOptimizer/
 
 ### Application tier (wired and tested)
 
-| Component                     | Details                                                                                                                                                                                                                                                                            |
-| :---------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **API**                       | Flask backend exposing endpoints under `/api/v1` for auth, portfolios, risk, blockchain, and monitoring, plus Celery-backed background tasks for reports and maintenance.                                                                                                          |
-| **Auth**                      | JWT sessions (PyJWT) with bcrypt password hashing. `SECRET_KEY`, `JWT_SECRET_KEY`, and `DATA_ENCRYPTION_KEY` are required environment variables in production; the app raises on startup if they're missing there.                                                                 |
-| **Risk calculations**         | VaR (historical, parametric, and Monte Carlo), CVaR, Sharpe ratio, max drawdown, and an efficient frontier, computed in the domain and quant_ml layers.                                                                                                                            |
-| **Parallel risk engine**      | A Monte Carlo engine that distributes simulation batches across CPU cores with joblib and multiprocessing.                                                                                                                                                                         |
-| **Portfolio optimization**    | PyPortfolioOpt-based allocation, plus a scikit-learn `MLPRegressor` used as a lightweight risk model.                                                                                                                                                                              |
-| **Forecasting and sentiment** | Prophet for price forecasting and NLTK's VADER lexicon analyzer for sentiment, both genuinely wired into `quant_ml/ai_models`.                                                                                                                                                     |
-| **Smart contracts**           | Hardhat-managed Solidity contracts: `PortfolioLedger` and `PortfolioTracker` for recording portfolio state on-chain, and a `RiskManagement` contract, read and written via web3.py in `blockchain_service.py`.                                                                     |
-| **Web dashboard**             | React app (JavaScript, not TypeScript) with Material-UI components, Recharts for charts, and React Query for data fetching, covering Home, Dashboard, Portfolio Management, Portfolio Optimization, Risk Analysis, Optimization, Monitoring, Settings, and authentication screens. |
-| **Mobile app**                | React Native (Expo) app covering the same functional areas through React Navigation, with React Context (not Redux) for auth and theme state.                                                                                                                                      |
+| Component                     | Details                                                                                                                                                                                                                                                                                          |
+| :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **API**                       | Flask backend exposing endpoints under `/api/v1` for auth, portfolios, risk, blockchain, and monitoring, plus Celery-backed background tasks for reports and maintenance.                                                                                                                        |
+| **Auth**                      | JWT sessions (PyJWT) with bcrypt password hashing. `SECRET_KEY`, `JWT_SECRET_KEY`, and `DATA_ENCRYPTION_KEY` are required environment variables in production; the app raises on startup if they're missing there.                                                                               |
+| **Risk calculations**         | Historical, parametric, EVT, ML, copula and hybrid VaR and expected shortfall, Monte Carlo path simulation, stress tests, rolling backtests with a Kupiec test, risk decomposition, performance metrics, and an efficient frontier, all computed by `quant_ml` and served under `/api/v1/quant`. |
+| **Parallel risk engine**      | Seeded, reproducible batches distributed across CPU cores with joblib: Monte Carlo, portfolio search, batch risk, stress testing, backtesting, sensitivity and risk decomposition.                                                                                                               |
+| **Portfolio optimization**    | An ML return model with a classical fallback, mean-variance, minimum variance, risk parity and Black-Litterman (with views), PyPortfolioOpt allocation with an integer share allocator, and a rebalancing planner. Served under `/api/v1/optimization` and used by the Celery tasks.             |
+| **Forecasting and sentiment** | Price forecasts chosen by rolling validation against a naive baseline (naive, drift, damped ETS, optional Prophet), with calibrated intervals and the validation evidence returned, plus NLTK VADER sentiment.                                                                                   |
+| **Smart contracts**           | Hardhat-managed Solidity contracts: `PortfolioLedger` and `PortfolioTracker` for recording portfolio state on-chain, and a `RiskManagement` contract, read and written via web3.py in `blockchain_service.py`.                                                                                   |
+| **Web dashboard**             | React app (JavaScript, not TypeScript) with Material-UI components, Recharts for charts, and React Query for data fetching, covering Home, Dashboard, Portfolio Management, Portfolio Optimization, Risk Analysis, Optimization, Monitoring, Settings, and authentication screens.               |
+| **Mobile app**                | React Native (Expo) app covering the same functional areas through React Navigation, with React Context (not Redux) for auth and theme state.                                                                                                                                                    |
 
 ## Technology Stack
 
-| Area             | Technology                                                                                                             |
-| :--------------- | :--------------------------------------------------------------------------------------------------------------------- |
-| Backend API      | Python 3.11+, Flask, Gunicorn, Flasgger (Swagger docs)                                                                 |
-| Auth             | PyJWT, bcrypt, passlib                                                                                                 |
-| Data layer       | SQLAlchemy 2, Alembic, PostgreSQL, Redis                                                                               |
-| Background tasks | Celery                                                                                                                 |
-| Quant / ML       | scikit-learn (MLPRegressor), statsmodels, arch (GARCH), Prophet, PyPortfolioOpt, NLTK (VADER sentiment)                |
-| Blockchain       | Solidity, Hardhat, web3.py, eth-account                                                                                |
-| Web frontend     | React 18, JavaScript, Vite, Material-UI, Recharts, React Query, Tailwind CSS                                           |
-| Mobile frontend  | React Native, Expo, React Navigation, React Context                                                                    |
-| Infrastructure   | Docker, Docker Compose, Kubernetes, Terraform, Ansible                                                                 |
-| Monitoring       | Prometheus, Grafana, prometheus-client, structlog                                                                      |
-| CI/CD            | GitHub Actions                                                                                                         |
-| Testing          | pytest (backend), Hardhat (contracts); quant_ml and mobile have their own test suites, though neither runs in CI today |
+| Area             | Technology                                                                                              |
+| :--------------- | :------------------------------------------------------------------------------------------------------ |
+| Backend API      | Python 3.11+, Flask, Gunicorn, Flasgger (Swagger docs)                                                  |
+| Auth             | PyJWT, bcrypt, passlib                                                                                  |
+| Data layer       | SQLAlchemy 2, Alembic, PostgreSQL, Redis                                                                |
+| Background tasks | Celery                                                                                                  |
+| Quant / ML       | scikit-learn (MLPRegressor), statsmodels, arch (GARCH), Prophet, PyPortfolioOpt, NLTK (VADER sentiment) |
+| Blockchain       | Solidity, Hardhat, web3.py, eth-account                                                                 |
+| Web frontend     | React 18, JavaScript, Vite, Material-UI, Recharts, React Query, Tailwind CSS                            |
+| Mobile frontend  | React Native, Expo, React Navigation, React Context                                                     |
+| Infrastructure   | Docker, Docker Compose, Kubernetes, Terraform, Ansible                                                  |
+| Monitoring       | Prometheus, Grafana, prometheus-client, structlog                                                       |
+| CI/CD            | GitHub Actions                                                                                          |
+| Testing          | pytest (backend, quant_ml), Hardhat (contracts), Vitest (web), Jest (mobile); all run in CI             |
 
 ## Architecture
 
@@ -109,8 +112,7 @@ Blockchain (Hardhat / Solidity)
   PortfolioLedger · PortfolioTracker · RiskManagement
 
 Quant library (code/quant_ml)
-  risk_engine (parallel Monte Carlo) · risk_models (VaR, EVT, GARCH, MLP)
-  ai_models (PyPortfolioOpt, Prophet, VADER sentiment)
+  data · optimization · forecasting · risk · training · reporting
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detail.
@@ -134,7 +136,7 @@ pip install -r requirements.txt
 
 # Quant library
 cd ../quant_ml
-pip install -r requirements.txt
+pip install -e ".[dev]"
 
 # Web frontend
 cd ../../web-frontend
@@ -205,28 +207,29 @@ npx hardhat test
 
 # Quant library (from code/quant_ml)
 pytest
+pytest -m "not performance"   # skip the statistical calibration checks
 
 # Web (from web-frontend)
-npm test
+npx vitest run
 
 # Mobile (from mobile-frontend)
 npm test
 ```
 
-The backend suite covers unit and integration tests for the domain services and API controllers. The Hardhat suite covers each contract individually. `quant_ml` has its own pytest suite covering model performance and a general test suite, and the mobile app has 8 real test files, but neither currently runs in CI. The web dashboard has Vitest configured but no test files yet.
+The backend suite covers unit and integration tests for the domain services, API controllers and Celery tasks. The Hardhat suite covers each contract individually. `quant_ml` has unit, integration and performance suites, including statistical calibration checks of the risk models against known distributions and real data. The web and mobile apps each have component and utility tests.
 
 ## CI/CD Pipeline
 
-GitHub Actions (`.github/workflows/cicd.yml`) runs four jobs on push, pull request, and manual dispatch:
+GitHub Actions (`.github/workflows/cicd.yml`) runs six jobs on push, pull request, and manual dispatch:
 
-| Job                  | Depends on          | What it does                                                                       |
-| :------------------- | :------------------ | :--------------------------------------------------------------------------------- |
-| Code Quality Checks  | -                   | Python formatter checks (autoflake, black) and a repository-wide Prettier check    |
-| Backend Tests        | Code Quality Checks | Runs the pytest suite with coverage and uploads the coverage report as an artifact |
-| Smart Contract Tests | Code Quality Checks | Compiles the contracts with Hardhat and runs the contract test suite               |
-| Frontend Build       | Code Quality Checks | Installs dependencies and produces the production web build (no test step)         |
-
-There is currently no CI job for `quant_ml` or the mobile app.
+| Job                            | Depends on          | What it does                                                                       |
+| :----------------------------- | :------------------ | :--------------------------------------------------------------------------------- |
+| Code Quality Checks            | -                   | Python formatter checks (autoflake, black) and a repository-wide Prettier check    |
+| Backend Tests                  | Code Quality Checks | Runs the pytest suite with coverage and uploads the coverage report as an artifact |
+| quant_ml Tests                 | Code Quality Checks | Installs `quant_ml`, runs ruff and the pytest suite with coverage                  |
+| Smart Contract Tests           | Code Quality Checks | Compiles the contracts with Hardhat and runs the contract test suite               |
+| Frontend Lint, Tests and Build | Code Quality Checks | Lints the web app, runs the Vitest suite and produces the production build         |
+| Mobile Lint and Tests          | Code Quality Checks | Lints the mobile app and runs the Jest suite                                       |
 
 ## Documentation
 

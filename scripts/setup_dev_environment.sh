@@ -121,12 +121,15 @@ log "INFO" "Installing Python dependencies..."
 pip install --upgrade pip
 log "INFO" "Installing backend dependencies..."
 pip install -r "$PROJECT_ROOT/code/backend/requirements.txt"
-log "INFO" "Installing AI model dependencies..."
-pip install -r "$PROJECT_ROOT/code/ai_models/requirements.txt" 2>/dev/null || log "WARNING" "AI model requirements file not found, skipping"
+log "INFO" "Installing quant_ml..."
+pip install -e "$PROJECT_ROOT/code/quant_ml[dev]"
 
 # Install Node.js dependencies
 log "INFO" "Installing Node.js dependencies..."
-cd "$PROJECT_ROOT/code/web-frontend"
+cd "$PROJECT_ROOT/web-frontend"
+npm install
+log "INFO" "Installing mobile frontend dependencies..."
+cd "$PROJECT_ROOT/mobile-frontend"
 npm install
 
 # Install blockchain dependencies
@@ -207,7 +210,9 @@ BLOCKCHAIN_NETWORK=development
 BLOCKCHAIN_PROVIDER_URL=http://localhost:8545
 
 # AI Model Configuration
-MODEL_PATH=./code/ai_models/optimization_model.pkl
+MODEL_PATH=./code/quant_ml/artifacts/portfolio_optimizer.joblib
+QUANT_ML_ARTIFACT_DIR=./code/quant_ml/artifacts
+AI_AUTO_TRAIN=true
 EOF
     log "SUCCESS" "Created default .env configuration"
 else
@@ -225,7 +230,7 @@ else
 fi
 
 # Check Node.js packages
-if [ -d "$PROJECT_ROOT/code/web-frontend/node_modules" ]; then
+if [ -d "$PROJECT_ROOT/web-frontend/node_modules" ]; then
     log "SUCCESS" "Node.js packages verified"
 else
     log "WARNING" "Node.js packages may not be installed correctly"

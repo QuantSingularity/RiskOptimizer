@@ -7,37 +7,27 @@ Advanced usage patterns and features.
 Optimize portfolio allocation using Modern Portfolio Theory.
 
 ```python
-from src.services.ai_optimization import PortfolioOptimizer
-import numpy as np
+from quant_ml.data import load_close_prices
+from quant_ml.optimization import optimize_weights
 
-# Initialize optimizer
-optimizer = PortfolioOptimizer()
+prices = load_close_prices(["AAPL", "MSFT", "GOOGL", "AMZN"])
+returns = prices.pct_change().dropna()
 
-# Asset returns (simulated or historical)
-returns = {
-    'AAPL': np.random.normal(0.12, 0.15, 252),
-    'MSFT': np.random.normal(0.10, 0.12, 252),
-    'GOOGL': np.random.normal(0.14, 0.18, 252),
-    'AMZN': np.random.normal(0.16, 0.20, 252)
-}
-
-# Optimize for maximum Sharpe ratio
-result = optimizer.optimize(
-    returns=returns,
-    objective='maximize_sharpe',
-    constraints={
-        'max_weight': 0.4,  # No asset > 40%
-        'min_weight': 0.1   # No asset < 10%
-    }
+result = optimize_weights(
+    returns,
+    "mean_variance",
+    {"risk_aversion": 3, "min_weight_per_asset": 0.1, "max_weight_per_asset": 0.4},
 )
 
 print("Optimal Allocation:")
-for asset, weight in result['weights'].items():
-    print(f"  {asset}: {weight*100:.2f}%")
+for asset, weight in result["weights"].items():
+    print(f"  {asset}: {weight * 100:.2f}%")
 
-print(f"\nExpected Return: {result['expected_return']:.4f}")
-print(f"Expected Volatility: {result['expected_volatility']:.4f}")
-print(f"Sharpe Ratio: {result['sharpe_ratio']:.4f}")
+metrics = result["portfolio_metrics"]
+print(f"\nExpected Return: {metrics['expected_return']:.4f}")
+print(f"Volatility: {metrics['volatility']:.4f}")
+print(f"Sharpe Ratio: {metrics['sharpe_ratio']:.4f}")
+print(f"Constraints satisfied: {all(result['constraints_satisfied'].values())}")
 ```
 
 ## Example 2: Monte Carlo Simulation
@@ -45,25 +35,21 @@ print(f"Sharpe Ratio: {result['sharpe_ratio']:.4f}")
 Run Monte Carlo simulations for risk assessment.
 
 ```python
-from code.risk_models.risk_analysis import monte_carlo_var
+import numpy as np
 import pandas as pd
 
-# Load returns data
-returns = pd.DataFrame({
-    'AAPL': [-0.02, 0.01, -0.015, 0.03, -0.01],
-    'MSFT': [0.015, -0.005, 0.02, -0.008, 0.012],
-    'GOOGL': [0.01, 0.02, -0.01, 0.015, -0.005]
-})
+from quant_ml.risk.analysis import monte_carlo_var
 
-# Run Monte Carlo simulation (10,000 paths)
-mc_var = monte_carlo_var(
-    returns=returns,
-    confidence_level=0.95,
-    horizon=5,  # 5-day horizon
-    n_simulations=10000
+rng = np.random.default_rng(0)
+returns = pd.DataFrame(
+    rng.normal(0.0005, 0.012, size=(500, 3)), columns=["AAPL", "MSFT", "GOOGL"]
 )
 
-print("Monte Carlo VaR (95%, 5-day):")
+mc_var = monte_carlo_var(
+    returns, confidence_level=0.95, horizon=5, n_simulations=10000, seed=42
+)
+
+print("Monte Carlo VaR (95%, 5-day), as a loss fraction:")
 print(mc_var)
 ```
 
@@ -72,13 +58,10 @@ print(mc_var)
 Forecast volatility using GARCH models.
 
 ```python
-from code.risk_models.risk_analysis import garch_volatility_forecast, load_data
+from quant_ml.risk.analysis import garch_volatility_forecast, load_returns
 
-# Load historical data
-tickers = ['AAPL', 'MSFT']
-returns = load_data(tickers)
+returns = load_returns(["AAPL", "MSFT"])
 
-# Forecast volatility for next 5 days
 vol_forecast = garch_volatility_forecast(returns, horizon=5)
 
 print("GARCH Volatility Forecast (annualized):")
@@ -90,16 +73,27 @@ print(vol_forecast)
 Simulate extreme market scenarios.
 
 ```python
-from code.risk_models.risk_analysis import stress_test, load_data
+from quant_ml.risk.analysis import load_returns, stress_test
+from quant_ml.risk.stress import stress_portfolio
 
-# Load portfolio returns
-returns = load_data(['AAPL', 'MSFT', 'GOOGL'])
+returns = load_returns(["AAPL", "MSFT", "GOOGL"])
 
-# Stress test with 4x standard deviation shock
-stress_results = stress_test(returns, scenario_multiplier=4.0)
+print("Loss implied by a 4x standard deviation shock, per asset:")
+print(stress_test(returns, scenario_multiplier=4.0))
 
-print("Stress Test Results (4x Std Dev Shock):")
-print(stress_results)
+portfolio = [0.4, 0.3, 0.3]
+outcome = stress_portfolio(
+    returns,
+    portfolio,
+    [
+        {"type": "market_crash", "shock": -0.3},
+        {"type": "volatility_spike", "multiplier": 2.0},
+        {"type": "correlation_breakdown", "intensity": 0.8},
+    ],
+    seed=1,
+)
+for item in outcome["stress_results"]:
+    print(item["scenario"]["type"], round(item["stressed_var_95"], 4))
 ```
 
 ## Example 5: Blockchain Portfolio Tracking
@@ -179,18 +173,21 @@ plt.show()
 Model tail risks using Extreme Value Theory.
 
 ```python
-from code.risk_models.extreme_value_theory import fit_gev, calculate_tail_var
+import numpy as np
 
-# Sample returns (focus on losses)
-returns = [-0.05, -0.03, -0.08, -0.02, -0.01, -0.06, -0.04, -0.07]
+from quant_ml.risk.evt import ExtremeValueRisk
 
-# Fit Generalized Extreme Value (GEV) distribution
-params = fit_gev(returns)
-print(f"GEV Parameters: {params}")
+rng = np.random.default_rng(1)
+returns = rng.standard_t(4, size=5000) * 0.01
 
-# Calculate tail VaR (99.9%)
-tail_var = calculate_tail_var(returns, confidence=0.999)
-print(f"Tail VaR (99.9%): {tail_var:.4f}")
+model = ExtremeValueRisk(seed=0).fit_pot(returns, threshold_quantile=0.05)
+print(f"GPD shape and scale: {model.gpd_params}")
+print(f"VaR (99.9%): {model.calculate_var(0.999):.4f}")
+print(f"Expected shortfall (99%): {model.calculate_es(0.99):.4f}")
+
+block = ExtremeValueRisk()
+block.fit_block_maxima(returns, block_size=20)
+print(f"Block maxima VaR (99%): {block.calculate_var(0.99):.4f}")
 ```
 
 ## Example 8: Async Task Execution

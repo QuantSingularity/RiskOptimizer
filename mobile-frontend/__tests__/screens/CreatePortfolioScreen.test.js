@@ -1,159 +1,111 @@
-// mobile-frontend/__tests__/screens/CreatePortfolioScreen.test.js
-
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import { Alert } from "react-native";
 import CreatePortfolioScreen from "../../src/screens/Portfolios/CreatePortfolioScreen";
 import apiService from "../../src/services/apiService";
 
-// Mock the apiService
+jest.mock("@rneui/themed", () => require("../../test-utils/rneuiMock"));
 jest.mock("../../src/services/apiService", () => ({
-  createPortfolio: jest.fn(),
+  __esModule: true,
+  default: { createPortfolio: jest.fn() },
 }));
 
-// Mock the navigation
-const mockGoBack = jest.fn();
-const mockNavigation = {
-  goBack: mockGoBack,
-  setOptions: jest.fn(),
+const setup = () => {
+  const navigation = { goBack: jest.fn() };
+  const utils = render(<CreatePortfolioScreen navigation={navigation} />);
+  return { navigation, ...utils };
 };
 
-// Mock the components used in CreatePortfolioScreen
-jest.mock("@rneui/themed", () => {
-  const React = require("react");
-  return {
-    ...jest.requireActual("@rneui/themed"),
-    Input: ({
-      placeholder,
-      leftIcon,
-      onChangeText,
-      value,
-      multiline,
-      containerStyle,
-      disabled,
-      testID,
-    }) => (
-      <React.Fragment>
-        <input
-          placeholder={placeholder}
-          onChange={(e) => onChangeText(e.target.value)}
-          value={value}
-          multiline={multiline}
-          disabled={disabled}
-          data-testid={testID || `input-${placeholder}`}
-        />
-      </React.Fragment>
-    ),
-    Button: ({ title, onPress, buttonStyle, disabled, testID }) => (
-      <button
-        onClick={onPress}
-        disabled={disabled}
-        data-testid={testID || "button"}
-      >
-        {title}
-      </button>
-    ),
-    Text: ({ style, children }) => <span style={style}>{children}</span>,
-    Card: {
-      ...React.forwardRef(({ containerStyle, children }, ref) => (
-        <div ref={ref} style={containerStyle} data-testid="card">
-          {children}
-        </div>
-      )),
-    },
-  };
-});
+describe("CreatePortfolioScreen", () => {
+  let alertSpy;
 
-describe("Create Portfolio Screen", () => {
   beforeEach(() => {
-    // Reset all mocks
     jest.clearAllMocks();
-
-    // Setup default mock response
-    apiService.createPortfolio.mockResolvedValue({
-      data: {
-        id: "new-portfolio-id",
-        name: "Test Portfolio",
-        description: "Test Description",
-        createdAt: new Date().toISOString(),
-      },
-    });
+    alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  const renderCreateScreen = () => {
-    return render(<CreatePortfolioScreen navigation={mockNavigation} />);
-  };
-
-  it("should render name and description inputs and create button", () => {
-    renderCreateScreen();
-    expect(screen.getByTestId("input-Portfolio Name")).toBeTruthy();
-    expect(screen.getByTestId("input-Description (Optional)")).toBeTruthy();
-    expect(screen.getByTestId("button")).toBeTruthy();
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
-  it("should update input fields when user types", () => {
-    renderCreateScreen();
-    const nameInput = screen.getByTestId("input-Portfolio Name");
-    const descriptionInput = screen.getByTestId("input-Description (Optional)");
-
-    fireEvent.change(nameInput, { target: { value: "My New Portfolio" } });
-    fireEvent.change(descriptionInput, {
-      target: { value: "Focus on tech stocks" },
-    });
-
-    expect(nameInput.value).toBe("My New Portfolio");
-    expect(descriptionInput.value).toBe("Focus on tech stocks");
+  it("renders the form with USD as the default currency", () => {
+    const { getByTestId } = setup();
+    expect(getByTestId("portfolio-name-input").props.value).toBe("");
+    expect(getByTestId("portfolio-description-input")).toBeTruthy();
+    expect(getByTestId("portfolio-currency-input").props.value).toBe("USD");
   });
 
-  it("should call createPortfolio function and goBack on successful creation", async () => {
-    renderCreateScreen();
-    const nameInput = screen.getByTestId("input-Portfolio Name");
-    const descriptionInput = screen.getByTestId("input-Description (Optional)");
-    const createButton = screen.getByTestId("button");
-
-    fireEvent.change(nameInput, { target: { value: "Success Portfolio" } });
-    fireEvent.change(descriptionInput, { target: { value: "Description" } });
-    fireEvent.click(createButton);
-
-    await waitFor(() => {
-      expect(apiService.createPortfolio).toHaveBeenCalledWith({
-        name: "Success Portfolio",
-        description: "Description",
-      });
-      expect(apiService.createPortfolio).toHaveBeenCalledTimes(1);
-      expect(mockGoBack).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it("should display error message if name is missing", async () => {
-    renderCreateScreen();
-    const createButton = screen.getByTestId("button");
-
-    fireEvent.click(createButton);
-
-    await waitFor(() => {
-      expect(screen.getByText("Portfolio name is required")).toBeTruthy();
-    });
+  it("does not submit while the name is empty or only whitespace", () => {
+    const { getByTestId } = setup();
+    fireEvent.press(getByTestId("create-portfolio-submit"));
+    fireEvent.changeText(getByTestId("portfolio-name-input"), "   ");
+    fireEvent.press(getByTestId("create-portfolio-submit"));
     expect(apiService.createPortfolio).not.toHaveBeenCalled();
-    expect(mockGoBack).not.toHaveBeenCalled();
+    expect(
+      getByTestId("create-portfolio-submit").props.accessibilityState.disabled,
+    ).toBe(true);
   });
 
-  it("should display error message if creation fails", async () => {
-    apiService.createPortfolio.mockRejectedValueOnce(new Error("API Error"));
+  it("submits trimmed values with an upper-cased currency and navigates back", async () => {
+    apiService.createPortfolio.mockResolvedValue({ data: {} });
+    const { getByTestId, navigation } = setup();
+    fireEvent.changeText(getByTestId("portfolio-name-input"), "  Growth Fund ");
+    fireEvent.changeText(getByTestId("portfolio-description-input"), " Tech ");
+    fireEvent.changeText(getByTestId("portfolio-currency-input"), "eur");
+    fireEvent.press(getByTestId("create-portfolio-submit"));
 
-    renderCreateScreen();
-    const nameInput = screen.getByTestId("input-Portfolio Name");
-    const createButton = screen.getByTestId("button");
-
-    fireEvent.change(nameInput, { target: { value: "Fail Portfolio" } });
-    fireEvent.click(createButton);
-
-    await waitFor(() => {
-      expect(screen.getByText("Failed to create portfolio")).toBeTruthy();
+    await waitFor(() => expect(navigation.goBack).toHaveBeenCalledTimes(1));
+    expect(apiService.createPortfolio).toHaveBeenCalledWith({
+      name: "Growth Fund",
+      description: "Tech",
+      currency: "EUR",
     });
-    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  it("falls back to USD when the currency is cleared", async () => {
+    apiService.createPortfolio.mockResolvedValue({ data: {} });
+    const { getByTestId } = setup();
+    fireEvent.changeText(getByTestId("portfolio-name-input"), "Fund");
+    fireEvent.changeText(getByTestId("portfolio-currency-input"), "  ");
+    fireEvent.press(getByTestId("create-portfolio-submit"));
+    await waitFor(() => expect(apiService.createPortfolio).toHaveBeenCalled());
+    expect(apiService.createPortfolio.mock.calls[0][0].currency).toBe("USD");
+  });
+
+  it("shows a loading indicator and hides the button while saving", async () => {
+    let resolve;
+    apiService.createPortfolio.mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    const { getByTestId, queryByTestId, navigation } = setup();
+    fireEvent.changeText(getByTestId("portfolio-name-input"), "Fund");
+    fireEvent.press(getByTestId("create-portfolio-submit"));
+
+    expect(getByTestId("loading-indicator")).toBeTruthy();
+    expect(queryByTestId("create-portfolio-submit")).toBeNull();
+
+    await act(async () => {
+      resolve({ data: {} });
+    });
+    expect(navigation.goBack).toHaveBeenCalled();
+  });
+
+  it("reports a failed creation, stays on the screen and re-enables submitting", async () => {
+    apiService.createPortfolio.mockRejectedValue(new Error("boom"));
+    const { getByTestId, findByTestId, navigation } = setup();
+    fireEvent.changeText(getByTestId("portfolio-name-input"), "Fund");
+    fireEvent.press(getByTestId("create-portfolio-submit"));
+
+    const error = await findByTestId("create-error");
+    expect(error.props.children).toBe(
+      "Could not create portfolio. Please try again.",
+    );
+    expect(alertSpy).toHaveBeenCalledWith("Error", expect.any(String));
+    expect(navigation.goBack).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(getByTestId("create-portfolio-submit")).toBeTruthy(),
+    );
   });
 });

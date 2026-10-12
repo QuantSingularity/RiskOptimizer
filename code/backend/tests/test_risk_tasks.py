@@ -22,6 +22,7 @@ class TestMonteCarloSimulation:
 
     def setup_method(self) -> None:
         """Set up test data."""
+        np.random.seed(7)
         self.portfolio_data = {
             "weights": [0.4, 0.3, 0.3],
             "historical_returns": np.random.normal(0.001, 0.02, (252, 3)).tolist(),
@@ -76,7 +77,8 @@ class TestMonteCarloSimulation:
         assert "cvar_95" in risk_metrics
         assert "cvar_99" in risk_metrics
         assert "probability_of_loss" in risk_metrics
-        assert risk_metrics["var_99"] <= risk_metrics["var_95"]
+        assert risk_metrics["var_99"] >= risk_metrics["var_95"] >= 0
+        assert risk_metrics["cvar_95"] >= risk_metrics["var_95"]
 
 
 class TestVarCvarCalculation:
@@ -109,8 +111,10 @@ class TestVarCvarCalculation:
         assert "99%" in result["var"]
         assert "95%" in result["cvar"]
         assert "99%" in result["cvar"]
-        assert result["cvar"]["95%"] <= result["var"]["95%"]
-        assert result["cvar"]["99%"] <= result["var"]["99%"]
+        assert result["cvar"]["95%"] >= result["var"]["95%"] > 0
+        assert result["cvar"]["99%"] >= result["var"]["99%"] > 0
+        assert result["var"]["99%"] >= result["var"]["95%"]
+        assert set(result["model_estimates"]) == {"parametric", "evt"}
 
     def test_var_cvar_validation_errors(self) -> None:
         """Test validation errors in VaR/CVaR calculation."""
@@ -216,22 +220,70 @@ class TestStressTestPortfolio:
 class TestCalculatePortfolioMetrics:
     """Test cases for portfolio metrics calculation task."""
 
+    def setup_method(self) -> None:
+        rng = np.random.default_rng(5)
+        self.benchmark = rng.normal(0.0004, 0.01, 500)
+        self.returns = 1.2 * self.benchmark + rng.normal(0.0002, 0.004, 500)
+
     def test_calculate_portfolio_metrics_success(self) -> None:
-        """Test successful portfolio metrics calculation."""
-        mock_self = MagicMock()
-        mock_self.request.id = "test-task-id"
         result = calculate_portfolio_metrics(
             portfolio_id=1,
             metrics=["sharpe_ratio", "sortino_ratio", "max_drawdown"],
+            returns=self.returns.tolist(),
         )
-        assert "portfolio_id" in result
-        assert "metrics" in result
-        assert "calculated_at" in result
-        assert result["portfolio_id"] == 1
+        assert result["portfolio_id"] == 1 and "calculated_at" in result
         metrics = result["metrics"]
-        assert "sharpe_ratio" in metrics
-        assert "sortino_ratio" in metrics
-        assert "max_drawdown" in metrics
+        assert set(metrics) == {"sharpe_ratio", "sortino_ratio", "max_drawdown"}
+        assert metrics["max_drawdown"] <= 0
+        assert metrics["sharpe_ratio"] not in (1.2, 0.0)
+        assert result["observations"] == 500 and result["unavailable"] == {}
+
+    def test_metrics_are_computed_not_constant(self) -> None:
+        calm = calculate_portfolio_metrics(
+            1, ["sharpe_ratio"], returns=self.returns.tolist()
+        )
+        wild = calculate_portfolio_metrics(
+            1, ["sharpe_ratio"], returns=(self.returns * 3 - 0.002).tolist()
+        )
+        assert calm["metrics"]["sharpe_ratio"] != wild["metrics"]["sharpe_ratio"]
+
+    def test_benchmark_metrics_need_a_benchmark(self) -> None:
+        result = calculate_portfolio_metrics(
+            1, ["beta", "sharpe_ratio"], returns=self.returns.tolist()
+        )
+        assert "beta" in result["unavailable"] and "sharpe_ratio" in result["metrics"]
+
+    def test_benchmark_metrics_with_a_benchmark(self) -> None:
+        result = calculate_portfolio_metrics(
+            1,
+            ["beta", "alpha", "information_ratio"],
+            returns=self.returns.tolist(),
+            benchmark_returns=self.benchmark.tolist(),
+        )
+        assert (
+            result["metrics"]["beta"] == pytest.approx(1.2, abs=0.1)
+            and not result["unavailable"]
+        )
+
+    def test_unknown_metrics_are_ignored(self) -> None:
+        assert (
+            calculate_portfolio_metrics(1, ["nonsense"], returns=self.returns.tolist())[
+                "metrics"
+            ]
+            == {}
+        )
+
+    def test_returns_come_from_stored_market_data_when_not_supplied(self) -> None:
+        with patch(
+            "src.tasks.risk_tasks.load_portfolio_returns",
+            return_value=pd.Series(self.returns),
+        ):
+            result = calculate_portfolio_metrics(7, ["sharpe_ratio"])
+        assert result["observations"] == 500
+
+    def test_too_little_history_is_rejected(self) -> None:
+        with pytest.raises(TaskValidationError):
+            calculate_portfolio_metrics(1, ["sharpe_ratio"], returns=[0.01, 0.02])
 
 
 class TestRiskTasksIntegration:
@@ -271,10 +323,10 @@ class TestRiskTasksIntegration:
             mock_self, self.portfolio_data, num_simulations=5000, time_horizon=252
         )
         risk_metrics = result["risk_metrics"]
-        assert risk_metrics["var_95"] < 0
-        assert risk_metrics["var_99"] < 0
-        assert risk_metrics["cvar_95"] <= risk_metrics["var_95"]
-        assert risk_metrics["cvar_99"] <= risk_metrics["var_99"]
+        assert 0 < risk_metrics["var_95"] < 1
+        assert 0 < risk_metrics["var_99"] < 1
+        assert risk_metrics["cvar_95"] >= risk_metrics["var_95"]
+        assert risk_metrics["cvar_99"] >= risk_metrics["var_99"]
         assert 0 <= risk_metrics["probability_of_loss"] <= 1
 
     @patch("src.tasks.celery_app.task_result_manager")

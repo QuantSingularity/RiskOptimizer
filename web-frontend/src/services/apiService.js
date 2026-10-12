@@ -116,6 +116,23 @@ api.interceptors.response.use(
 );
 
 // API endpoints
+export const QUANT_OPERATIONS = {
+  evt: "/api/v1/quant/risk/evt",
+  ml: "/api/v1/quant/risk/ml",
+  copula: "/api/v1/quant/risk/copula",
+  hybrid: "/api/v1/quant/risk/hybrid",
+  monteCarlo: "/api/v1/quant/risk/monte-carlo",
+  batch: "/api/v1/quant/risk/batch",
+  stressTest: "/api/v1/quant/risk/stress-test",
+  backtest: "/api/v1/quant/risk/backtest",
+  sensitivity: "/api/v1/quant/risk/sensitivity",
+  decomposition: "/api/v1/quant/risk/decomposition",
+  analysis: "/api/v1/quant/risk/analysis",
+  portfolioSearch: "/api/v1/quant/portfolio/search",
+  meanVariance: "/api/v1/quant/portfolio/mean-variance",
+  report: "/api/v1/quant/reports/risk",
+};
+
 const endpoints = {
   // Auth
   login: "/api/v1/auth/login",
@@ -146,6 +163,14 @@ const endpoints = {
   optimizePortfolio: "/api/v1/optimization/optimize",
   efficientFrontierOpt: "/api/v1/optimization/efficient-frontier",
   constraints: "/api/v1/optimization/constraints",
+  optimizationSymbols: "/api/v1/optimization/symbols",
+  optimizationSimulate: "/api/v1/optimization/simulate",
+  optimizationSentiment: "/api/v1/optimization/sentiment",
+  optimizationModel: "/api/v1/optimization/model",
+  optimizationForecast: (ticker) =>
+    `/api/v1/optimization/forecast/${encodeURIComponent(ticker)}`,
+  quantInfo: "/api/v1/quant/info",
+  quantReports: "/api/v1/quant/reports",
 
   // Market data
   marketData: "/api/v1/market/data",
@@ -273,6 +298,65 @@ const apiService = {
 
     getConstraints: async () => {
       const response = await api.get(endpoints.constraints);
+      return response.data;
+    },
+
+    getSymbols: async () => {
+      const response = await api.get(endpoints.optimizationSymbols);
+      return response.data;
+    },
+
+    simulate: async (params) => {
+      const response = await api.post(endpoints.optimizationSimulate, params);
+      return response.data;
+    },
+
+    forecast: async (ticker, periods = 30, model = "auto") => {
+      const response = await api.get(endpoints.optimizationForecast(ticker), {
+        params: { periods, model },
+      });
+      return response.data;
+    },
+
+    analyzeSentiment: async (texts) => {
+      const response = await api.post(endpoints.optimizationSentiment, {
+        texts,
+      });
+      return response.data;
+    },
+
+    getModelInfo: async () => {
+      const response = await api.get(endpoints.optimizationModel);
+      return response.data;
+    },
+  },
+
+  quant: {
+    run: async (operation, params) => {
+      const path = QUANT_OPERATIONS[operation];
+      if (!path) {
+        throw new Error(`Unknown quant operation: ${operation}`);
+      }
+      const response = await api.post(path, params);
+      return response.data;
+    },
+
+    getInfo: async () => {
+      const response = await api.get(endpoints.quantInfo);
+      return response.data;
+    },
+
+    listReports: async (limit = 20) => {
+      const response = await api.get(endpoints.quantReports, {
+        params: { limit },
+      });
+      return response.data;
+    },
+
+    getReport: async (reportId) => {
+      const response = await api.get(
+        `${endpoints.quantReports}/${encodeURIComponent(reportId)}`,
+      );
       return response.data;
     },
   },

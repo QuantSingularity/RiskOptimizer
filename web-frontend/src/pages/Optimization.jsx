@@ -1,6 +1,8 @@
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import RemoveIcon from "@mui/icons-material/Remove";
 import SaveAltIcon from "@mui/icons-material/SaveAlt";
 import TuneIcon from "@mui/icons-material/Tune";
 import {
@@ -10,12 +12,12 @@ import {
   Card,
   CardContent,
   CardHeader,
+  Chip,
   CircularProgress,
   Divider,
   FormControl,
   FormControlLabel,
   Grid,
-  IconButton,
   LinearProgress,
   MenuItem,
   Select,
@@ -27,50 +29,39 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  Area,
   CartesianGrid,
+  ComposedChart,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
-  ComposedChart,
-  Area,
 } from "recharts";
 import { usePortfolio } from "../context/PortfolioContext";
+import apiService from "../services/apiService";
 import { formatPercentage } from "../utils/formatters";
+import {
+  CAP_PER_ASSET,
+  METHODS,
+  MIN_ASSETS,
+  SYMBOL_NAMES,
+  buildOptimizationRequest,
+  buildResults,
+} from "../utils/optimization";
 
-const ASSETS = [
-  { name: "Apple Inc. (AAPL)", current: 15 },
-  { name: "Microsoft Corp. (MSFT)", current: 12 },
-  { name: "Amazon.com Inc. (AMZN)", current: 10 },
-  { name: "Tesla Inc. (TSLA)", current: 8 },
-  { name: "Alphabet Inc. (GOOGL)", current: 10 },
-  { name: "Bitcoin (BTC)", current: 5 },
-  { name: "Ethereum (ETH)", current: 5 },
-  { name: "S&P 500 ETF (SPY)", current: 20 },
-  { name: "Gold ETF (GLD)", current: 10 },
-  { name: "Cash (USD)", current: 5 },
-];
+const methodLabel = (value) =>
+  METHODS.find((method) => method.value === value)?.label || value;
 
-// Generate mock efficient frontier data
-function generateEfficientFrontier(riskTolerance) {
-  const points = [];
-  for (let i = 0; i <= 25; i++) {
-    const risk = 4 + i * 1.2;
-    const ret = 2 + i * 0.85 - (i > 14 ? (i - 14) * 0.2 : 0);
-    points.push({
-      risk: parseFloat(risk.toFixed(2)),
-      return: parseFloat(ret.toFixed(2)),
-    });
+const EfficientFrontierChart = ({ data, sharpe }) => {
+  if (!data) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        The efficient frontier could not be computed for this selection.
+      </Typography>
+    );
   }
-  // Mark optimal point based on risk tolerance
-  const optIdx = Math.round((riskTolerance / 100) * 20);
-  return { points, optimalIdx: optIdx };
-}
-
-const EfficientFrontierChart = ({ data }) => {
-  if (!data) return null;
   const { points, optimalIdx } = data;
   const optimal = points[optimalIdx];
 
@@ -80,8 +71,8 @@ const EfficientFrontierChart = ({ data }) => {
         Efficient Frontier
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Each point represents an optimal portfolio for a given risk level. The
-        highlighted point matches your risk tolerance.
+        Each point is the lowest risk portfolio for a given expected return. The
+        highlighted point is closest to your optimized portfolio.
       </Typography>
       <Box sx={{ height: 280 }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -97,6 +88,8 @@ const EfficientFrontierChart = ({ data }) => {
               dataKey="risk"
               name="Risk"
               unit="%"
+              type="number"
+              domain={["dataMin", "dataMax"]}
               tick={{ fill: "#b2bac2", fontSize: 10 }}
               tickLine={false}
               label={{
@@ -140,23 +133,15 @@ const EfficientFrontierChart = ({ data }) => {
               fill="rgba(97,218,251,0.08)"
               dot={(props) => {
                 const isOptimal = props.index === optimalIdx;
-                return isOptimal ? (
+                return (
                   <circle
                     key={props.index}
                     cx={props.cx}
                     cy={props.cy}
-                    r={8}
-                    fill="#ff9800"
-                    stroke="#fff"
-                    strokeWidth={2}
-                  />
-                ) : (
-                  <circle
-                    key={props.index}
-                    cx={props.cx}
-                    cy={props.cy}
-                    r={3}
-                    fill="#61dafb"
+                    r={isOptimal ? 8 : 3}
+                    fill={isOptimal ? "#ff9800" : "#61dafb"}
+                    stroke={isOptimal ? "#fff" : "none"}
+                    strokeWidth={isOptimal ? 2 : 0}
                   />
                 );
               }}
@@ -169,7 +154,7 @@ const EfficientFrontierChart = ({ data }) => {
         <Box sx={{ display: "flex", gap: 3, mt: 1 }}>
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Optimal Risk
+              Nearest Frontier Risk
             </Typography>
             <Typography variant="body2" fontWeight={600}>
               {optimal.risk}%
@@ -177,7 +162,7 @@ const EfficientFrontierChart = ({ data }) => {
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Optimal Return
+              Nearest Frontier Return
             </Typography>
             <Typography variant="body2" fontWeight={600} color="success.main">
               {optimal.return}%
@@ -185,10 +170,10 @@ const EfficientFrontierChart = ({ data }) => {
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Implied Sharpe
+              Portfolio Sharpe
             </Typography>
             <Typography variant="body2" fontWeight={600}>
-              {(optimal.return / optimal.risk).toFixed(2)}
+              {sharpe?.toFixed(2) ?? "-"}
             </Typography>
           </Box>
         </Box>
@@ -199,6 +184,14 @@ const EfficientFrontierChart = ({ data }) => {
 
 const AllocationBar = ({ name, current, optimized }) => {
   const diff = optimized - current;
+  const color =
+    diff > 0.05 ? "success.main" : diff < -0.05 ? "error.main" : "text.primary";
+  const Icon =
+    diff > 0.05
+      ? ArrowUpwardIcon
+      : diff < -0.05
+        ? ArrowDownwardIcon
+        : RemoveIcon;
   return (
     <Box sx={{ mb: 1.5 }}>
       <Grid container alignItems="center" spacing={1}>
@@ -219,21 +212,12 @@ const AllocationBar = ({ name, current, optimized }) => {
               alignItems: "center",
               justifyContent: "flex-end",
               gap: 0.5,
+              color,
             }}
           >
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 700,
-                color:
-                  diff > 0
-                    ? "success.main"
-                    : diff < 0
-                      ? "error.main"
-                      : "text.primary",
-              }}
-            >
-              {diff > 0 ? "↑" : diff < 0 ? "↓" : "→"} {optimized}%
+            <Icon sx={{ fontSize: 16 }} />
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {optimized}%
             </Typography>
           </Box>
         </Grid>
@@ -241,7 +225,7 @@ const AllocationBar = ({ name, current, optimized }) => {
       <Box sx={{ display: "flex", gap: 0.5, mt: 0.4 }}>
         <LinearProgress
           variant="determinate"
-          value={current}
+          value={Math.min(100, current)}
           sx={{
             flex: 1,
             height: 4,
@@ -254,7 +238,7 @@ const AllocationBar = ({ name, current, optimized }) => {
         />
         <LinearProgress
           variant="determinate"
-          value={optimized}
+          value={Math.min(100, optimized)}
           sx={{
             flex: 1,
             height: 4,
@@ -262,7 +246,7 @@ const AllocationBar = ({ name, current, optimized }) => {
             backgroundColor: "rgba(255,255,255,0.08)",
             "& .MuiLinearProgress-bar": {
               backgroundColor:
-                diff > 0 ? "#4caf50" : diff < 0 ? "#f44336" : "#61dafb",
+                diff > 0.05 ? "#4caf50" : diff < -0.05 ? "#f44336" : "#61dafb",
             },
           }}
         />
@@ -272,64 +256,96 @@ const AllocationBar = ({ name, current, optimized }) => {
 };
 
 const Optimization = () => {
-  const { optimizePortfolio, loading, error, clearError } = usePortfolio();
+  const {
+    portfolio,
+    optimizePortfolio,
+    savePortfolio,
+    loading,
+    error,
+    clearError,
+  } = usePortfolio();
 
+  const [availableSymbols, setAvailableSymbols] = useState([]);
+  const [selectedSymbols, setSelectedSymbols] = useState([]);
+  const [symbolsLoading, setSymbolsLoading] = useState(true);
+  const [symbolsError, setSymbolsError] = useState(null);
   const [riskTolerance, setRiskTolerance] = useState(50);
-  const [method, setMethod] = useState("sharpe");
-  const [timeHorizon, setTimeHorizon] = useState("medium");
-  const [noShortSelling, setNoShortSelling] = useState(true);
-  const [maxPerAsset, setMaxPerAsset] = useState(true);
-  const [includeESG, setIncludeESG] = useState(false);
+  const [method, setMethod] = useState("utility");
+  const [capEnabled, setCapEnabled] = useState(false);
   const [results, setResults] = useState(null);
   const [frontierData, setFrontierData] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
-  const [snackbar, setSnackbar] = useState({ open: false, message: "" });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  useEffect(() => {
+    let active = true;
+    apiService.optimization
+      .getSymbols()
+      .then((response) => {
+        if (!active) return;
+        const symbols = response.data?.symbols || [];
+        setAvailableSymbols(symbols);
+        setSelectedSymbols(symbols);
+      })
+      .catch((err) => {
+        if (active) setSymbolsError(err.message || "Failed to load assets");
+      })
+      .finally(() => {
+        if (active) setSymbolsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const toggleSymbol = (symbol) => {
+    setSelectedSymbols((current) =>
+      current.includes(symbol)
+        ? current.filter((item) => item !== symbol)
+        : availableSymbols.filter((item) =>
+            [...current, symbol].includes(item),
+          ),
+    );
+  };
+
+  const canRun = selectedSymbols.length >= MIN_ASSETS && !loading;
 
   const handleRunOptimization = async () => {
-    const params = {
-      risk_tolerance: riskTolerance / 100,
+    const request = buildOptimizationRequest({
+      symbols: selectedSymbols,
+      slider: riskTolerance,
       method,
-      time_horizon: timeHorizon,
-      constraints: {
-        no_short_selling: noShortSelling,
-        max_weight_per_asset: maxPerAsset ? 0.2 : 1.0,
-        include_esg: includeESG,
-      },
-    };
-
-    await optimizePortfolio(params);
-
-    // Always use mock results (backend not required)
-    const mockAllocations = ASSETS.map((a) => {
-      const delta = Math.round((Math.random() - 0.5) * 6);
-      return {
-        name: a.name,
-        current: a.current,
-        optimized: Math.max(0, a.current + delta),
-      };
+      capEnabled,
     });
-
-    const targetReturn = 8 + (riskTolerance / 100) * 8;
-    const targetRisk = 6 + (riskTolerance / 100) * 10;
-
-    setResults({
-      expected_return: parseFloat(targetReturn.toFixed(1)),
-      expected_risk: parseFloat(targetRisk.toFixed(1)),
-      sharpe_ratio: parseFloat((targetReturn / targetRisk).toFixed(2)),
-      allocations: mockAllocations,
+    const response = await optimizePortfolio(request);
+    if (!response) return;
+    const built = buildResults({
+      optimization: response.optimization,
+      frontier: response.frontier,
+      symbols: selectedSymbols,
+      assets: portfolio?.assets,
     });
-
-    setFrontierData(generateEfficientFrontier(riskTolerance));
+    setResults(built.results);
+    setFrontierData(built.frontierData);
     setActiveTab(0);
   };
 
-  const handleSaveOptimization = () => {
-    if (results) {
-      setSnackbar({
-        open: true,
-        message: "Optimization applied successfully!",
-      });
-    }
+  const handleSaveOptimization = async () => {
+    if (!results) return;
+    const saved = await savePortfolio({
+      target_allocation: results.weights,
+    });
+    setSnackbar({
+      open: true,
+      severity: saved ? "success" : "error",
+      message: saved
+        ? "Target allocation saved to your portfolio"
+        : "Could not save the target allocation",
+    });
   };
 
   return (
@@ -349,9 +365,9 @@ const Optimization = () => {
           variant="contained"
           startIcon={<SaveAltIcon />}
           onClick={handleSaveOptimization}
-          disabled={!results}
+          disabled={!results || loading}
         >
-          Apply Optimization
+          Save Target Allocation
         </Button>
       </Box>
 
@@ -360,22 +376,52 @@ const Optimization = () => {
           {error}
         </Alert>
       )}
+      {symbolsError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {symbolsError}
+        </Alert>
+      )}
 
       <Grid container spacing={3}>
-        {/* Parameters */}
         <Grid item xs={12} md={4}>
           <Card sx={{ height: "100%" }}>
-            <CardHeader
-              title="Parameters"
-              action={
-                <IconButton>
-                  <MoreVertIcon />
-                </IconButton>
-              }
-            />
+            <CardHeader title="Parameters" />
             <Divider />
             <CardContent>
-              {/* Risk Tolerance */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Assets ({selectedSymbols.length} selected)
+                </Typography>
+                {symbolsLoading ? (
+                  <CircularProgress size={20} />
+                ) : (
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+                    {availableSymbols.map((symbol) => {
+                      const selected = selectedSymbols.includes(symbol);
+                      return (
+                        <Tooltip
+                          key={symbol}
+                          title={SYMBOL_NAMES[symbol] || symbol}
+                        >
+                          <Chip
+                            label={symbol.replace("_", "-")}
+                            size="small"
+                            color={selected ? "primary" : "default"}
+                            variant={selected ? "filled" : "outlined"}
+                            onClick={() => toggleSymbol(symbol)}
+                          />
+                        </Tooltip>
+                      );
+                    })}
+                  </Box>
+                )}
+                {!symbolsLoading && selectedSymbols.length < MIN_ASSETS && (
+                  <Typography variant="caption" color="error">
+                    Select at least {MIN_ASSETS} assets
+                  </Typography>
+                )}
+              </Box>
+
               <Box sx={{ mb: 3 }}>
                 <Box
                   sx={{
@@ -389,7 +435,7 @@ const Optimization = () => {
                     sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
                   >
                     Risk Tolerance
-                    <Tooltip title="Higher tolerance may yield higher returns with more volatility">
+                    <Tooltip title="Higher tolerance accepts more volatility for higher expected return. It applies to the Risk Tolerance Utility method.">
                       <InfoOutlinedIcon
                         sx={{ fontSize: 16, color: "text.secondary" }}
                       />
@@ -421,10 +467,10 @@ const Optimization = () => {
                   marks
                   min={0}
                   max={100}
+                  disabled={method !== "utility"}
                 />
               </Box>
 
-              {/* Method */}
               <Box sx={{ mb: 2.5 }}>
                 <Typography variant="subtitle2" gutterBottom>
                   Optimization Method
@@ -434,64 +480,32 @@ const Optimization = () => {
                     value={method}
                     onChange={(e) => setMethod(e.target.value)}
                   >
-                    <MenuItem value="sharpe">Maximum Sharpe Ratio</MenuItem>
-                    <MenuItem value="minrisk">Minimum Risk</MenuItem>
-                    <MenuItem value="target">Target Return</MenuItem>
-                    <MenuItem value="efficient">Efficient Frontier</MenuItem>
+                    {METHODS.map((item) => (
+                      <MenuItem key={item.value} value={item.value}>
+                        {item.label}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Box>
 
-              {/* Time Horizon */}
-              <Box sx={{ mb: 2.5 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Time Horizon
-                </Typography>
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={timeHorizon}
-                    onChange={(e) => setTimeHorizon(e.target.value)}
-                  >
-                    <MenuItem value="short">Short Term (1–2 years)</MenuItem>
-                    <MenuItem value="medium">Medium Term (3–5 years)</MenuItem>
-                    <MenuItem value="long">Long Term (5+ years)</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-
-              {/* Constraints */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" gutterBottom>
                   Constraints
                 </Typography>
                 <FormControlLabel
-                  control={
-                    <Switch
-                      checked={noShortSelling}
-                      onChange={(e) => setNoShortSelling(e.target.checked)}
-                    />
-                  }
-                  label="No Short Selling"
+                  control={<Switch checked disabled />}
+                  label="Long Only"
                   sx={{ display: "flex" }}
                 />
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={maxPerAsset}
-                      onChange={(e) => setMaxPerAsset(e.target.checked)}
+                      checked={capEnabled}
+                      onChange={(e) => setCapEnabled(e.target.checked)}
                     />
                   }
-                  label="Max 20% per Asset"
-                  sx={{ display: "flex" }}
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={includeESG}
-                      onChange={(e) => setIncludeESG(e.target.checked)}
-                    />
-                  }
-                  label="Include ESG Factors"
+                  label={`Max ${Math.round(CAP_PER_ASSET * 100)}% per Asset`}
                   sx={{ display: "flex" }}
                 />
               </Box>
@@ -508,7 +522,7 @@ const Optimization = () => {
                   )
                 }
                 onClick={handleRunOptimization}
-                disabled={loading}
+                disabled={!canRun}
               >
                 {loading ? "Optimizing..." : "Run Optimization"}
               </Button>
@@ -516,14 +530,17 @@ const Optimization = () => {
           </Card>
         </Grid>
 
-        {/* Results */}
         <Grid item xs={12} md={8}>
           <Card sx={{ height: "100%" }}>
             <CardHeader
               title="Results"
               subheader={
                 results
-                  ? `${method === "sharpe" ? "Max Sharpe" : method === "minrisk" ? "Min Risk" : method === "target" ? "Target Return" : "Efficient Frontier"} · ${timeHorizon} term`
+                  ? `${methodLabel(results.method)} | ${
+                      results.model_type === "ml"
+                        ? "ML return model"
+                        : "Historical mean model"
+                    }`
                   : "Run optimization to see results"
               }
               action={
@@ -546,7 +563,6 @@ const Optimization = () => {
             <CardContent>
               {results ? (
                 <>
-                  {/* Key metrics row */}
                   <Grid container spacing={2} sx={{ mb: 3 }}>
                     {[
                       {
@@ -599,7 +615,6 @@ const Optimization = () => {
                     ))}
                   </Grid>
 
-                  {/* Tabs: Allocation / Frontier */}
                   <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
                     <Tabs
                       value={activeTab}
@@ -625,7 +640,9 @@ const Optimization = () => {
                         </Typography>
                         <Box sx={{ display: "flex", gap: 4 }}>
                           <Typography variant="caption" color="text.secondary">
-                            Current
+                            {results.current_basis === "portfolio"
+                              ? "Current"
+                              : "Equal Weight"}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             Optimized
@@ -633,7 +650,7 @@ const Optimization = () => {
                         </Box>
                       </Box>
                       {results.allocations.map((a) => (
-                        <AllocationBar key={a.name} {...a} />
+                        <AllocationBar key={a.symbol} {...a} />
                       ))}
                       <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
                         <Button
@@ -647,8 +664,9 @@ const Optimization = () => {
                           variant="contained"
                           fullWidth
                           onClick={handleSaveOptimization}
+                          disabled={loading}
                         >
-                          Apply Allocation
+                          Save Allocation
                         </Button>
                       </Box>
                     </Box>
@@ -657,7 +675,7 @@ const Optimization = () => {
                   {activeTab === 1 && (
                     <EfficientFrontierChart
                       data={frontierData}
-                      riskTolerance={riskTolerance}
+                      sharpe={results.sharpe_ratio}
                     />
                   )}
                 </>
@@ -680,8 +698,8 @@ const Optimization = () => {
                     color="text.secondary"
                     align="center"
                   >
-                    Configure parameters and click &quot;Run Optimization&quot;
-                    to see results.
+                    Choose assets and parameters, then click &quot;Run
+                    Optimization&quot; to see results.
                   </Typography>
                 </Box>
               )}
@@ -693,10 +711,10 @@ const Optimization = () => {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}
-        onClose={() => setSnackbar({ open: false, message: "" })}
+        onClose={() => setSnackbar((current) => ({ ...current, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert severity="success">{snackbar.message}</Alert>
+        <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
       </Snackbar>
     </Box>
   );

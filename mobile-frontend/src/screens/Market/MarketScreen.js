@@ -84,6 +84,9 @@ const MarketScreen = ({ navigation }) => {
       const results = (await Promise.all(promises)).filter(
         (data) => data !== null,
       );
+      if (results.length === 0) {
+        throw new Error("No market data could be retrieved");
+      }
       setMarketData(results);
     } catch (err) {
       console.error("Failed to fetch initial market data:", err);
@@ -106,6 +109,9 @@ const MarketScreen = ({ navigation }) => {
         const results = (await Promise.all(promises)).filter(
           (data) => data !== null,
         );
+        if (results.length === 0) {
+          throw new Error("No watchlist data could be retrieved");
+        }
         setWatchlistData(results);
       } else {
         setWatchlistData([]); // Clear data if watchlist is empty
@@ -280,6 +286,7 @@ const MarketScreen = ({ navigation }) => {
 
   const renderItem = ({ item }) => (
     <ListItem
+      testID={`market-item-${item.symbol}`}
       bottomDivider
       onPress={() =>
         navigation.navigate("AssetDetailMarket", { symbol: item.symbol })
@@ -330,6 +337,7 @@ const MarketScreen = ({ navigation }) => {
       />
       {selectedViewIndex === 0 && (
         <SearchBar
+          testID="market-search"
           placeholder="Search assets..."
           onChangeText={setSearchQuery}
           value={searchQuery}
@@ -343,7 +351,12 @@ const MarketScreen = ({ navigation }) => {
         />
       )}
       {error ? (
-        <Text style={[styles.errorText, { padding: 15 }]}>{error}</Text>
+        <Text
+          testID="error-message"
+          style={[styles.errorText, { padding: 15 }]}
+        >
+          {error}
+        </Text>
       ) : null}
     </>
   );
@@ -351,9 +364,14 @@ const MarketScreen = ({ navigation }) => {
   const ListEmpty = () => (
     <View style={styles.centered}>
       {loading || (isSearching && selectedViewIndex === 0) ? (
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator
+          testID="loading-indicator"
+          size="large"
+          color={theme.colors.primary}
+        />
       ) : error ? (
         <Button
+          testID="retry-button"
           title="Retry"
           onPress={
             selectedViewIndex === 0
@@ -376,6 +394,7 @@ const MarketScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <FlatList
+        testID="market-list"
         data={dataToDisplay}
         renderItem={renderItem}
         keyExtractor={(item) => item.symbol}

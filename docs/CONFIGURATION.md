@@ -100,12 +100,24 @@ All environment variables can be set in a `.env` file in the project root or as 
 | `CELERY_TIMEZONE`          | string  | UTC                      | Celery timezone             | .env                    |
 | `CELERY_ENABLE_UTC`        | boolean | true                     | Enable UTC timezone         | .env                    |
 
-### AI Model Configuration
+### Quant and AI Configuration
 
-| Option               | Type   | Default                       | Description            | Where to set (env/file) |
-| -------------------- | ------ | ----------------------------- | ---------------------- | ----------------------- |
-| `MODEL_PATH`         | string | code/ai_models/trained_models | Path to trained models | .env                    |
-| `TRAINING_DATA_PATH` | string | data/                         | Path to training data  | .env                    |
+| Option                       | Type    | Default                                              | Description                                             | Where to set (env/file) |
+| ---------------------------- | ------- | ---------------------------------------------------- | ------------------------------------------------------- | ----------------------- |
+| `MODEL_PATH`                 | string  | `code/quant_ml/artifacts/portfolio_optimizer.joblib` | Trained portfolio optimizer file                        | .env                    |
+| `AI_AUTO_TRAIN`              | boolean | true                                                 | Train the optimizer on first use when no model exists   | .env                    |
+| `QUANT_ML_DATA_DIR`          | string  | bundled datasets                                     | Directory of `<SYMBOL>_historical.csv` files            | .env                    |
+| `QUANT_ML_ARTIFACT_DIR`      | string  | `code/quant_ml/artifacts`                            | Where models and reports are written (must be writable) | .env                    |
+| `QUANT_ML_REPORT_DIR`        | string  | `<artifact dir>/reports`                             | Report output directory                                 | .env                    |
+| `QUANT_ML_N_JOBS`            | integer | 1                                                    | Worker processes used by the parallel risk engine       | .env                    |
+| `QUANT_ML_SMTP_HOST`         | string  | unset                                                | SMTP host; with the sender it enables report email      | .env                    |
+| `QUANT_ML_SMTP_SENDER`       | string  | unset                                                | From address for emailed reports                        | .env                    |
+| `QUANT_ML_SMTP_PORT`         | integer | 587 (465 with SSL)                                   | SMTP port                                               | .env                    |
+| `QUANT_ML_SMTP_USER`         | string  | unset                                                | SMTP username                                           | .env                    |
+| `QUANT_ML_SMTP_PASSWORD`     | string  | unset                                                | SMTP password                                           | .env                    |
+| `QUANT_ML_SMTP_TLS`          | boolean | true                                                 | Use STARTTLS                                            | .env                    |
+| `QUANT_ML_SMTP_SSL`          | boolean | false                                                | Use an SSL connection instead of STARTTLS               | .env                    |
+| `DAILY_REPORTS_EMAIL_OWNERS` | boolean | false                                                | Email each daily report to the portfolio owner          | .env                    |
 
 ## Configuration Files
 

@@ -64,14 +64,14 @@ The API will be available at `http://localhost:5000` and the web interface at `h
 
 ## Features
 
-- ✨ Performance monitoring with Prometheus metrics
-- 🔐 Advanced JWT-based authentication with refresh tokens
-- 📊 Real-time risk calculations with Redis caching
-- 🤖 AI-powered portfolio optimization models
-- ⛓️ Blockchain integration for transparent portfolio tracking
-- 📈 Advanced risk metrics (VaR, CVaR, Sharpe Ratio, Max Drawdown)
-- 🎯 Efficient frontier calculation for optimal portfolios
-- 📱 Responsive web dashboard and mobile app support
+- Performance monitoring with Prometheus metrics
+- Advanced JWT-based authentication with refresh tokens
+- Real-time risk calculations with Redis caching
+- AI-powered portfolio optimization models
+- Blockchain integration for transparent portfolio tracking
+- Advanced risk metrics (VaR, CVaR, Sharpe Ratio, Max Drawdown)
+- Efficient frontier calculation for optimal portfolios
+- Responsive web dashboard and mobile app support
 
 ## Key Features at a Glance
 
@@ -106,7 +106,7 @@ Transparent transaction records, smart contract automation, decentralized identi
 
 **Backend:** Python (Flask), PostgreSQL, Redis, Celery  
 **Frontend:** React, TypeScript, D3.js, Recharts  
-**AI/ML:** TensorFlow, PyTorch, scikit-learn  
+**AI/ML:** scikit-learn, statsmodels, PyPortfolioOpt, NLTK, Prophet (optional)  
 **Blockchain:** Ethereum, Solidity, Web3.py  
 **Infrastructure:** Docker, Kubernetes, GitHub Actions
 

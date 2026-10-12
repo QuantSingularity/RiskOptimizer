@@ -1,220 +1,130 @@
-// mobile-frontend/__tests__/screens/OptimizationScreen.test.js
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import OptimizationScreen from "../../src/screens/Optimize/OptimizationScreen";
+import apiService from "../../src/services/apiService";
 
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react-native";
-import React from "react";
-// import OptimizationScreen from "../../src/screens/Optimize/OptimizationScreen"; // Adjust path
-// import { PortfolioContext } from "../../src/context/PortfolioContext";
-// import apiService from "../../src/services/apiService";
+jest.mock("react-native-chart-kit", () => ({
+  LineChart: () => null,
+}));
 
-// Mock navigation and context/services
-// const mockNavigate = jest.fn();
-// const mockNavigation = { navigate: mockNavigate };
-// const mockPortfolios = [{ id: "1", name: "Growth" }, { id: "2", name: "Income" }];
-// const mockPortfolioContext = { portfolios: mockPortfolios, loading: false };
-// jest.mock("../../src/services/apiService");
+jest.mock("../../src/services/apiService", () => ({
+  __esModule: true,
+  default: {
+    getOptimizationSymbols: jest.fn(),
+    optimizePortfolio: jest.fn(),
+    getEfficientFrontier: jest.fn(),
+  },
+}));
 
-// Mock Screen component for placeholder tests
-import {
-  ActivityIndicator,
-  Button,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+const SYMBOLS = ["AAPL", "MSFT", "TSLA"];
 
-// Mock Picker from a library if used, e.g., @react-native-picker/picker
-const MockPicker = ({ selectedValue, onValueChange, children, testID }) => (
-  <View testID={testID}>
-    <Text>Selected: {selectedValue}</Text>
-    {/* Simulate changing value for testing */}
-    <Button
-      title="Change Value (Mock)"
-      onPress={() => onValueChange("mock_change")}
-    />
-    {children}
-  </View>
-);
-MockPicker.Item = ({ label, value }) => (
-  <Text>
-    Item: {label} ({value})
-  </Text>
-); // Mock Item
-
-const MockOptimizationScreen = ({ navigation }) => {
-  const [selectedPortfolio, setSelectedPortfolio] = React.useState("1");
-  const [riskLevel, setRiskLevel] = React.useState("medium");
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState(null);
-  const [results, setResults] = React.useState(null);
-
-  const portfolios = [
-    { id: "1", name: "Growth Portfolio" },
-    { id: "2", name: "Income Portfolio" },
-  ];
-
-  const handleOptimize = async () => {
-    setLoading(true);
-    setError(null);
-    setResults(null);
-    console.log("Optimizing:", selectedPortfolio, riskLevel);
-    // try {
-    //   const data = await apiService.runOptimization(selectedPortfolio, { riskLevel });
-    //   setResults(data);
-    // } catch (err) {
-    //   setError("Optimization failed");
-    // } finally {
-    //   setLoading(false);
-    // }
-    await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
-    setResults({ weights: { XYZ: 1.0 } });
-    setLoading(false);
-  };
-
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Optimize Portfolio</Text>
-
-      <Text>Select Portfolio:</Text>
-      <MockPicker
-        selectedValue={selectedPortfolio}
-        onValueChange={(itemValue) => setSelectedPortfolio(itemValue)}
-        testID="portfolio-picker"
-      >
-        {portfolios.map((p) => (
-          <MockPicker.Item key={p.id} label={p.name} value={p.id} />
-        ))}
-      </MockPicker>
-
-      <Text>Select Risk Level:</Text>
-      <MockPicker
-        selectedValue={riskLevel}
-        onValueChange={(itemValue) => setRiskLevel(itemValue)}
-        testID="risk-picker"
-      >
-        <MockPicker.Item label="Low" value="low" />
-        <MockPicker.Item label="Medium" value="medium" />
-        <MockPicker.Item label="High" value="high" />
-      </MockPicker>
-
-      <Button
-        title={loading ? "Optimizing..." : "Run Optimization"}
-        onPress={handleOptimize}
-        disabled={loading}
-        testID="optimize-button"
-      />
-
-      {loading && <ActivityIndicator size="large" testID="loading-indicator" />}
-      {error && (
-        <Text style={styles.errorText} testID="error-message">
-          {error}
-        </Text>
-      )}
-      {results && (
-        <View style={styles.resultsContainer} testID="results-view">
-          <Text style={styles.resultsTitle}>Optimization Results:</Text>
-          <Text>{JSON.stringify(results)}</Text>
-        </View>
-      )}
-    </ScrollView>
-  );
+const optimizeResponse = {
+  data: {
+    data: {
+      optimized_allocation: { AAPL: 0.5, MSFT: 0.3, TSLA: 0.2 },
+      performance_metrics: {
+        expected_return: 0.123,
+        volatility: 0.21,
+        sharpe_ratio: 0.49,
+      },
+      model_type: "ml",
+      method: "utility",
+    },
+  },
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 15 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
-  errorText: { color: "red", marginTop: 10 },
-  resultsContainer: { marginTop: 20, padding: 10, backgroundColor: "#eee" },
-  resultsTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
-});
+const frontierResponse = {
+  data: {
+    data: {
+      frontier: [
+        { volatility: 0.15, expected_return: 0.08 },
+        { volatility: 0.21, expected_return: 0.12 },
+      ],
+    },
+  },
+};
 
-describe("Optimization Screen", () => {
-  const mockNavigate = jest.fn();
-  const mockNavigation = { navigate: mockNavigate };
-
-  const renderOptScreen = () => {
-    // return render(
-    //   <PortfolioContext.Provider value={mockPortfolioContext}>
-    //     <OptimizationScreen navigation={mockNavigation} />
-    //   </PortfolioContext.Provider>
-    // );
-    return render(<MockOptimizationScreen navigation={mockNavigation} />); // Render mock for now
-  };
-
-  // beforeEach(() => {
-  //   apiService.runOptimization.mockClear();
-  // });
-
-  it("should render portfolio and risk level pickers and optimize button", () => {
-    renderOptScreen();
-    // expect(screen.getByText(/optimize portfolio/i)).toBeOnTheScreen();
-    // expect(screen.getByTestId("portfolio-picker")).toBeOnTheScreen();
-    // expect(screen.getByTestId("risk-picker")).toBeOnTheScreen();
-    // expect(screen.getByRole("button", { name: /run optimization/i })).toBeOnTheScreen();
-    expect(screen.getByTestId("portfolio-picker")).toBeDefined();
-    expect(screen.getByTestId("risk-picker")).toBeDefined();
-    expect(screen.getByTestId("optimize-button")).toBeDefined();
-    expect(true).toBe(true); // Placeholder assertion
+describe("OptimizationScreen", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    apiService.getOptimizationSymbols.mockResolvedValue({
+      data: { data: { symbols: SYMBOLS } },
+    });
+    apiService.optimizePortfolio.mockResolvedValue(optimizeResponse);
+    apiService.getEfficientFrontier.mockResolvedValue(frontierResponse);
   });
 
-  it("should call optimization service on button press", async () => {
-    renderOptScreen();
-    const optimizeButton = screen.getByTestId("optimize-button");
-
-    // // Simulate selecting values if needed (mock picker makes this tricky)
-    // fireEvent(screen.getByTestId("portfolio-picker"), "onValueChange", "2");
-    // fireEvent(screen.getByTestId("risk-picker"), "onValueChange", "high");
-
-    fireEvent.press(optimizeButton);
-
-    // expect(screen.getByRole("button", { name: /optimizing.../i })).toBeDisabled();
-    // expect(screen.getByTestId("loading-indicator")).toBeOnTheScreen();
-
-    // await waitFor(() => {
-    //   expect(apiService.runOptimization).toHaveBeenCalledWith("1", { riskLevel: "medium" }); // Or selected values
-    //   expect(apiService.runOptimization).toHaveBeenCalledTimes(1);
-    // });
-    expect(true).toBe(true); // Placeholder assertion
+  it("loads symbols from the API and selects them all", async () => {
+    const { findByText, getByTestId } = render(<OptimizationScreen />);
+    expect(await findByText("Assets (3 selected)")).toBeTruthy();
+    expect(getByTestId("asset-AAPL")).toBeTruthy();
   });
 
-  it("should display results after successful optimization", async () => {
-    // apiService.runOptimization.mockResolvedValue({ weights: { AAPL: 0.8, GOOGL: 0.2 } });
-    renderOptScreen();
-    const optimizeButton = screen.getByTestId("optimize-button");
+  it("sends the selection and renders real results", async () => {
+    const { findByText, getByText } = render(<OptimizationScreen />);
+    await findByText("Assets (3 selected)");
+    fireEvent.press(getByText("Run Optimization"));
 
-    fireEvent.press(optimizeButton);
+    expect(await findByText("12.3%")).toBeTruthy();
+    expect(getByText("21%")).toBeTruthy();
+    expect(getByText("33.3% to 50%")).toBeTruthy();
+    expect(getByText(/ML return model/)).toBeTruthy();
 
-    // await waitFor(() => {
-    //   expect(screen.queryByTestId("loading-indicator")).toBeNull();
-    //   expect(screen.getByTestId("results-view")).toBeOnTheScreen();
-    //   expect(screen.getByText(/AAPL: 0.8/)).toBeOnTheScreen(); // Check for result content
-    // });
-    expect(await screen.findByTestId("results-view")).toBeDefined(); // Check mock results
-    expect(true).toBe(true); // Placeholder assertion
-  });
-
-  it("should display error message if optimization fails", async () => {
-    // apiService.runOptimization.mockRejectedValue(new Error("API Error"));
-    renderOptScreen(); // Needs modification in mock to simulate error
-    const optimizeButton = screen.getByTestId("optimize-button");
-
-    fireEvent.press(optimizeButton);
-
-    // await waitFor(() => {
-    //   expect(screen.queryByTestId("loading-indicator")).toBeNull();
-    //   expect(screen.getByText(/optimization failed/i)).toBeOnTheScreen();
-    // });
-    await waitFor(() =>
-      expect(screen.queryByTestId("loading-indicator")).toBeNull(),
+    expect(apiService.optimizePortfolio).toHaveBeenCalledWith({
+      symbols: SYMBOLS,
+      risk_tolerance: 5,
+      method: "utility",
+      min_weight: 0,
+      max_weight: 1,
+    });
+    expect(apiService.getEfficientFrontier).toHaveBeenCalledWith(
+      expect.objectContaining({ symbols: SYMBOLS, points: 20 }),
     );
-    // Modify mock to test error path
-    expect(true).toBe(true); // Placeholder assertion
   });
 
-  // Add tests for picker value changes if using a real Picker component and context
+  it("switches method and sends it", async () => {
+    const { findByText, getByTestId, getByText } = render(
+      <OptimizationScreen />,
+    );
+    await findByText("Assets (3 selected)");
+    fireEvent.press(getByTestId("method-max_sharpe"));
+    fireEvent.press(getByText("Run Optimization"));
+    await waitFor(() =>
+      expect(apiService.optimizePortfolio).toHaveBeenCalledWith(
+        expect.objectContaining({ method: "max_sharpe" }),
+      ),
+    );
+  });
+
+  it("requires at least two assets", async () => {
+    const { findByText, getByTestId, queryByText } = render(
+      <OptimizationScreen />,
+    );
+    await findByText("Assets (3 selected)");
+    fireEvent.press(getByTestId("asset-MSFT"));
+    fireEvent.press(getByTestId("asset-TSLA"));
+    expect(await findByText("Select at least 2 assets")).toBeTruthy();
+    fireEvent.press(queryByText("Run Optimization"));
+    expect(apiService.optimizePortfolio).not.toHaveBeenCalled();
+  });
+
+  it("shows the backend error message", async () => {
+    apiService.optimizePortfolio.mockRejectedValue({
+      response: { data: { error: { message: "weights are infeasible" } } },
+    });
+    const { findByText, getByText, queryByText } = render(
+      <OptimizationScreen />,
+    );
+    await findByText("Assets (3 selected)");
+    fireEvent.press(getByText("Run Optimization"));
+    expect(await findByText("weights are infeasible")).toBeTruthy();
+    expect(queryByText("Results")).toBeNull();
+  });
+
+  it("reports a failure to load symbols", async () => {
+    apiService.getOptimizationSymbols.mockRejectedValue(
+      new Error("Network Error"),
+    );
+    const { findByText } = render(<OptimizationScreen />);
+    expect(await findByText("Network Error")).toBeTruthy();
+  });
 });

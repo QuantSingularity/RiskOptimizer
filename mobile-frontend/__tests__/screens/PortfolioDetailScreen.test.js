@@ -1,268 +1,162 @@
-// mobile-frontend/__tests__/screens/PortfolioDetailScreen.test.js
+import { act, fireEvent, render } from "@testing-library/react-native";
+import PortfolioDetailScreen from "../../src/screens/Portfolios/PortfolioDetailScreen";
+import apiService from "../../src/services/apiService";
 
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react-native";
-import React from "react";
-// import PortfolioDetailScreen from "../../src/screens/Portfolios/PortfolioDetailScreen"; // Adjust path
-// import { PortfolioContext } from "../../src/context/PortfolioContext";
-// import apiService from "../../src/services/apiService";
+jest.mock("@rneui/themed", () => require("../../test-utils/rneuiMock"));
+jest.mock("react-native-chart-kit", () => ({ PieChart: () => null }));
+jest.mock("@react-navigation/native", () => ({
+  useFocusEffect: (callback) => {
+    const { useEffect: effect } = require("react");
+    effect(callback, [callback]);
+  },
+}));
+jest.mock("../../src/services/apiService", () => ({
+  __esModule: true,
+  default: { getPortfolioDetails: jest.fn() },
+}));
 
-// Mock navigation and route params
-// const mockGoBack = jest.fn();
-// const mockNavigate = jest.fn();
-// const mockRoute = { params: { portfolioId: "1" } };
-// const mockNavigation = { goBack: mockGoBack, navigate: mockNavigate };
-
-// Mock context/services
-// const mockPortfolio = { id: "1", name: "Growth Portfolio", description: "Desc", assets: [{ id: "a1", symbol: "AAPL", quantity: 10, value: 1750 }], totalValue: 1750 };
-// const mockPortfolioContext = {
-//   getPortfolioDetails: jest.fn().mockResolvedValue(mockPortfolio),
-//   loading: false,
-//   error: null,
-// };
-// jest.mock("../../src/services/apiService");
-
-// Mock Screen component for placeholder tests
-import {
-  ActivityIndicator,
-  Button,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-
-const MockPortfolioDetailScreen = ({ route, navigation }) => {
-  const portfolioId = route.params.portfolioId;
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(null);
-  const [portfolio, setPortfolio] = React.useState(null);
-
-  const mockPortfolioData = {
-    1: {
+const DETAILS = {
+  id: 7,
+  name: "Retirement",
+  description: "Long term",
+  currency: "USD",
+  total_value: 12000,
+  risk_score: 0.31,
+  assets: [
+    {
       id: "1",
-      name: "Growth Portfolio",
-      description: "Focus on growth",
-      assets: [{ id: "a1", symbol: "AAPL", quantity: 10, value: 1750 }],
-      totalValue: 1750,
+      symbol: "AAPL",
+      name: "Apple",
+      quantity: 40,
+      value: 6000,
+      allocation_percentage: 50,
+      performance: 5.25,
     },
-    2: {
+    {
       id: "2",
-      name: "Income Portfolio",
-      description: "Focus on dividends",
-      assets: [{ id: "a2", symbol: "MSFT", quantity: 5, value: 1500 }],
-      totalValue: 1500,
+      symbol: "MSFT",
+      name: "MSFT",
+      quantity: null,
+      value: 6000,
+      allocation_percentage: 50,
+      performance: null,
     },
-  };
-
-  React.useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      console.log("Fetching details for portfolio:", portfolioId);
-      try {
-        // Simulate API call or context fetch
-        // const data = await mockPortfolioContext.getPortfolioDetails(portfolioId);
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
-        const data = mockPortfolioData[portfolioId];
-        if (data) {
-          setPortfolio(data);
-        } else {
-          throw new Error("Portfolio not found");
-        }
-      } catch (err) {
-        setError(err.message || "Failed to load portfolio details");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [portfolioId, mockPortfolioData]);
-
-  const renderAsset = ({ item }) => (
-    <TouchableOpacity
-      onPress={() => navigation.navigate("AssetDetail", { assetId: item.id })}
-      style={styles.assetItem}
-      testID={`asset-item-${item.symbol}`}
-    >
-      <Text>
-        {item.symbol} - Qty: {item.quantity}
-      </Text>
-      <Text>Value: ${item.value?.toFixed(2)}</Text>
-    </TouchableOpacity>
-  );
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" testID="loading-indicator" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorText} testID="error-message">
-          {error}
-        </Text>
-      </View>
-    );
-  }
-
-  if (!portfolio) {
-    return (
-      <View style={styles.center}>
-        <Text>Portfolio not found.</Text>
-      </View>
-    ); // Should be caught by error state ideally
-  }
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{portfolio.name}</Text>
-      <Text style={styles.description}>{portfolio.description}</Text>
-      <Text style={styles.totalValue}>
-        Total Value: ${portfolio.totalValue?.toLocaleString()}
-      </Text>
-
-      <Button
-        title="Add Asset"
-        onPress={() =>
-          navigation.navigate("AddAsset", { portfolioId: portfolio.id })
-        }
-        testID="add-asset-button"
-      />
-
-      <Text style={styles.assetsHeader}>Assets:</Text>
-      <FlatList
-        data={portfolio.assets}
-        renderItem={renderAsset}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text>No assets in this portfolio.</Text>}
-        testID="asset-list"
-      />
-      {/* Add buttons for Edit Portfolio, Delete Portfolio, View History etc. if they exist */}
-    </View>
-  );
+  ],
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 15 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 5 },
-  description: { fontSize: 16, color: "gray", marginBottom: 15 },
-  totalValue: { fontSize: 18, fontWeight: "bold", marginBottom: 20 },
-  assetsHeader: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 10,
-    marginBottom: 5,
-  },
-  assetItem: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  errorText: { color: "red" },
-});
+const setup = (params = { portfolioId: 7, portfolioName: "Retirement" }) => {
+  const navigation = { navigate: jest.fn(), setOptions: jest.fn() };
+  const utils = render(
+    <PortfolioDetailScreen route={{ params }} navigation={navigation} />,
+  );
+  return { navigation, ...utils };
+};
 
-describe("Portfolio Detail Screen", () => {
-  const mockGoBack = jest.fn();
-  const mockNavigate = jest.fn();
-  const mockRoute = { params: { portfolioId: "1" } };
-  const mockNavigation = { goBack: mockGoBack, navigate: mockNavigate };
-
-  const renderDetailScreen = (route = mockRoute) => {
-    // return render(
-    //   <PortfolioContext.Provider value={mockPortfolioContext}>
-    //     <PortfolioDetailScreen route={route} navigation={mockNavigation} />
-    //   </PortfolioContext.Provider>
-    // );
-    return render(
-      <MockPortfolioDetailScreen route={route} navigation={mockNavigation} />,
-    ); // Render mock for now
-  };
-
-  // beforeEach(() => {
-  //   mockPortfolioContext.getPortfolioDetails.mockClear();
-  //   mockNavigate.mockClear();
-  // });
-
-  it("should display loading indicator initially", () => {
-    renderDetailScreen();
-    // expect(screen.getByTestId("loading-indicator")).toBeOnTheScreen();
-    expect(true).toBe(true); // Placeholder assertion
+describe("PortfolioDetailScreen", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  it("should display portfolio details and assets after loading", async () => {
-    renderDetailScreen();
-    // await waitFor(() => {
-    //   expect(mockPortfolioContext.getPortfolioDetails).toHaveBeenCalledWith("1");
-    //   expect(screen.queryByTestId("loading-indicator")).toBeNull();
-    //   expect(screen.getByText(/growth portfolio/i)).toBeOnTheScreen();
-    //   expect(screen.getByText(/focus on growth/i)).toBeOnTheScreen(); // Description
-    //   expect(screen.getByText(/total value: \$1,750/i)).toBeOnTheScreen();
-    //   expect(screen.getByTestId("asset-item-AAPL")).toBeOnTheScreen();
-    //   expect(screen.getByText(/qty: 10/i)).toBeOnTheScreen();
-    // });
-    await waitFor(() =>
-      expect(screen.queryByTestId("loading-indicator")).toBeNull(),
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("loads the requested portfolio from the API, not from placeholder data", async () => {
+    apiService.getPortfolioDetails.mockResolvedValue({
+      data: { data: DETAILS },
+    });
+    const { findByTestId, queryByText } = setup();
+    await findByTestId("asset-item-AAPL");
+    expect(apiService.getPortfolioDetails).toHaveBeenCalledWith(7);
+    expect(queryByText(/Tesla/)).toBeNull();
+    expect(queryByText(/BTC-USD/)).toBeNull();
+  });
+
+  it("shows a loading indicator first", async () => {
+    let resolve;
+    apiService.getPortfolioDetails.mockReturnValue(
+      new Promise((done) => (resolve = done)),
     );
-    expect(screen.getByText(/growth portfolio/i)).toBeDefined();
-    expect(screen.getByTestId("asset-item-AAPL")).toBeDefined();
-    expect(true).toBe(true); // Placeholder assertion
+    const { getByTestId, queryByTestId } = setup();
+    expect(getByTestId("loading-indicator")).toBeTruthy();
+    await act(async () => resolve({ data: { data: DETAILS } }));
+    expect(queryByTestId("loading-indicator")).toBeNull();
   });
 
-  it("should navigate to AddAsset screen when 'Add Asset' button is pressed", async () => {
-    renderDetailScreen();
-    await waitFor(() =>
-      expect(screen.queryByTestId("loading-indicator")).toBeNull(),
+  it("renders totals and asset rows, using N/A for missing quantity and performance", async () => {
+    apiService.getPortfolioDetails.mockResolvedValue({
+      data: { data: DETAILS },
+    });
+    const { findByTestId, getByText } = setup();
+    await findByTestId("asset-item-AAPL");
+    expect(getByText(/12,000\.00/)).toBeTruthy();
+    expect(getByText(/Qty: 40 \| Value: USD\s+6,000\.00/)).toBeTruthy();
+    expect(getByText(/Allocation: 50\.00% \| Perf:\s+5\.25%/)).toBeTruthy();
+    expect(getByText(/Qty: N\/A/)).toBeTruthy();
+    expect(getByText(/Perf:\s+N\/A/)).toBeTruthy();
+  });
+
+  it("accepts the unwrapped response shape and sets the screen title", async () => {
+    apiService.getPortfolioDetails.mockResolvedValue({ data: DETAILS });
+    const { findByTestId, navigation } = setup({ portfolioId: 7 });
+    await findByTestId("asset-item-MSFT");
+    expect(navigation.setOptions).toHaveBeenLastCalledWith({
+      title: "Retirement",
+    });
+  });
+
+  it("shows an empty state for a portfolio without assets", async () => {
+    apiService.getPortfolioDetails.mockResolvedValue({
+      data: { data: { ...DETAILS, assets: [] } },
+    });
+    const { findByText } = setup();
+    expect(await findByText(/No assets in this portfolio yet/)).toBeTruthy();
+  });
+
+  it("shows an error with retry when the request fails", async () => {
+    apiService.getPortfolioDetails
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ data: { data: DETAILS } });
+    const { findByTestId, getByTestId } = setup();
+    expect((await findByTestId("error-message")).props.children).toBe(
+      "Could not load portfolio details.",
     );
-
-    const addAssetButton = screen.getByTestId("add-asset-button");
-    fireEvent.press(addAssetButton);
-
-    // expect(mockNavigate).toHaveBeenCalledWith("AddAsset", { portfolioId: "1" });
-    // expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(true).toBe(true); // Placeholder assertion
+    fireEvent.press(getByTestId("retry-button"));
+    expect(await findByTestId("asset-item-AAPL")).toBeTruthy();
+    expect(apiService.getPortfolioDetails).toHaveBeenCalledTimes(2);
   });
 
-  it("should navigate to AssetDetail screen when an asset is pressed", async () => {
-    renderDetailScreen();
-    await waitFor(() =>
-      expect(screen.queryByTestId("loading-indicator")).toBeNull(),
-    );
-
-    const assetItem = screen.getByTestId("asset-item-AAPL");
-    fireEvent.press(assetItem);
-
-    // expect(mockNavigate).toHaveBeenCalledWith("AssetDetail", { assetId: "a1" });
-    // expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(true).toBe(true); // Placeholder assertion
+  it("treats an empty response as an error", async () => {
+    apiService.getPortfolioDetails.mockResolvedValue({ data: null });
+    const { findByTestId } = setup();
+    expect(await findByTestId("error-message")).toBeTruthy();
   });
 
-  it("should display error message if loading fails", async () => {
-    // mockPortfolioContext.getPortfolioDetails.mockRejectedValueOnce(new Error("API Error"));
-    renderDetailScreen({ params: { portfolioId: "invalid" } }); // Use invalid ID for mock error
-
-    // await waitFor(() => {
-    //   expect(screen.queryByTestId("loading-indicator")).toBeNull();
-    //   expect(screen.getByText(/failed to load portfolio details/i)).toBeOnTheScreen();
-    // });
-    await waitFor(() =>
-      expect(screen.queryByTestId("loading-indicator")).toBeNull(),
-    );
-    expect(screen.getByTestId("error-message")).toBeDefined();
-    expect(true).toBe(true); // Placeholder assertion
+  it("loads once without looping", async () => {
+    apiService.getPortfolioDetails.mockResolvedValue({
+      data: { data: DETAILS },
+    });
+    const { findByTestId } = setup();
+    await findByTestId("asset-item-AAPL");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(apiService.getPortfolioDetails).toHaveBeenCalledTimes(1);
   });
 
-  // Add tests for Edit/Delete/History buttons if they exist
+  it("navigates to the asset and to the add asset screen", async () => {
+    apiService.getPortfolioDetails.mockResolvedValue({
+      data: { data: DETAILS },
+    });
+    const { findByTestId, getByTestId, navigation } = setup();
+    fireEvent.press(await findByTestId("asset-item-AAPL"));
+    expect(navigation.navigate).toHaveBeenCalledWith("AssetDetailPortfolio", {
+      symbol: "AAPL",
+    });
+    fireEvent.press(getByTestId("add-asset-button"));
+    expect(navigation.navigate).toHaveBeenCalledWith("AddAsset", {
+      portfolioId: 7,
+    });
+  });
 });

@@ -75,22 +75,13 @@ def jwt_required(roles: Optional[Union[str, List[str]]] = None) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs) -> object:
             try:
-                # Get token from header
                 token = get_token_from_header()
-
-                # Verify token
                 payload = auth_service.verify_token(token)
-
-                # Store user info in g for access in route handlers
                 g.user = {
                     "id": payload["user_id"],
                     "email": payload["email"],
-                    "role": payload.get(
-                        "role", "user"
-                    ),  # Default to 'user' role if not present
+                    "role": payload.get("role", "user"),
                 }
-
-                # Check role if required
                 if roles:
                     required_roles = [roles] if isinstance(roles, str) else roles
                     if g.user["role"] not in required_roles:
@@ -100,20 +91,14 @@ def jwt_required(roles: Optional[Union[str, List[str]]] = None) -> Callable:
                         raise AuthorizationError(
                             f"Insufficient permissions. Required role(s): {', '.join(required_roles)}"
                         )
-
-                # Call the original function
-                return func(*args, **kwargs)
-
             except AuthenticationError as e:
                 logger.warning(f"Authentication error: {str(e)}")
                 response = create_error_response(e)
                 return jsonify(response), 401
-
             except AuthorizationError as e:
                 logger.warning(f"Authorization error: {str(e)}")
                 response = create_error_response(e)
                 return jsonify(response), 403
-
             except Exception as e:
                 logger.error(
                     f"Unexpected error in auth middleware: {str(e)}", exc_info=True
@@ -121,6 +106,7 @@ def jwt_required(roles: Optional[Union[str, List[str]]] = None) -> Callable:
                 error = AuthenticationError(f"Authentication failed: {str(e)}")
                 response = create_error_response(error)
                 return jsonify(response), 401
+            return func(*args, **kwargs)
 
         return wrapper
 

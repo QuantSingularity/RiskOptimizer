@@ -19,16 +19,16 @@ All scripts are located in the `scripts/` directory.
 
 ### Available Scripts
 
-| Command                    | Arguments                                         | Description                             | Example                                        |
-| -------------------------- | ------------------------------------------------- | --------------------------------------- | ---------------------------------------------- |
-| `setup_environment.sh`     | None                                              | Set up development environment          | `./scripts/setup_environment.sh`               |
-| `setup_dev_environment.sh` | None                                              | Set up dev environment with extra tools | `./scripts/setup_dev_environment.sh`           |
-| `run_riskoptimizer.sh`     | None                                              | Start all application services          | `./scripts/run_riskoptimizer.sh`               |
-| `run_tests.sh`             | `[-c component] [-p] [-q] [--coverage]`           | Run tests                               | `./scripts/run_tests.sh -c backend --coverage` |
-| `code_quality.sh`          | `[-c component] [-f] [-s]`                        | Check/fix code quality                  | `./scripts/code_quality.sh -f`                 |
-| `deploy.sh`                | `-e env [-c component] [--skip-tests]`            | Deploy to environment                   | `./scripts/deploy.sh -e prod`                  |
-| `model_training.sh`        | `[-m model] [-d dataset] [-e epochs] [-p params]` | Train AI models                         | `./scripts/model_training.sh -m optimization`  |
-| `lint-all.sh`              | None                                              | Lint all code                           | `./scripts/lint-all.sh`                        |
+| Command                    | Arguments                                              | Description                             | Example                                        |
+| -------------------------- | ------------------------------------------------------ | --------------------------------------- | ---------------------------------------------- |
+| `setup_environment.sh`     | None                                                   | Set up development environment          | `./scripts/setup_environment.sh`               |
+| `setup_dev_environment.sh` | None                                                   | Set up dev environment with extra tools | `./scripts/setup_dev_environment.sh`           |
+| `run_riskoptimizer.sh`     | None                                                   | Start all application services          | `./scripts/run_riskoptimizer.sh`               |
+| `run_tests.sh`             | `[-c component] [-p] [-q] [--coverage]`                | Run tests                               | `./scripts/run_tests.sh -c backend --coverage` |
+| `code_quality.sh`          | `[-c component] [-f] [-s]`                             | Check/fix code quality                  | `./scripts/code_quality.sh -f`                 |
+| `deploy.sh`                | `-e env [-c component] [--skip-tests]`                 | Deploy to environment                   | `./scripts/deploy.sh -e prod`                  |
+| `model_training.sh`        | `[-m model] [-s symbols] [-d data-dir] [-r tolerance]` | Train and evaluate quant_ml models      | `./scripts/model_training.sh -m optimization`  |
+| `lint-all.sh`              | None                                                   | Lint all code                           | `./scripts/lint-all.sh`                        |
 
 ## Commands
 
@@ -222,59 +222,55 @@ Deploys application to specified environment.
 - Target environment set up
 - Docker/Kubernetes configured (for prod)
 
-### AI Model Commands
+### Quant Model Commands
 
 #### model_training.sh
 
-Trains and evaluates AI models.
+Trains the portfolio optimizer and evaluates the quant_ml models. It wraps `python -m quant_ml.training.cli` and `python -m quant_ml.training.evaluate`.
 
 ```bash
-# Train all models
+# Train the optimizer and evaluate everything
 ./scripts/model_training.sh
 
-# Train specific model type
-./scripts/model_training.sh -m optimization
-./scripts/model_training.sh -m risk
-./scripts/model_training.sh -m prediction
+# Train on chosen symbols with a given risk tolerance
+./scripts/model_training.sh -m optimization -s AAPL MSFT BTC_USD -r 7
 
-# Use custom dataset
-./scripts/model_training.sh -d /path/to/dataset.csv
+# Use your own data (directory of <SYMBOL>_historical.csv files)
+./scripts/model_training.sh -d /path/to/data -s AAPL MSFT
 
-# Specify epochs
-./scripts/model_training.sh -e 200
+# Evaluate only, failing the run if any calibration check fails
+./scripts/model_training.sh --evaluate-only --strict
 
-# Custom hyperparameters (JSON)
-./scripts/model_training.sh -p '{"learning_rate": 0.001, "batch_size": 64}'
-
-# Evaluate only (no training)
-./scripts/model_training.sh --evaluate-only
-
-# Combine options
-./scripts/model_training.sh -m optimization -d custom_data.csv -e 150
+# Save efficient frontier and Monte Carlo plots after training
+./scripts/model_training.sh -m optimization --visualize
 ```
 
 **Options:**
 
-| Flag              | Description                                   | Example              |
-| ----------------- | --------------------------------------------- | -------------------- |
-| `-m, --model`     | Model type (optimization/risk/prediction/all) | `-m optimization`    |
-| `-d, --dataset`   | Path to custom dataset                        | `-d data.csv`        |
-| `-e, --epochs`    | Number of training epochs                     | `-e 200`             |
-| `-p, --params`    | Hyperparameters (JSON string)                 | `-p '{"lr": 0.001}'` |
-| `--evaluate-only` | Only evaluate, don't train                    | `--evaluate-only`    |
+| Flag                   | Description                                          | Example              |
+| ---------------------- | ---------------------------------------------------- | -------------------- |
+| `-m, --model`          | `all`, `optimization`, `risk` or `forecast`          | `-m optimization`    |
+| `-s, --symbols`        | Space separated symbols (default: every dataset)     | `-s AAPL MSFT`       |
+| `-d, --data-dir`       | Directory containing `<SYMBOL>_historical.csv` files | `-d ./data`          |
+| `-r, --risk-tolerance` | Risk tolerance from 1 to 10 used in training         | `-r 7`               |
+| `-o, --model-path`     | Where to save the trained optimizer                  | `-o model.joblib`    |
+| `--output-dir`         | Where to write `evaluation.json`                     | `--output-dir ./out` |
+| `--evaluate-only`      | Skip training                                        | `--evaluate-only`    |
+| `--no-metrics`         | Skip the evaluation step                             | `--no-metrics`       |
+| `--strict`             | Exit with an error if any calibration check fails    | `--strict`           |
+| `--visualize`          | Save plots after training                            | `--visualize`        |
 
 **Model types:**
 
-- `optimization` - Portfolio optimization models
-- `risk` - Risk prediction models
-- `prediction` - Market prediction models
-- `all` - All model types
+- `optimization` - trains and saves the ML portfolio optimizer
+- `risk` and `forecast` - fitted on demand per request, so they are evaluated only
+- `all` - trains the optimizer, then evaluates everything
 
 **Output:**
 
-- Trained model files in `code/ai_models/trained_models/`
-- Evaluation metrics and reports
-- Training logs in `logs/training/`
+- The trained optimizer at `code/quant_ml/artifacts/portfolio_optimizer.joblib` (or `-o`)
+- `evaluation.json` with calibration, backtest and forecast results
+- The evaluation prints a pass or fail line for each check
 
 ## Python CLI (Direct)
 
@@ -437,15 +433,11 @@ cd RiskOptimizer
 ### Example 2: Train and Deploy Model
 
 ```bash
-# 1. Train optimization model with custom dataset
-./scripts/model_training.sh \
-  -m optimization \
-  -d data/market_data.csv \
-  -e 250 \
-  -p '{"learning_rate": 0.0005, "batch_size": 32}'
+# 1. Train the optimizer on your symbols
+./scripts/model_training.sh -m optimization -s AAPL MSFT GOOGL BTC_USD -r 6
 
-# 2. Evaluate model
-./scripts/model_training.sh -m optimization --evaluate-only
+# 2. Check calibration and fail on any problem
+./scripts/model_training.sh --evaluate-only --strict
 
 # 3. If satisfied, deploy to staging
 ./scripts/deploy.sh -e staging -c backend

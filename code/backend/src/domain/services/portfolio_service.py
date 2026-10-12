@@ -508,6 +508,67 @@ class PortfolioService:
                 logger.warning(f"Portfolio {portfolio_id} not found for deletion")
             return deleted
 
+    def get_portfolio_details(self, portfolio_id: int, user_id: int) -> Dict[str, Any]:
+        if not isinstance(portfolio_id, int) or not isinstance(user_id, int):
+            raise ValidationError(
+                "portfolio_id and user_id must be integers", "portfolio_id"
+            )
+        with get_db_session() as session:
+            portfolio = self.portfolio_repo.get_by_id(portfolio_id, session)
+            if portfolio is None or portfolio.user_id != user_id:
+                raise NotFoundError("Portfolio not found", "portfolio", portfolio_id)
+            total = float(portfolio.total_value or 0)
+            assets = []
+            for allocation in portfolio.allocations:
+                percentage = float(allocation.percentage or 0)
+                value = (
+                    float(allocation.amount)
+                    if allocation.amount is not None
+                    else total * percentage / 100.0
+                )
+                price = (
+                    float(allocation.current_price)
+                    if allocation.current_price
+                    else None
+                )
+                assets.append(
+                    {
+                        "id": str(allocation.id),
+                        "symbol": allocation.asset_symbol,
+                        "name": allocation.asset_name or allocation.asset_symbol,
+                        "quantity": value / price if price else None,
+                        "value": value,
+                        "allocation_percentage": percentage,
+                        "performance": None,
+                    }
+                )
+            details = {
+                "id": portfolio.id,
+                "name": portfolio.name,
+                "description": portfolio.description,
+                "total_value": total,
+                "currency": "USD",
+                "assets": assets,
+                "risk_score": None,
+                "created_at": portfolio.created_at.isoformat(),
+                "updated_at": portfolio.updated_at.isoformat(),
+            }
+        details["risk_score"] = self.annualized_volatility(portfolio_id)
+        return details
+
+    @staticmethod
+    def annualized_volatility(portfolio_id: int) -> Optional[float]:
+        try:
+            from src.tasks.quant_adapter import load_portfolio_returns
+
+            series = load_portfolio_returns(portfolio_id)
+            return float(series.std(ddof=1) * (252**0.5))
+        except Exception as error:
+            logger.info(
+                "Risk score unavailable for portfolio %s: %s", portfolio_id, error
+            )
+            return None
+
     def get_user_portfolios(self, user_id: int) -> List[Dict[str, Any]]:
         """
         Retrieves all portfolios associated with a specific user ID.

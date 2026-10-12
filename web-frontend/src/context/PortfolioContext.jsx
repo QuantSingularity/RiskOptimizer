@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState } from "react";
+import apiService from "../services/apiService";
 
 const PortfolioContext = createContext();
 
@@ -159,15 +160,26 @@ export const PortfolioProvider = ({ children }) => {
     }
   }, []);
 
-  // Mock portfolio optimization
-  const optimizePortfolio = useCallback(async (_params) => {
+  const optimizePortfolio = useCallback(async (request) => {
     setLoading(true);
     setError(null);
     try {
-      await new Promise((r) => setTimeout(r, 1200));
-      return null; // Optimization page falls back to mock results when null is returned
-    } catch {
-      setError("Failed to optimize portfolio");
+      const [optimization, frontier] = await Promise.all([
+        apiService.optimization.optimize(request),
+        apiService.optimization.efficientFrontier({
+          symbols: request.symbols,
+          risk_tolerance: request.risk_tolerance,
+          min_weight: request.min_weight,
+          max_weight: request.max_weight,
+          points: 20,
+        }),
+      ]);
+      return {
+        optimization: optimization.data,
+        frontier: frontier.data?.frontier || [],
+      };
+    } catch (err) {
+      setError(err.message || "Failed to optimize portfolio");
       return null;
     } finally {
       setLoading(false);

@@ -246,7 +246,7 @@ class TestWorkflowIntegration:
         assert "report_type" in report_result
         assert report_result["report_type"] == "risk_analysis"
         var_95 = mc_result["risk_metrics"]["var_95"]
-        assert -0.5 < var_95 < 0
+        assert 0 < var_95 < 0.5
         for scenario_result in stress_result["stress_results"]:
             assert "return_impact" in scenario_result
             assert "volatility_impact" in scenario_result

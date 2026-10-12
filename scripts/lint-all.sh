@@ -66,7 +66,7 @@ fi
 
 # Run flake8 on Python code directories
 run_linter "Python (flake8)" "code/backend" "flake8 ." "Python linting completed."
-run_linter "Python (flake8)" "code/ai_models" "flake8 ." "Python linting completed."
+run_linter "Python (ruff)" "code/quant_ml" "ruff check ." "quant_ml linting completed."
 
 # Deactivate the virtual environment
 if command_exists deactivate; then

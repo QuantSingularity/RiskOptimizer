@@ -141,12 +141,73 @@ const deleteAsset = (portfolioId, assetId) => {
 };
 
 // --- Optimization API ---
-const getOptimizationRecommendations = (optimizationParams) => {
-  return backendApi.post("/risk/optimize", optimizationParams);
+const optimizePortfolio = (params) => {
+  return backendApi.post("/optimization/optimize", params);
 };
 
-const getOptimizationHistory = (portfolioId) => {
-  return backendApi.get(`/risk/optimize/history/${portfolioId}`);
+const getEfficientFrontier = (params) => {
+  return backendApi.post("/optimization/efficient-frontier", params);
+};
+
+const getOptimizationSymbols = () => {
+  return backendApi.get("/optimization/symbols");
+};
+
+const simulateRisk = (params) => {
+  return backendApi.post("/optimization/simulate", params);
+};
+
+const getPriceForecast = (ticker, periods = 30, model = "auto") => {
+  return backendApi.get(
+    `/optimization/forecast/${encodeURIComponent(ticker)}`,
+    { params: { periods, model } },
+  );
+};
+
+const analyzeSentiment = (texts) => {
+  return backendApi.post("/optimization/sentiment", { texts });
+};
+
+const getOptimizationModelInfo = () => {
+  return backendApi.get("/optimization/model");
+};
+
+// --- Quant risk API ---
+const QUANT_OPERATIONS = {
+  evt: "/quant/risk/evt",
+  ml: "/quant/risk/ml",
+  copula: "/quant/risk/copula",
+  hybrid: "/quant/risk/hybrid",
+  monteCarlo: "/quant/risk/monte-carlo",
+  batch: "/quant/risk/batch",
+  stressTest: "/quant/risk/stress-test",
+  backtest: "/quant/risk/backtest",
+  sensitivity: "/quant/risk/sensitivity",
+  decomposition: "/quant/risk/decomposition",
+  analysis: "/quant/risk/analysis",
+  portfolioSearch: "/quant/portfolio/search",
+  meanVariance: "/quant/portfolio/mean-variance",
+  report: "/quant/reports/risk",
+};
+
+const runQuantAnalysis = (operation, params) => {
+  const path = QUANT_OPERATIONS[operation];
+  if (!path) {
+    return Promise.reject(new Error(`Unknown quant operation: ${operation}`));
+  }
+  return backendApi.post(path, params);
+};
+
+const getQuantInfo = () => {
+  return backendApi.get("/quant/info");
+};
+
+const listQuantReports = (limit = 20) => {
+  return backendApi.get("/quant/reports", { params: { limit } });
+};
+
+const getQuantReport = (reportId) => {
+  return backendApi.get(`/quant/reports/${encodeURIComponent(reportId)}`);
 };
 
 // --- Risk Analysis API ---
@@ -359,8 +420,17 @@ export default {
   deleteAsset,
 
   // Optimization & Risk
-  getOptimizationRecommendations,
-  getOptimizationHistory,
+  optimizePortfolio,
+  getEfficientFrontier,
+  getOptimizationSymbols,
+  simulateRisk,
+  getPriceForecast,
+  analyzeSentiment,
+  getOptimizationModelInfo,
+  runQuantAnalysis,
+  getQuantInfo,
+  listQuantReports,
+  getQuantReport,
   getRiskMetrics,
   calculateVaR,
   performStressTest,

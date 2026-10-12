@@ -1,193 +1,215 @@
-"""
-Report generation tasks for asynchronous processing.
-Handles PDF/Excel report generation and data export tasks.
-"""
-
-import io
 import logging
-from datetime import datetime
-from typing import Any, Dict
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from quant_ml.reporting import (
+    EmailDelivery,
+    ReportArchive,
+    ReportGenerator,
+    ReportTemplate,
+    validate_recipients,
+)
+from quant_ml.risk import performance_summary
+from quant_ml.risk.common import historical_var_es
 from src.tasks.celery_app import (
     TaskValidationError,
     celery_app,
     task_result_manager,
     task_with_progress,
 )
+from src.tasks.quant_adapter import (
+    list_portfolios,
+    load_portfolio_returns,
+    output_directory,
+    safe_filename,
+    translate_errors,
+)
 
 logger = logging.getLogger(__name__)
+
+REPORT_FORMATS = ("pdf", "html")
+EXPORT_FORMATS = ("excel", "csv")
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+
+
+def stamp() -> str:
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+def progress(task: Any, percent: int, status: str) -> None:
+    task_result_manager.store_task_progress(
+        task.request.id, {"progress": percent, "status": status}
+    )
+
+
+def fail(task: Any, label: str, error: Exception) -> None:
+    logger.error("%s failed for task %s: %s", label, task.request.id, error)
+    task_result_manager.store_task_progress(
+        task.request.id, {"progress": 0, "status": f"Failed: {error}"}
+    )
+
+
+def get_file_size(path: Any) -> int:
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return 0
+
+
+def report_format(config: Dict[str, Any]) -> str:
+    value = config.get("format", "pdf")
+    if value not in REPORT_FORMATS:
+        raise TaskValidationError(f"format must be one of {', '.join(REPORT_FORMATS)}")
+    return value
+
+
+def percent(value: Any) -> str:
+    return f"{float(value):.2%}"
+
+
+def metric_table(rows: List[tuple]) -> pd.DataFrame:
+    return pd.DataFrame(rows, columns=["Metric", "Value"])
+
+
+def render(template: ReportTemplate, data: Dict[str, Any], path: Path) -> None:
+    generator = ReportGenerator(template)
+    written = (
+        generator.generate_pdf(str(path), data)
+        if path.suffix == ".pdf"
+        else generator.generate_html(str(path), data)
+    )
+    if not written:
+        raise RuntimeError("Report could not be written")
+
+
+def deliver(path: Path, config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    recipients = config.get("recipients")
+    if not recipients:
+        return None
+    with translate_errors():
+        addresses = validate_recipients(recipients)
+    delivery = EmailDelivery.from_environment()
+    if delivery is None:
+        return {"delivered": False, "error": "No delivery handler configured"}
+    try:
+        return {"delivered": bool(delivery(str(path), addresses)), "error": None}
+    except Exception as error:
+        logger.error("Report delivery failed: %s", error)
+        return {"delivered": False, "error": str(error)}
+
+
+def build_portfolio_template(portfolio_data: Dict[str, Any]) -> tuple:
+    holdings = portfolio_data["holdings"]
+    if not isinstance(holdings, dict) or not holdings:
+        raise TaskValidationError("holdings must be a non-empty mapping")
+    for asset, value in holdings.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            raise TaskValidationError(
+                f"Holding value for {asset} must be a non-negative number"
+            )
+    total = float(sum(holdings.values()))
+    if total <= 0:
+        raise TaskValidationError("Total portfolio value must be positive")
+    name = str(portfolio_data["portfolio_name"])
+    template = ReportTemplate(
+        "Portfolio Analysis Report",
+        description=f"Portfolio: {name}",
+        author="RiskOptimizer",
+    )
+    template.add_section("Portfolio Summary", f"Total value: {total:,.2f}", "text")
+    template.add_section(
+        "Holdings", {"data_key": "holdings", "options": {"show_index": False}}, "table"
+    )
+    data: Dict[str, Any] = {
+        "holdings": pd.DataFrame(
+            [
+                {
+                    "Asset": asset,
+                    "Weight": f"{value / total:.2%}",
+                    "Value": f"{value:,.2f}",
+                }
+                for asset, value in holdings.items()
+            ]
+        )
+    }
+    template.add_section(
+        "Allocation", {"data_key": "allocation", "chart_type": "pie"}, "chart"
+    )
+    data["allocation"] = {
+        "labels": list(holdings),
+        "values": [float(v) for v in holdings.values()],
+    }
+    performance = portfolio_data.get("performance_data")
+    if isinstance(performance, dict) and performance:
+        template.add_section(
+            "Performance Analysis",
+            {"data_key": "performance", "options": {"show_index": False}},
+            "table",
+        )
+        data["performance"] = metric_table(
+            [
+                ("Total Return", percent(performance.get("total_return", 0))),
+                ("Annualized Return", percent(performance.get("annualized_return", 0))),
+                ("Volatility", percent(performance.get("volatility", 0))),
+                ("Sharpe Ratio", f"{float(performance.get('sharpe_ratio', 0)):.2f}"),
+                ("Max Drawdown", percent(performance.get("max_drawdown", 0))),
+            ]
+        )
+    risk = portfolio_data.get("risk_metrics")
+    if isinstance(risk, dict) and risk:
+        template.add_section(
+            "Risk Analysis",
+            {"data_key": "risk", "options": {"show_index": False}},
+            "table",
+        )
+        data["risk"] = metric_table(
+            [
+                ("VaR (95%)", percent(risk.get("var_95", 0))),
+                ("VaR (99%)", percent(risk.get("var_99", 0))),
+                ("CVaR (95%)", percent(risk.get("cvar_95", 0))),
+                ("CVaR (99%)", percent(risk.get("cvar_99", 0))),
+            ]
+        )
+    return template, data, name
 
 
 @task_with_progress()
 def generate_portfolio_report(
     self, portfolio_data: Dict, report_config: Dict
 ) -> Dict[str, Any]:
-    """
-    Generate comprehensive portfolio report in PDF format.
-
-    Args:
-        portfolio_data: Portfolio data and analysis results
-        report_config: Report configuration and formatting options
-
-    Returns:
-        Dict containing report file path and metadata
-    """
     try:
-        task_result_manager.store_task_progress(
-            self.request.id,
-            {"progress": 10, "status": "Initializing report generation"},
-        )
-        required_fields = ["portfolio_name", "holdings", "performance_data"]
-        for field in required_fields:
+        for field in ("portfolio_name", "holdings", "performance_data"):
             if field not in portfolio_data:
                 raise TaskValidationError(f"Missing required field: {field}")
-        report_filename = f"portfolio_report_{portfolio_data['portfolio_name']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        report_path = f"/tmp/{report_filename}"
-        task_result_manager.store_task_progress(
-            self.request.id, {"progress": 20, "status": "Creating report structure"}
-        )
-        doc = SimpleDocTemplate(report_path, pagesize=A4)
-        styles = getSampleStyleSheet()
-        story = []
-        title_style = ParagraphStyle(
-            "CustomTitle",
-            parent=styles["Heading1"],
-            fontSize=24,
-            spaceAfter=30,
-            alignment=1,
-        )
-        story.append(Paragraph("Portfolio Analysis Report", title_style))
-        story.append(Spacer(1, 20))
-        story.append(
-            Paragraph(
-                f"Portfolio: {portfolio_data['portfolio_name']}", styles["Heading2"]
-            )
-        )
-        story.append(
-            Paragraph(
-                f"Report Date: {datetime.now().strftime('%B %d, %Y')}", styles["Normal"]
-            )
-        )
-        story.append(Spacer(1, 40))
-        task_result_manager.store_task_progress(
-            self.request.id, {"progress": 40, "status": "Adding portfolio summary"}
-        )
-        story.append(Paragraph("Portfolio Summary", styles["Heading2"]))
-        story.append(Spacer(1, 12))
-        holdings_data = [["Asset", "Weight (%)", "Value ($)", "Allocation"]]
-        total_value = sum(portfolio_data["holdings"].values())
-        for asset, value in portfolio_data["holdings"].items():
-            weight = value / total_value * 100
-            holdings_data.append(
-                [asset, f"{weight:.2f}%", f"${value:,.2f}", f"${value:,.0f}"]
-            )
-        holdings_table = Table(holdings_data)
-        holdings_table.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, 0), 14),
-                    ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-                    ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
-                    ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                ]
-            )
-        )
-        story.append(holdings_table)
-        story.append(Spacer(1, 20))
-        task_result_manager.store_task_progress(
-            self.request.id, {"progress": 60, "status": "Adding performance analysis"}
-        )
-        story.append(Paragraph("Performance Analysis", styles["Heading2"]))
-        story.append(Spacer(1, 12))
-        if "performance_data" in portfolio_data:
-            perf_data = portfolio_data["performance_data"]
-            performance_summary = [
-                ["Metric", "Value"],
-                ["Total Return", f"{perf_data.get('total_return', 0):.2%}"],
-                ["Annualized Return", f"{perf_data.get('annualized_return', 0):.2%}"],
-                ["Volatility", f"{perf_data.get('volatility', 0):.2%}"],
-                ["Sharpe Ratio", f"{perf_data.get('sharpe_ratio', 0):.2f}"],
-                ["Max Drawdown", f"{perf_data.get('max_drawdown', 0):.2%}"],
-            ]
-            perf_table = Table(performance_summary)
-            perf_table.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, 0), 12),
-                        ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-                        ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
-                        ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                    ]
-                )
-            )
-            story.append(perf_table)
-            story.append(Spacer(1, 20))
-        task_result_manager.store_task_progress(
-            self.request.id, {"progress": 80, "status": "Adding risk analysis"}
-        )
-        if "risk_metrics" in portfolio_data:
-            story.append(Paragraph("Risk Analysis", styles["Heading2"]))
-            story.append(Spacer(1, 12))
-            risk_data = portfolio_data["risk_metrics"]
-            risk_summary = [
-                ["Risk Metric", "Value"],
-                ["VaR (95%)", f"{risk_data.get('var_95', 0):.2%}"],
-                ["VaR (99%)", f"{risk_data.get('var_99', 0):.2%}"],
-                ["CVaR (95%)", f"{risk_data.get('cvar_95', 0):.2%}"],
-                ["CVaR (99%)", f"{risk_data.get('cvar_99', 0):.2%}"],
-            ]
-            risk_table = Table(risk_summary)
-            risk_table.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, 0), 12),
-                        ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-                        ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
-                        ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                    ]
-                )
-            )
-            story.append(risk_table)
-        doc.build(story)
-        task_result_manager.store_task_progress(
-            self.request.id, {"progress": 100, "status": "Report generation completed"}
-        )
+        extension = report_format(report_config)
+        progress(self, 20, "Building report")
+        template, data, name = build_portfolio_template(portfolio_data)
+        filename = f"portfolio_report_{safe_filename(name)}_{stamp()}.{extension}"
+        path = output_directory() / filename
+        progress(self, 60, "Rendering report")
+        render(template, data, path)
         results = {
-            "report_path": report_path,
-            "report_filename": report_filename,
+            "report_path": str(path),
+            "report_filename": filename,
             "report_type": "portfolio_analysis",
-            "portfolio_name": portfolio_data["portfolio_name"],
-            "generated_at": datetime.utcnow().isoformat(),
-            "file_size_bytes": _get_file_size(report_path),
+            "portfolio_name": name,
+            "generated_at": now(),
+            "file_size_bytes": get_file_size(path),
             "metadata": {"task_id": self.request.id, "report_config": report_config},
         }
-        logger.info(
-            f"Portfolio report generated successfully for task {self.request.id}"
-        )
+        delivery = deliver(path, report_config)
+        if delivery is not None:
+            results["delivery"] = delivery
+        progress(self, 100, "Completed successfully")
         return results
-    except Exception as e:
-        logger.error(
-            f"Portfolio report generation failed for task {self.request.id}: {str(e)}"
-        )
+    except Exception as error:
+        fail(self, "Portfolio report generation", error)
         raise
 
 
@@ -195,135 +217,82 @@ def generate_portfolio_report(
 def generate_risk_report(
     self, risk_analysis_data: Dict, report_config: Dict
 ) -> Dict[str, Any]:
-    """
-    Generate comprehensive risk analysis report.
-
-    Args:
-        risk_analysis_data: Risk analysis results and data
-        report_config: Report configuration options
-
-    Returns:
-        Dict containing report file path and metadata
-    """
     try:
-        task_result_manager.store_task_progress(
-            self.request.id,
-            {"progress": 10, "status": "Initializing risk report generation"},
+        extension = report_format(report_config)
+        progress(self, 20, "Building report")
+        template = ReportTemplate(
+            "Risk Analysis Report",
+            description="Simulation and stress test results",
+            author="RiskOptimizer",
         )
-        report_filename = f"risk_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        report_path = f"/tmp/{report_filename}"
-        doc = SimpleDocTemplate(report_path, pagesize=A4)
-        styles = getSampleStyleSheet()
-        story = []
-        title_style = ParagraphStyle(
-            "CustomTitle",
-            parent=styles["Heading1"],
-            fontSize=24,
-            spaceAfter=30,
-            alignment=1,
-        )
-        story.append(Paragraph("Risk Analysis Report", title_style))
-        story.append(Spacer(1, 20))
-        story.append(
-            Paragraph(
-                f"Report Date: {datetime.now().strftime('%B %d, %Y')}", styles["Normal"]
+        data: Dict[str, Any] = {}
+        simulation = risk_analysis_data.get("monte_carlo_results")
+        if isinstance(simulation, dict):
+            template.add_section(
+                "Monte Carlo Simulation Results",
+                {"data_key": "simulation", "options": {"show_index": False}},
+                "table",
             )
-        )
-        story.append(Spacer(1, 40))
-        task_result_manager.store_task_progress(
-            self.request.id, {"progress": 30, "status": "Adding Monte Carlo results"}
-        )
-        if "monte_carlo_results" in risk_analysis_data:
-            story.append(
-                Paragraph("Monte Carlo Simulation Results", styles["Heading2"])
-            )
-            story.append(Spacer(1, 12))
-            mc_data = risk_analysis_data["monte_carlo_results"]
-            mc_summary = [
-                ["Metric", "Value"],
-                ["Number of Simulations", f"{mc_data.get('num_simulations', 0):,}"],
-                ["Time Horizon (days)", f"{mc_data.get('time_horizon', 0)}"],
-                ["VaR (95%)", f"{mc_data.get('var_95', 0):.2%}"],
-                ["VaR (99%)", f"{mc_data.get('var_99', 0):.2%}"],
-                ["CVaR (95%)", f"{mc_data.get('cvar_95', 0):.2%}"],
-                ["CVaR (99%)", f"{mc_data.get('cvar_99', 0):.2%}"],
-                ["Probability of Loss", f"{mc_data.get('probability_of_loss', 0):.2%}"],
-            ]
-            mc_table = Table(mc_summary)
-            mc_table.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                    ]
-                )
-            )
-            story.append(mc_table)
-            story.append(Spacer(1, 20))
-        task_result_manager.store_task_progress(
-            self.request.id, {"progress": 60, "status": "Adding stress test results"}
-        )
-        if "stress_test_results" in risk_analysis_data:
-            story.append(Paragraph("Stress Test Results", styles["Heading2"]))
-            story.append(Spacer(1, 12))
-            stress_data = risk_analysis_data["stress_test_results"]
-            for i, scenario in enumerate(stress_data.get("stress_results", [])):
-                story.append(
-                    Paragraph(
-                        f"Scenario {i + 1}: {scenario['scenario']['type']}",
-                        styles["Heading3"],
-                    )
-                )
-                scenario_summary = [
-                    ["Metric", "Value"],
-                    ["Return Impact", f"{scenario.get('return_impact', 0):.2%}"],
-                    [
-                        "Volatility Impact",
-                        f"{scenario.get('volatility_impact', 0):.2%}",
-                    ],
-                    [
-                        "Relative Return Impact",
-                        f"{scenario.get('relative_return_impact', 0):.2%}",
-                    ],
-                    [
-                        "Relative Volatility Impact",
-                        f"{scenario.get('relative_volatility_impact', 0):.2%}",
-                    ],
+            data["simulation"] = metric_table(
+                [
+                    (
+                        "Number of Simulations",
+                        f"{int(simulation.get('num_simulations', 0)):,}",
+                    ),
+                    ("Time Horizon (days)", f"{simulation.get('time_horizon', 0)}"),
+                    ("VaR (95%)", percent(simulation.get("var_95", 0))),
+                    ("VaR (99%)", percent(simulation.get("var_99", 0))),
+                    ("CVaR (95%)", percent(simulation.get("cvar_95", 0))),
+                    ("CVaR (99%)", percent(simulation.get("cvar_99", 0))),
+                    (
+                        "Probability of Loss",
+                        percent(simulation.get("probability_of_loss", 0)),
+                    ),
                 ]
-                scenario_table = Table(scenario_summary)
-                scenario_table.setStyle(
-                    TableStyle(
-                        [
-                            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-                            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                            ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                        ]
-                    )
-                )
-                story.append(scenario_table)
-                story.append(Spacer(1, 12))
-        doc.build(story)
-        task_result_manager.store_task_progress(
-            self.request.id,
-            {"progress": 100, "status": "Risk report generation completed"},
-        )
+            )
+        stress = risk_analysis_data.get("stress_test_results")
+        if isinstance(stress, dict) and stress.get("stress_results"):
+            template.add_section(
+                "Stress Test Results",
+                {"data_key": "stress", "options": {"show_index": False}},
+                "table",
+            )
+            data["stress"] = pd.DataFrame(
+                [
+                    {
+                        "Scenario": str(
+                            item.get("scenario", {}).get("type", "unknown")
+                        ),
+                        "Return Impact": percent(item.get("return_impact", 0)),
+                        "Volatility Impact": percent(item.get("volatility_impact", 0)),
+                        "Stressed VaR (95%)": percent(item.get("stressed_var_95", 0)),
+                    }
+                    for item in stress["stress_results"]
+                ]
+            )
+        if not data:
+            raise TaskValidationError(
+                "risk_analysis_data must contain monte_carlo_results or stress_test_results"
+            )
+        filename = f"risk_report_{stamp()}.{extension}"
+        path = output_directory() / filename
+        progress(self, 60, "Rendering report")
+        render(template, data, path)
         results = {
-            "report_path": report_path,
-            "report_filename": report_filename,
+            "report_path": str(path),
+            "report_filename": filename,
             "report_type": "risk_analysis",
-            "generated_at": datetime.utcnow().isoformat(),
-            "file_size_bytes": _get_file_size(report_path),
+            "generated_at": now(),
+            "file_size_bytes": get_file_size(path),
             "metadata": {"task_id": self.request.id, "report_config": report_config},
         }
-        logger.info(f"Risk report generated successfully for task {self.request.id}")
+        delivery = deliver(path, report_config)
+        if delivery is not None:
+            results["delivery"] = delivery
+        progress(self, 100, "Completed successfully")
         return results
-    except Exception as e:
-        logger.error(
-            f"Risk report generation failed for task {self.request.id}: {str(e)}"
-        )
+    except Exception as error:
+        fail(self, "Risk report generation", error)
         raise
 
 
@@ -331,186 +300,152 @@ def generate_risk_report(
 def export_portfolio_data(
     self, portfolio_data: Dict, export_config: Dict
 ) -> Dict[str, Any]:
-    """
-    Export portfolio data to Excel format.
-
-    Args:
-        portfolio_data: Portfolio data to export
-        export_config: Export configuration options
-
-    Returns:
-        Dict containing export file path and metadata
-    """
     try:
-        task_result_manager.store_task_progress(
-            self.request.id, {"progress": 10, "status": "Initializing data export"}
-        )
         export_format = export_config.get("format", "excel")
-        if export_format == "excel":
-            export_filename = (
-                f"portfolio_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        if export_format not in EXPORT_FORMATS:
+            raise TaskValidationError(
+                f"format must be one of {', '.join(EXPORT_FORMATS)}"
             )
-            export_path = f"/tmp/{export_filename}"
-        else:
-            export_filename = (
-                f"portfolio_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            )
-            export_path = f"/tmp/{export_filename}"
-        task_result_manager.store_task_progress(
-            self.request.id, {"progress": 30, "status": "Preparing data for export"}
+        holdings = portfolio_data.get("holdings")
+        if not isinstance(holdings, dict) or not holdings:
+            raise TaskValidationError("holdings must be a non-empty mapping")
+        total = float(sum(holdings.values()))
+        if total <= 0:
+            raise TaskValidationError("Total portfolio value must be positive")
+        progress(self, 30, "Preparing export")
+        holdings_frame = pd.DataFrame(
+            [
+                {"Asset": asset, "Value": value, "Weight": value / total}
+                for asset, value in holdings.items()
+            ]
         )
+        extension = "xlsx" if export_format == "excel" else "csv"
+        filename = f"portfolio_data_{safe_filename(portfolio_data.get('portfolio_name', 'portfolio'))}_{stamp()}.{extension}"
+        path = output_directory() / filename
         if export_format == "excel":
-            with pd.ExcelWriter(export_path, engine="openpyxl") as writer:
-                if "holdings" in portfolio_data:
-                    holdings_df = pd.DataFrame(
-                        [
-                            {
-                                "Asset": asset,
-                                "Value": value,
-                                "Weight": value
-                                / sum(portfolio_data["holdings"].values()),
-                            }
-                            for asset, value in portfolio_data["holdings"].items()
-                        ]
-                    )
-                    holdings_df.to_excel(writer, sheet_name="Holdings", index=False)
-                task_result_manager.store_task_progress(
-                    self.request.id,
-                    {"progress": 50, "status": "Exporting performance data"},
-                )
-                if "performance_data" in portfolio_data:
-                    perf_df = pd.DataFrame([portfolio_data["performance_data"]])
-                    perf_df.to_excel(writer, sheet_name="Performance", index=False)
-                if "risk_metrics" in portfolio_data:
-                    risk_df = pd.DataFrame([portfolio_data["risk_metrics"]])
-                    risk_df.to_excel(writer, sheet_name="Risk_Metrics", index=False)
-                task_result_manager.store_task_progress(
-                    self.request.id, {"progress": 80, "status": "Finalizing export"}
-                )
-                if "historical_returns" in portfolio_data:
-                    hist_df = pd.DataFrame(portfolio_data["historical_returns"])
-                    hist_df.to_excel(
+            with pd.ExcelWriter(path, engine="openpyxl") as writer:
+                holdings_frame.to_excel(writer, sheet_name="Holdings", index=False)
+                for key, sheet in (
+                    ("performance_data", "Performance"),
+                    ("risk_metrics", "Risk_Metrics"),
+                ):
+                    if isinstance(portfolio_data.get(key), dict):
+                        pd.DataFrame([portfolio_data[key]]).to_excel(
+                            writer, sheet_name=sheet, index=False
+                        )
+                if portfolio_data.get("historical_returns") is not None:
+                    pd.DataFrame(portfolio_data["historical_returns"]).to_excel(
                         writer, sheet_name="Historical_Returns", index=False
                     )
-        elif "holdings" in portfolio_data:
-            holdings_df = pd.DataFrame(
-                [
-                    {
-                        "Asset": asset,
-                        "Value": value,
-                        "Weight": value / sum(portfolio_data["holdings"].values()),
-                    }
-                    for asset, value in portfolio_data["holdings"].items()
-                ]
-            )
-            holdings_df.to_csv(export_path, index=False)
-        task_result_manager.store_task_progress(
-            self.request.id, {"progress": 100, "status": "Data export completed"}
-        )
+        else:
+            holdings_frame.to_csv(path, index=False)
         results = {
-            "export_path": export_path,
-            "export_filename": export_filename,
+            "export_path": str(path),
+            "export_filename": filename,
             "export_format": export_format,
             "portfolio_name": portfolio_data.get("portfolio_name", "Unknown"),
-            "exported_at": datetime.utcnow().isoformat(),
-            "file_size_bytes": _get_file_size(export_path),
+            "exported_at": now(),
+            "file_size_bytes": get_file_size(path),
             "metadata": {"task_id": self.request.id, "export_config": export_config},
         }
-        logger.info(f"Portfolio data export completed for task {self.request.id}")
+        progress(self, 100, "Completed successfully")
         return results
-    except Exception as e:
-        logger.error(
-            f"Portfolio data export failed for task {self.request.id}: {str(e)}"
-        )
+    except Exception as error:
+        fail(self, "Portfolio data export", error)
         raise
+
+
+def daily_report_for(
+    portfolio: Dict[str, Any], archive: ReportArchive
+) -> Dict[str, Any]:
+    returns = load_portfolio_returns(portfolio["id"])
+    summary = performance_summary(returns.to_numpy())
+    var95, es95 = historical_var_es(returns.to_numpy(), 0.95)
+    stats = summary["performance_summary"]
+    template = ReportTemplate(
+        "Daily Portfolio Report",
+        description=f"Portfolio: {portfolio['name']}",
+        author="RiskOptimizer",
+    )
+    template.add_section(
+        "Performance",
+        {"data_key": "performance", "options": {"show_index": False}},
+        "table",
+    )
+    template.add_section(
+        "Risk", {"data_key": "risk", "options": {"show_index": False}}, "table"
+    )
+    data = {
+        "performance": metric_table(
+            [
+                ("Total Return", percent(stats["total_return"])),
+                ("Annualized Return", percent(stats["annualized_return"])),
+                ("Volatility", percent(stats["volatility"])),
+                ("Sharpe Ratio", f"{stats['sharpe_ratio']:.2f}"),
+                ("Max Drawdown", percent(stats["max_drawdown"])),
+            ]
+        ),
+        "risk": metric_table(
+            [("VaR (95%)", percent(var95)), ("ES (95%)", percent(es95))]
+        ),
+    }
+    path = (
+        output_directory()
+        / f"daily_report_{portfolio['id']}_{safe_filename(portfolio['name'])}_{stamp()}.pdf"
+    )
+    render(template, data, path)
+    archived = archive.archive_report(
+        str(path),
+        "daily",
+        {"portfolio_id": portfolio["id"], "portfolio_name": portfolio["name"]},
+    )
+    return {"report_path": str(path), "archived_path": archived}
 
 
 @celery_app.task(bind=True)
-def generate_daily_reports(self) -> object:
-    """
-    Generate daily reports for all active portfolios.
-    This is a scheduled task that runs daily.
-    """
+def generate_daily_reports(self) -> Dict[str, Any]:
     try:
-        logger.info("Starting daily report generation")
-        active_portfolios = [
-            {"id": 1, "name": "Portfolio A"},
-            {"id": 2, "name": "Portfolio B"},
-            {"id": 3, "name": "Portfolio C"},
-        ]
-        generated_reports = []
-        for portfolio in active_portfolios:
+        portfolios = list_portfolios()
+        archive = ReportArchive()
+        email_owners = os.getenv(
+            "DAILY_REPORTS_EMAIL_OWNERS", "false"
+        ).strip().lower() in {"1", "true", "yes"}
+        delivery = EmailDelivery.from_environment() if email_owners else None
+        generated: List[Dict[str, Any]] = []
+        for portfolio in portfolios:
+            entry: Dict[str, Any] = {
+                "portfolio_id": portfolio["id"],
+                "portfolio_name": portfolio["name"],
+                "report_date": now(),
+            }
             try:
-                logger.info(
-                    f"Generating daily report for portfolio {portfolio['name']}"
-                )
-                report_info = {
-                    "portfolio_id": portfolio["id"],
-                    "portfolio_name": portfolio["name"],
-                    "report_date": datetime.utcnow().isoformat(),
-                    "status": "generated",
-                }
-                generated_reports.append(report_info)
-            except Exception as e:
+                entry.update(daily_report_for(portfolio, archive))
+                entry["status"] = "generated"
+                if delivery is not None and portfolio.get("owner_email"):
+                    try:
+                        entry["emailed"] = bool(
+                            delivery(entry["report_path"], [portfolio["owner_email"]])
+                        )
+                    except Exception as error:
+                        entry["emailed"] = False
+                        entry["email_error"] = str(error)
+            except TaskValidationError as error:
+                entry.update({"status": "skipped", "reason": str(error)})
+            except Exception as error:
                 logger.error(
-                    f"Failed to generate report for portfolio {portfolio['name']}: {str(e)}"
+                    "Daily report failed for portfolio %s: %s", portfolio["id"], error
                 )
-                generated_reports.append(
-                    {
-                        "portfolio_id": portfolio["id"],
-                        "portfolio_name": portfolio["name"],
-                        "status": "failed",
-                        "error": str(e),
-                    }
-                )
-        results = {
+                entry.update({"status": "failed", "error": str(error)})
+            generated.append(entry)
+        return {
             "task_type": "daily_reports",
-            "generated_at": datetime.utcnow().isoformat(),
-            "total_portfolios": len(active_portfolios),
-            "successful_reports": len(
-                [r for r in generated_reports if r["status"] == "generated"]
-            ),
-            "failed_reports": len(
-                [r for r in generated_reports if r["status"] == "failed"]
-            ),
-            "reports": generated_reports,
+            "generated_at": now(),
+            "portfolios_processed": len(portfolios),
+            "generated": sum(1 for item in generated if item["status"] == "generated"),
+            "skipped": sum(1 for item in generated if item["status"] == "skipped"),
+            "failed": sum(1 for item in generated if item["status"] == "failed"),
+            "reports": generated,
         }
-        logger.info(
-            f"Daily report generation completed: {results['successful_reports']} successful, {results['failed_reports']} failed"
-        )
-        return results
-    except Exception as e:
-        logger.error(f"Daily report generation failed: {str(e)}")
+    except Exception as error:
+        logger.error("Daily report generation failed: %s", error)
         raise
-
-
-def _get_file_size(file_path: object) -> object:
-    """Get file size in bytes."""
-    try:
-        import os
-
-        return os.path.getsize(file_path)
-    except Exception:
-        return 0
-
-
-def _create_chart_image(
-    data: "np.ndarray | pd.DataFrame | list", chart_type: str = "line"
-) -> object:
-    """Create chart image for inclusion in reports."""
-    try:
-        plt.figure(figsize=(8, 6))
-        if chart_type == "line":
-            plt.plot(data)
-        elif chart_type == "bar":
-            plt.bar(range(len(data)), data)
-        elif chart_type == "pie":
-            plt.pie(data, autopct="%1.1f%%")
-        img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format="png", bbox_inches="tight", dpi=150)
-        img_buffer.seek(0)
-        plt.close()
-        return img_buffer
-    except Exception as e:
-        logger.error(f"Chart creation failed: {str(e)}")
-        return None

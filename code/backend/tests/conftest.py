@@ -481,3 +481,48 @@ def validate_performance_analysis_result(result: object) -> object:
     ]
     for metric in required_benchmark_metrics:
         assert metric in benchmark_metrics, f"Missing benchmark metric: {metric}"
+
+
+@pytest.fixture
+def make_client():
+    started = []
+
+    def build(role="user"):
+        patches = [
+            patch("src.infrastructure.database.session.init_db", return_value=None),
+            patch(
+                "src.infrastructure.database.session.check_db_connection",
+                return_value=True,
+            ),
+            patch(
+                "src.api.middleware.rate_limit_middleware.apply_rate_limiting",
+                return_value=None,
+            ),
+            patch(
+                "src.utils.performance.apply_performance_monitoring",
+                return_value=None,
+            ),
+            patch(
+                "src.infrastructure.cache.redis_cache.redis_cache",
+                MagicMock(**{"health_check.return_value": True}),
+            ),
+            patch(
+                "src.domain.services.auth_service.auth_service.verify_token",
+                return_value={"user_id": 1, "email": "t@example.com", "role": role},
+            ),
+        ]
+        for item in patches:
+            item.start()
+        started.extend(patches)
+        from app import create_app
+
+        app = create_app()
+        app.config["TESTING"] = True
+        return app.test_client()
+
+    yield build
+    for item in started:
+        try:
+            item.stop()
+        except RuntimeError:
+            pass

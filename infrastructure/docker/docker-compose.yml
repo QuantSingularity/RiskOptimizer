@@ -40,7 +40,19 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       ENABLE_METRICS: "true"
       ENABLE_AUDIT_LOGGING: "true"
+      QUANT_ML_ARTIFACT_DIR: /var/lib/riskoptimizer/artifacts
+      QUANT_ML_N_JOBS: ${QUANT_ML_N_JOBS:-1}
+      AI_AUTO_TRAIN: ${AI_AUTO_TRAIN:-true}
+      QUANT_ML_SMTP_HOST: ${QUANT_ML_SMTP_HOST:-}
+      QUANT_ML_SMTP_PORT: ${QUANT_ML_SMTP_PORT:-587}
+      QUANT_ML_SMTP_SENDER: ${QUANT_ML_SMTP_SENDER:-}
+      QUANT_ML_SMTP_USER: ${QUANT_ML_SMTP_USER:-}
+      QUANT_ML_SMTP_PASSWORD: ${QUANT_ML_SMTP_PASSWORD:-}
+      QUANT_ML_SMTP_TLS: ${QUANT_ML_SMTP_TLS:-true}
     volumes:
+      - type: volume
+        source: quant_ml_artifacts
+        target: /var/lib/riskoptimizer/artifacts
       - type: tmpfs
         target: /tmp
         tmpfs:
@@ -296,6 +308,8 @@ networks:
         - subnet: 172.20.2.0/24
 
 volumes:
+  quant_ml_artifacts:
+    driver: local
   postgres_data:
     driver: local
     driver_opts:

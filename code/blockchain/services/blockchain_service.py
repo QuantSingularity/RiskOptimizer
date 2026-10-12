@@ -346,7 +346,7 @@ NETWORKS["custom"] = {
 }
 
 
-def _get_raw_transaction(signed_tx: "np.ndarray | pd.DataFrame | list") -> bytes:
+def _get_raw_transaction(signed_tx: object) -> bytes:
     """
     Extract raw transaction bytes from a signed transaction.
     Handles web3.py v5 (.rawTransaction) and v6+ (.raw_transaction).

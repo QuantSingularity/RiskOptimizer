@@ -218,6 +218,13 @@ class TestPortfolioAPI(unittest.TestCase):
         with patch(
             "src.domain.services.portfolio_service.portfolio_service.get_user_portfolios",
             return_value=portfolios,
+        ), patch(
+            "src.domain.services.auth_service.auth_service.verify_token",
+            return_value={
+                "user_id": self.user_id,
+                "email": "test@example.com",
+                "role": "user",
+            },
         ):
             response = self.client.get(
                 f"/api/v1/portfolios/user/{self.user_id}",
@@ -235,6 +242,32 @@ class TestPortfolioAPI(unittest.TestCase):
         names = [p["name"] for p in portfolio_list]
         self.assertIn("My First Portfolio", names)
         self.assertIn("My Second Portfolio", names)
+
+    def test_5b_cannot_read_another_users_portfolios(self):
+        with patch(
+            "src.domain.services.portfolio_service.portfolio_service.get_user_portfolios",
+            return_value=[self._mock_portfolio("Secret", pid=7)],
+        ) as service:
+            response = self.client.get(
+                f"/api/v1/portfolios/user/{self.user_id}",
+                headers=self._auth_headers(),
+            )
+        self.assertEqual(response.status_code, 403)
+        service.assert_not_called()
+
+    def test_5c_admin_can_read_any_users_portfolios(self):
+        with patch(
+            "src.domain.services.portfolio_service.portfolio_service.get_user_portfolios",
+            return_value=[self._mock_portfolio("Managed", pid=8)],
+        ), patch(
+            "src.domain.services.auth_service.auth_service.verify_token",
+            return_value={"user_id": 1, "email": "admin@example.com", "role": "admin"},
+        ):
+            response = self.client.get(
+                f"/api/v1/portfolios/user/{self.user_id}",
+                headers=self._auth_headers(),
+            )
+        self.assertEqual(response.status_code, 200)
 
     def test_6_delete_portfolio(self):
         """DELETE /portfolios/<id> → 204; subsequent GET → 404."""

@@ -242,9 +242,13 @@ class Config:
         model_path = os.getenv("MODEL_PATH")
         if model_path:
             return model_path
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(os.path.dirname(current_dir))
-        return os.path.join(project_root, "code", "ai_models", "optimization_model.pkl")
+        code_root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        code_root = os.path.dirname(code_root)
+        return os.path.join(
+            code_root, "quant_ml", "artifacts", "portfolio_optimizer.joblib"
+        )
 
     def validate(self) -> None:
         """Validate configuration settings."""

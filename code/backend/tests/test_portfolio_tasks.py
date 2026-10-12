@@ -10,11 +10,6 @@ import numpy as np
 import pytest
 from src.tasks.celery_app import TaskValidationError
 from src.tasks.portfolio_tasks import (
-    _calculate_tracking_error,
-    _check_constraints,
-    _optimize_mean_variance,
-    _optimize_minimum_variance,
-    _optimize_risk_parity,
     analyze_portfolio_performance,
     optimize_portfolio,
     rebalance_portfolio,
@@ -288,75 +283,6 @@ class TestPortfolioDataUpdate:
         assert result["portfolio_id"] == 1
         assert result["status"] == "success"
         assert result["assets_updated"] == 3
-
-
-class TestOptimizationHelpers:
-    """Test cases for optimization helper functions."""
-
-    def setup_method(self) -> None:
-        """Set up test data."""
-        np.random.seed(42)
-        self.mean_returns = np.array([0.08, 0.12, 0.1, 0.15])
-        self.cov_matrix = np.array(
-            [
-                [0.04, 0.01, 0.02, 0.01],
-                [0.01, 0.09, 0.01, 0.02],
-                [0.02, 0.01, 0.06, 0.01],
-                [0.01, 0.02, 0.01, 0.16],
-            ]
-        )
-
-    def test_mean_variance_optimization(self) -> None:
-        """Test mean-variance optimization helper."""
-        params = {"target_return": 0.1}
-        weights = _optimize_mean_variance(self.mean_returns, self.cov_matrix, params)
-        assert abs(np.sum(weights) - 1.0) < 1e-6
-        assert np.all(weights >= 0)
-
-    def test_risk_parity_optimization(self) -> None:
-        """Test risk parity optimization helper."""
-        params = {}
-        weights = _optimize_risk_parity(self.cov_matrix, params)
-        assert abs(np.sum(weights) - 1.0) < 1e-6
-        assert np.all(weights >= 0.001)
-        portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(self.cov_matrix, weights)))
-        marginal_contrib = np.dot(self.cov_matrix, weights)
-        risk_contrib = weights * marginal_contrib / portfolio_vol**2
-        assert np.std(risk_contrib) < 0.1
-
-    def test_minimum_variance_optimization(self) -> None:
-        """Test minimum variance optimization helper."""
-        params = {}
-        weights = _optimize_minimum_variance(self.cov_matrix, params)
-        assert abs(np.sum(weights) - 1.0) < 1e-6
-        assert np.all(weights >= 0)
-        equal_weights = np.array([0.25, 0.25, 0.25, 0.25])
-        min_var_portfolio_var = np.dot(weights.T, np.dot(self.cov_matrix, weights))
-        equal_weight_var = np.dot(
-            equal_weights.T, np.dot(self.cov_matrix, equal_weights)
-        )
-        assert min_var_portfolio_var <= equal_weight_var
-
-    def test_check_constraints(self) -> None:
-        """Test constraint checking helper."""
-        weights = np.array([0.25, 0.25, 0.25, 0.25])
-        params = {"max_weight_per_asset": 0.3, "min_weight_per_asset": 0.2}
-        constraints = _check_constraints(weights, params)
-        assert (
-            constraints["weights_sum_to_one"] == True
-        )  # noqa: E712 - np.bool_ comparison
-        assert constraints["no_negative_weights"] == True  # noqa: E712
-        assert constraints["max_weight_constraint"] == True  # noqa: E712
-        assert constraints["min_weight_constraint"] == True  # noqa: E712
-
-    def test_calculate_tracking_error(self) -> None:
-        """Test tracking error calculation helper."""
-        current_weights = {"A": 0.3, "B": 0.4, "C": 0.3}
-        target_weights = {"A": 0.25, "B": 0.5, "C": 0.25}
-        tracking_error = _calculate_tracking_error(current_weights, target_weights)
-        assert tracking_error > 0
-        identical_te = _calculate_tracking_error(current_weights, current_weights)
-        assert abs(identical_te) < 1e-10
 
 
 class TestPortfolioTasksIntegration:

@@ -1,249 +1,128 @@
-# Quantitative & ML Model Performance
+# Quantitative and ML Model Performance
 
-> **Evaluation methodology:** All results are generated on held-out test data
-> using the historical price series in `code/quant_ml/data/` (7 assets,
-> ~1 255 trading days per equity, ~1 825 for BTC/ETH).
-> Train/test split: 80 % / 20 % (chronological, no look-ahead leakage).
-> Risk metrics are annualised unless stated otherwise.
+> Every number on this page is produced by `quant-ml-benchmark` (`code/quant_ml/src/quant_ml/training/benchmark.py`) and can be reproduced with the commands in the last section. Nothing here is hand entered.
 
----
+## 1. Data and method
 
-## 1. Classical Risk Metrics - Backtested VaR Accuracy
+- **Data:** 7 bundled assets (AAPL, AMZN, BTC_USD, ETH_USD, GOOGL, MSFT, TSLA), 1,254 aligned daily returns from 2020-11-16 to 2025-11-13. Prices are inner joined, so no weekend or holiday rows are fabricated for equities.
+- **Portfolio:** equal weight across all assets unless stated.
+- **Convention:** VaR and expected shortfall are one period losses expressed as positive fractions of portfolio value.
+- **Machine:** a single CPU core, so engine timings are single job figures.
 
-Historical VaR at 95 % and 99 % is backtested via a 252-day rolling window
-over the out-of-sample period. A _breach_ occurs when the actual portfolio
-loss exceeds the predicted VaR. Under correct model specification the breach
-rate should equal (1 − confidence).
+## 2. VaR backtests
 
-| Asset Universe              | VaR Method  | Confidence | Predicted Breach Rate | Actual Breach Rate | Kupiec p-value |
-| --------------------------- | ----------- | ---------- | --------------------- | ------------------ | -------------- |
-| Equal-weight (7 assets)     | Historical  | 95 %       | 5.00 %                | 5.21 %             | 0.74 ✅        |
-| Equal-weight (7 assets)     | Historical  | 99 %       | 1.00 %                | 1.08 %             | 0.81 ✅        |
-| Max-Sharpe (PyPortfolioOpt) | Parametric  | 95 %       | 5.00 %                | 4.93 %             | 0.88 ✅        |
-| Max-Sharpe (PyPortfolioOpt) | Monte Carlo | 95 %       | 5.00 %                | 4.85 %             | 0.71 ✅        |
-| Min-Vol (PyPortfolioOpt)    | Monte Carlo | 99 %       | 1.00 %                | 0.94 %             | 0.79 ✅        |
+A rolling 252 day window estimates the 95% VaR, which is then tested on the following days. Every out of sample day is tested (1,002 days). The Kupiec test checks that the breach rate matches the expected 5%; a p-value above 0.01 passes.
 
-All Kupiec unconditional coverage tests pass at 5 % significance (p > 0.05).
+| Model      | Breaches | Test days | Breach rate | Breach ratio | Kupiec p-value | Result |
+| :--------- | -------: | --------: | ----------: | -----------: | -------------: | :----- |
+| parametric |       54 |     1,002 |       5.39% |         1.08 |           0.58 | pass   |
+| historical |       49 |     1,002 |       4.89% |         0.98 |           0.87 | pass   |
+| evt        |       51 |     1,002 |       5.09% |         1.02 |           0.90 | pass   |
 
----
+## 3. ML risk models
 
-## 2. Machine Learning VaR Models (`ml_risk_models.py`)
+Each model is trained on the first 70% of history and its 95% VaR predictions are scored on the remaining 30%. Coverage is the share of days on which the realised loss stayed within the predicted VaR; the target is 95%.
 
-Three supervised models predict the next-day portfolio loss quantile directly
-from engineered features (rolling returns, realised volatility, skewness, etc.).
+| Model | Out of sample coverage | Target | Within tolerance (6 points) |
+| :---- | ---------------------: | -----: | :-------------------------- |
+| gbm   |                  95.0% |    95% | yes                         |
+| rf    |                  96.8% |    95% | yes                         |
+| nn    |                  93.1% |    95% | yes                         |
 
-### 2.1 Gradient Boosting (GBM) - Primary Model
+`gbm` uses quantile loss and a calibrated ladder of quantile models for expected shortfall. `rf` and `nn` predict the conditional mean and add the empirical residual tail.
 
-- **Loss function:** Quantile loss at τ = 0.05
-- **n_estimators:** 200, **max_depth:** 4, **learning_rate:** 0.05
+## 4. Extreme value theory accuracy
 
-| Metric                             | Value                                |
-| ---------------------------------- | ------------------------------------ |
-| Test RMSE (return units)           | 0.0041                               |
-| Pinball loss at 5 % quantile       | 0.00089                              |
-| Coverage (95 % VaR)                | 94.7 %                               |
-| Kupiec p-value                     | 0.68 ✅                              |
-| Diebold-Mariano vs. Historical VaR | p = 0.031 (GBM significantly better) |
+Peaks over threshold VaR is compared with the exact quantiles of Student t samples with known tails (150,000 samples, threshold at the 5% tail).
 
-**Top-10 SHAP Feature Importances**
+| Degrees of freedom | Confidence | True VaR | Estimated VaR | Relative error |
+| -----------------: | ---------: | -------: | ------------: | -------------: |
+|                  3 |      99.0% |   0.0454 |        0.0455 |          +0.3% |
+|                  3 |      99.5% |   0.0584 |        0.0584 |          +0.1% |
+|                  4 |      99.0% |   0.0375 |        0.0375 |          +0.2% |
+|                  4 |      99.5% |   0.0460 |        0.0462 |          +0.4% |
+|                  6 |      99.0% |   0.0314 |        0.0315 |          +0.2% |
+|                  6 |      99.5% |   0.0371 |        0.0373 |          +0.7% |
 
-| Rank | Feature                | Mean  | SHAP |     |
-| ---- | ---------------------- | ----- | ---- | --- |
-| 1    | Realised vol (10-day)  | 0.198 |
-| 2    | Rolling return (5-day) | 0.171 |
-| 3    | Return t-1             | 0.143 |
-| 4    | Rolling vol (20-day)   | 0.112 |
-| 5    | Return t-2             | 0.094 |
-| 6    | Skewness (10-day)      | 0.081 |
-| 7    | Return t-3             | 0.067 |
-| 8    | Kurtosis (10-day)      | 0.059 |
-| 9    | Max drawdown (20-day)  | 0.044 |
-| 10   | Volume z-score         | 0.031 |
+## 5. Copula models against the empirical portfolio
 
-### 2.2 Random Forest (RF)
+Scenarios are simulated from each fitted copula (empirical marginals) and the equal weight portfolio is measured against its own historical distribution.
 
-| Metric              | Value   |
-| ------------------- | ------- |
-| Test RMSE           | 0.0048  |
-| Pinball loss        | 0.00102 |
-| Coverage (95 % VaR) | 94.1 %  |
-| Kupiec p-value      | 0.51 ✅ |
+| Source          | Daily std | 95% VaR | 99% VaR |
+| :-------------- | --------: | ------: | ------: |
+| Empirical       |    0.0207 |  0.0329 |  0.0559 |
+| gaussian copula |    0.0206 |  0.0312 |  0.0512 |
+| t copula        |    0.0208 |  0.0305 |  0.0535 |
+| clayton copula  |    0.0217 |  0.0364 |  0.0670 |
+| gumbel copula   |    0.0223 |  0.0297 |  0.0454 |
 
-### 2.3 MLP Neural Network
+The Gaussian and t copulas track the empirical tail closely. The one parameter Clayton and Gumbel copulas impose a single dependence structure on all assets, so they over or under state the tail for this mixed equity and crypto portfolio.
 
-Architecture: `Input(16) → Dense(50, ReLU) → Dense(25, ReLU) → Output(1)`
+## 6. Portfolio optimizer hold out
 
-| Metric              | Value   |
-| ------------------- | ------- |
-| Test RMSE           | 0.0053  |
-| Pinball loss        | 0.00118 |
-| Coverage (95 % VaR) | 93.8 %  |
-| Kupiec p-value      | 0.43 ✅ |
+The ML return model is trained on the first 80% and evaluated on the last 230 days.
 
-### 2.4 Hybrid Model (GBM + Historical VaR)
+| Metric                                   |    Value |
+| :--------------------------------------- | -------: |
+| Next day return prediction R squared     |    0.033 |
+| Next day return prediction MSE           | 0.000419 |
+| Optimized portfolio expected return      |    0.148 |
+| Optimized portfolio volatility           |    0.229 |
+| Optimized portfolio Sharpe ratio         |    0.558 |
+| 95% one year Monte Carlo VaR (on 10,000) |    1,262 |
+| 99% one year Monte Carlo VaR (on 10,000) |    2,599 |
 
-Weighted combination: `0.5 × GBM + 0.5 × Historical VaR`
+An R squared near 0.03 shows that next day returns are very hard to predict. The optimizer blends the model's estimate with a prior (controlled by risk tolerance) rather than trusting it, which is why the weights remain diversified.
 
-| Metric              | Value       |
-| ------------------- | ----------- |
-| Test RMSE           | 0.0038      |
-| Pinball loss        | 0.00081     |
-| Coverage (95 % VaR) | **95.1 %**  |
-| Kupiec p-value      | **0.93** ✅ |
+## 7. Price forecasting
 
-> **Recommendation:** The Hybrid model achieves the closest coverage to the
-> nominal 95 % level and the lowest pinball loss. It is the default in
-> production.
+`forecast_prices(model="auto")` validates candidate models over 24 rolling windows at a 10 day horizon and keeps the naive forecast unless another model wins by at least 1% on average and in at least 65% of windows. Scores are mean absolute percentage errors.
 
----
+| Asset   | Selected | Naive | Drift | Damped ETS | Beats naive |
+| :------ | :------- | ----: | ----: | ---------: | :---------- |
+| AAPL    | naive    | 3.75% | 3.79% |      3.75% | no          |
+| AMZN    | naive    | 3.61% | 3.64% |      3.61% | no          |
+| BTC_USD | naive    | 3.20% | 3.13% |      3.20% | no          |
+| ETH_USD | naive    | 6.23% | 6.77% |      6.34% | no          |
+| GOOGL   | naive    | 3.26% | 3.23% |      3.23% | no          |
+| MSFT    | naive    | 2.67% | 2.71% |      2.68% | no          |
+| TSLA    | naive    | 6.53% | 6.74% |      6.45% | no          |
 
-## 3. Extreme Value Theory - EVT Models (`extreme_value_theory.py`)
+Prophet is available on request (`model="prophet"`) but is not considered by `auto`. Over 12 rolling windows it did not consistently beat the naive baseline:
 
-### 3.1 Peaks Over Threshold (POT) with Generalized Pareto Distribution
+| Asset   | Skill vs naive | Win rate vs naive |
+| :------ | -------------: | ----------------: |
+| AAPL    |          +9.0% |               50% |
+| AMZN    |          -6.5% |               42% |
+| BTC_USD |         -58.9% |               25% |
+| ETH_USD |         -48.6% |               33% |
+| GOOGL   |         -26.3% |               33% |
+| MSFT    |         -58.8% |               17% |
+| TSLA    |         -35.4% |               42% |
 
-Threshold selected at the 90th percentile of absolute losses.
+Forecast intervals use volatility scaled bands. In walk forward tests of the 95% band, coverage was between 91% and 98%.
 
-| Asset | GPD Shape ξ | GPD Scale σ | EVT VaR 99 % | Historical VaR 99 % | EVT advantage   |
-| ----- | ----------- | ----------- | ------------ | ------------------- | --------------- |
-| AAPL  | 0.21        | 0.0089      | 4.82 %       | 5.14 %              | Lower tail risk |
-| MSFT  | 0.18        | 0.0081      | 4.41 %       | 4.73 %              | Lower tail risk |
-| TSLA  | 0.34        | 0.0193      | 9.87 %       | 10.42 %             | Lower tail risk |
-| BTC   | 0.41        | 0.0312      | 17.4 %       | 18.8 %              | Lower tail risk |
+## 8. Parallel risk engine timing
 
-GPD shape ξ > 0 for all assets confirms fat-tailed return distributions.
+| Jobs | Monte Carlo                | Portfolio search           | Rolling backtest |
+| ---: | :------------------------- | :------------------------- | ---------------: |
+|    1 | 100,000 scenarios in 0.28s | 10,000 portfolios in 0.13s |            0.94s |
 
-### 3.2 Block Maxima - GEV Distribution (Block size = 20 trading days)
+Work is split into seeded batches, so results are identical for any number of jobs.
 
-| Asset | GEV Shape ξ | GEV Location μ | 1-year Return Level |
-| ----- | ----------- | -------------- | ------------------- |
-| AAPL  | 0.19        | −0.024         | −8.7 %              |
-| MSFT  | 0.17        | −0.021         | −7.9 %              |
-| BTC   | 0.38        | −0.081         | −29.4 %             |
+## 9. Limitations
 
-### 3.3 Tail Dependence (Empirical)
+1. **Scope of data:** 7 assets over about five years. Results may not generalise to illiquid assets or other regimes.
+2. **Transaction costs:** performance figures exclude trading costs and slippage.
+3. **Non stationarity:** returns are non stationary; rolling validation reduces but does not remove this.
+4. **Forecasting:** with these assets no candidate consistently beats a naive random walk; the forecaster reports that rather than hiding it.
+5. **Sentiment:** the VADER analyzer is lexicon based and is not benchmarked on this page.
+6. **Single machine:** timings come from a one core machine; multi core speedups are not measured here.
 
-| Asset Pair  | Lower Tail λ_L | Upper Tail λ_U | Interpretation             |
-| ----------- | -------------- | -------------- | -------------------------- |
-| AAPL – MSFT | 0.42           | 0.31           | Moderate crash co-movement |
-| AAPL – BTC  | 0.18           | 0.12           | Low co-movement            |
-| TSLA – BTC  | 0.27           | 0.19           | Some co-movement           |
+## 10. Reproduce
 
----
-
-## 4. Portfolio Optimisation - Out-of-Sample Performance
-
-Portfolios formed on the training set (80 %) are held for the test period (20 %).
-Benchmark: equal-weight portfolio.
-
-| Strategy             | Ann. Return | Ann. Volatility | Sharpe   | Max Drawdown | Calmar   |
-| -------------------- | ----------- | --------------- | -------- | ------------ | -------- |
-| Equal-weight         | 18.4 %      | 22.1 %          | 0.83     | −34.2 %      | 0.54     |
-| **Max-Sharpe (MPT)** | **22.7 %**  | **19.8 %**      | **1.15** | −28.4 %      | 0.80     |
-| Min-Volatility (MPT) | 16.2 %      | 15.3 %          | 1.06     | −22.1 %      | 0.73     |
-| Risk-Parity          | 19.8 %      | 17.4 %          | 1.14     | −25.3 %      | 0.78     |
-| CVaR-Optimal (95 %)  | 20.1 %      | 18.1 %          | 1.11     | **−20.8 %**  | **0.97** |
-
-> The Max-Sharpe portfolio delivers the highest Sharpe ratio in the out-of-sample
-> period; the CVaR-Optimal portfolio has the best drawdown control (Calmar ratio).
-
----
-
-## 5. Parallel Risk Engine - Computational Performance
-
-Hardware: 8-core CPU, 32 GB RAM.
-
-| Task                                 | n_jobs=1 (s) | n_jobs=4 (s) | n_jobs=8 (s) | Speedup (8 cores) |
-| ------------------------------------ | ------------ | ------------ | ------------ | ----------------- |
-| Monte Carlo (100k scenarios)         | 12.4         | 3.8          | 2.1          | **5.9×**          |
-| Portfolio optimisation (10k samples) | 4.7          | 1.4          | 0.9          | **5.2×**          |
-| Backtesting (252 windows)            | 31.2         | 9.1          | 5.3          | **5.9×**          |
-| Stress testing (50 scenarios)        | 8.3          | 2.6          | 1.6          | **5.2×**          |
-
-Near-linear scaling up to 8 cores; further gains limited by inter-process
-communication overhead.
-
----
-
-## 6. AI Analytics - Forecasting (`ai_analytics.py`)
-
-### Prophet Time-Series Forecasting (30-day horizon)
-
-| Asset | MAPE   | RMSE   | MAE    | Directional Accuracy |
-| ----- | ------ | ------ | ------ | -------------------- |
-| AAPL  | 3.81 % | $4.12  | $3.04  | 58.3 %               |
-| MSFT  | 3.24 % | $9.87  | $7.43  | 61.7 %               |
-| GOOGL | 4.12 % | $6.41  | $4.88  | 56.7 %               |
-| BTC   | 8.93 % | $2 841 | $2 103 | 54.3 %               |
-
-> Directional accuracy > 50 % confirms the forecasts have marginal but
-> statistically significant predictive power (p < 0.05, binomial test).
-
-### VADER Sentiment Analysis - Accuracy on Labelled Headlines
-
-Evaluated on 2 000 manually labelled financial news headlines:
-
-| Label          | Precision  | Recall     | F1         |
-| -------------- | ---------- | ---------- | ---------- |
-| Positive       | 81.4 %     | 79.2 %     | 80.3 %     |
-| Negative       | 83.1 %     | 85.4 %     | 84.2 %     |
-| Neutral        | 71.8 %     | 70.6 %     | 71.2 %     |
-| **Macro avg.** | **78.8 %** | **78.4 %** | **78.6 %** |
-
----
-
-## 7. Walk-Forward Validation - GBM VaR Model
-
-The model is retrained on a rolling 504-day window (2 years) and evaluated
-on the next 63 days (quarter), stepping forward each quarter.
-
-| Period      | Test RMSE  | Coverage (95 %) | Kupiec p |
-| ----------- | ---------- | --------------- | -------- |
-| Q1 2022     | 0.0044     | 95.2 %          | 0.91     |
-| Q2 2022     | 0.0039     | 94.8 %          | 0.78     |
-| Q3 2022     | 0.0047     | 95.4 %          | 0.83     |
-| Q4 2022     | 0.0051     | 94.5 %          | 0.61     |
-| Q1 2023     | 0.0043     | 95.1 %          | 0.88     |
-| **Average** | **0.0045** | **95.0 %**      | **0.80** |
-
-Coverage is stable at ≈ 95 % across all periods, confirming the model
-generalises well across different market regimes (2022 bear market included).
-
----
-
-## 8. Statistical Significance Tests
-
-### VaR Model Comparison (Diebold-Mariano Test)
-
-H₀: The two models have equal predictive accuracy.
-
-| Comparison                | DM Statistic | p-value | Winner                    |
-| ------------------------- | ------------ | ------- | ------------------------- |
-| GBM vs. Historical VaR    | −2.14        | 0.032   | GBM ✅                    |
-| Hybrid vs. Historical VaR | −2.51        | 0.012   | Hybrid ✅                 |
-| Hybrid vs. GBM            | −1.18        | 0.238   | No significant difference |
-| RF vs. Historical VaR     | −1.72        | 0.085   | Marginal (p < 0.10)       |
-
-### Sharpe Ratio Significance (Jobson-Korkie Test)
-
-H₀: The Max-Sharpe portfolio has the same Sharpe as the equal-weight benchmark.
-
-| Comparison                  | JK Statistic | p-value | Result         |
-| --------------------------- | ------------ | ------- | -------------- |
-| Max-Sharpe vs. Equal-weight | 2.31         | 0.021   | Significant ✅ |
-| Min-Vol vs. Equal-weight    | 1.89         | 0.059   | Marginal       |
-| CVaR-Opt vs. Equal-weight   | 2.04         | 0.041   | Significant ✅ |
-
----
-
-## 9. Limitations & Caveats
-
-1. **Historical data scope:** 7 assets, ~5 years. Results may not generalise
-   to illiquid or emerging market assets.
-2. **Transaction costs:** Portfolio performance figures exclude trading costs
-   and slippage; net returns will be lower in practice.
-3. **Non-stationarity:** Financial returns are non-stationary. Walk-forward
-   validation mitigates but does not eliminate look-ahead bias.
-4. **Blockchain volatility oracle:** On-chain `calculateVolatility` uses a
-   discrete approximation of log-returns; off-chain precision is higher.
-5. **Sentiment model:** VADER is a lexicon-based model and may not capture
-   domain-specific financial jargon as well as fine-tuned BERT variants.
+```bash
+pip install -e "code/quant_ml[dev]"
+quant-ml-benchmark --output benchmark.json
+./scripts/model_training.sh --evaluate-only --strict
+```

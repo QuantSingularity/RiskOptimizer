@@ -11,17 +11,18 @@ const CreatePortfolioScreen = ({ navigation }) => {
   const [error, setError] = useState("");
 
   const handleCreate = async () => {
-    if (!name) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       setError("Portfolio name is required.");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const _response = await apiService.createPortfolio({
-        name,
-        description,
-        currency,
+      await apiService.createPortfolio({
+        name: trimmedName,
+        description: description.trim(),
+        currency: currency.trim().toUpperCase() || "USD",
       });
       // Navigate back to portfolio list or to the new portfolio's detail screen
       // PortfolioListScreen should refresh on focus to show the new portfolio
@@ -43,6 +44,7 @@ const CreatePortfolioScreen = ({ navigation }) => {
       <Card containerStyle={styles.card}>
         {/* Card.Title is set in navigation options */}
         <Input
+          testID="portfolio-name-input"
           placeholder="Portfolio Name (e.g., Growth Fund)"
           label="Name *"
           onChangeText={setName}
@@ -51,6 +53,7 @@ const CreatePortfolioScreen = ({ navigation }) => {
           disabled={loading}
         />
         <Input
+          testID="portfolio-description-input"
           placeholder="Optional description"
           label="Description"
           onChangeText={setDescription}
@@ -61,6 +64,7 @@ const CreatePortfolioScreen = ({ navigation }) => {
           disabled={loading}
         />
         <Input
+          testID="portfolio-currency-input"
           placeholder="Currency Code (e.g., USD)"
           label="Currency"
           onChangeText={setCurrency} // Consider a picker for common currencies
@@ -69,19 +73,25 @@ const CreatePortfolioScreen = ({ navigation }) => {
           disabled={loading}
           autoCapitalize="characters"
         />
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? (
+          <Text testID="create-error" style={styles.errorText}>
+            {error}
+          </Text>
+        ) : null}
         {loading ? (
           <ActivityIndicator
+            testID="loading-indicator"
             size="large"
             color="#007AFF"
             style={styles.loader}
           />
         ) : (
           <Button
+            testID="create-portfolio-submit"
             title="Create Portfolio"
             onPress={handleCreate}
             buttonStyle={styles.button}
-            disabled={!name}
+            disabled={!name.trim()}
           />
         )}
       </Card>

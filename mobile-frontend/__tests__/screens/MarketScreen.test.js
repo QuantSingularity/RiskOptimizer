@@ -1,148 +1,173 @@
-// mobile-frontend/__tests__/screens/MarketScreen.test.js
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import MarketScreen from "../../src/screens/Market/MarketScreen";
+import apiService from "../../src/services/apiService";
+import { getWatchlist } from "../../src/utils/watchlist";
 
-import { act, render, screen, waitFor } from "@testing-library/react-native";
-import { Text, View } from "react-native";
-import { useMarketData } from "../../project/mobile-frontend/src/hooks/useMarketData"; // Assuming a hook exists
-import MarketScreen from "../../project/mobile-frontend/src/screens/Market/MarketScreen"; // Adjust path
-
-// --- Mocks Setup ---
-jest.mock("../../project/mobile-frontend/src/hooks/useMarketData");
-
-// Mock child components if MarketScreen uses specific ones (e.g., AssetList, SearchBar)
-jest.mock(
-  "../../project/mobile-frontend/src/components/market/AssetList",
-  () => () => (
-    <View testID="mock-asset-list">
-      <Text>Mock Asset List</Text>
-    </View>
-  ),
-);
-jest.mock(
-  "../../project/mobile-frontend/src/components/market/SearchBar",
-  () => () => (
-    <View testID="mock-search-bar">
-      <Text>Mock Search Bar</Text>
-    </View>
-  ),
-);
-
-// --- Test Utilities ---
-const renderMarketScreen = () => {
-  // Add Context Providers if needed
-  return render(
-    <MarketScreen navigation={{/* mock navigation if needed */}} />,
-  );
-};
-
-// --- Test Data ---
-const MOCK_MARKET_DATA = [
-  {
-    id: "asset1",
-    symbol: "BTC",
-    name: "Bitcoin",
-    price: 45000,
-    change24h: 2.5,
+jest.mock("@rneui/themed", () => require("../../test-utils/rneuiMock"));
+jest.mock("lodash", () => ({
+  __esModule: true,
+  default: { debounce: (fn) => fn },
+}));
+jest.mock("@react-navigation/native", () => ({
+  useFocusEffect: (callback) => {
+    const { useEffect: effect } = require("react");
+    effect(callback, [callback]);
   },
-  {
-    id: "asset2",
-    symbol: "ETH",
-    name: "Ethereum",
-    price: 3000,
-    change24h: -1.2,
+}));
+jest.mock("../../src/utils/watchlist", () => ({ getWatchlist: jest.fn() }));
+jest.mock("../../src/services/apiService", () => ({
+  __esModule: true,
+  default: { getAssetPriceHistory: jest.fn(), searchAssets: jest.fn() },
+}));
+
+const history = (symbol, price, previous) => ({
+  data: {
+    meta: {
+      symbol,
+      shortName: `${symbol} Inc`,
+      regularMarketPrice: price,
+      chartPreviousClose: previous,
+      currency: "USD",
+    },
   },
+});
+
+const DEFAULT_SYMBOLS = [
+  "AAPL",
+  "MSFT",
+  "GOOGL",
+  "AMZN",
+  "TSLA",
+  "NVDA",
+  "META",
+  "BTC-USD",
+  "ETH-USD",
 ];
-const mockRefetchMarketData = jest.fn();
 
-const HOOK_STATE_LOADING = {
-  marketData: [],
-  loading: true,
-  error: null,
-  refetch: mockRefetchMarketData,
-};
-const HOOK_STATE_LOADED = {
-  marketData: MOCK_MARKET_DATA,
-  loading: false,
-  error: null,
-  refetch: mockRefetchMarketData,
-};
-const HOOK_STATE_ERROR = {
-  marketData: [],
-  loading: false,
-  error: "Failed to load market data",
-  refetch: mockRefetchMarketData,
+const setup = () => {
+  const navigation = { navigate: jest.fn() };
+  return { navigation, ...render(<MarketScreen navigation={navigation} />) };
 };
 
-// --- Test Suite ---
-describe("Market Screen", () => {
+describe("MarketScreen", () => {
   beforeEach(() => {
-    useMarketData.mockClear();
-    mockRefetchMarketData.mockClear();
+    jest.clearAllMocks();
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    getWatchlist.mockResolvedValue([]);
+    apiService.getAssetPriceHistory.mockImplementation((symbol) =>
+      Promise.resolve(history(symbol, 110, 100)),
+    );
   });
 
-  // --- Loading State ---
-  it("should display loading indicator when data is loading", () => {
-    useMarketData.mockReturnValue(HOOK_STATE_LOADING);
-    renderMarketScreen();
-    expect(screen.getByTestId("loading-indicator")).toBeOnTheScreen();
-    expect(screen.queryByTestId("mock-asset-list")).not.toBeOnTheScreen();
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
-  // --- Data Loaded State ---
-  it("should display search bar and asset list after data loads successfully", async () => {
-    useMarketData.mockReturnValue(HOOK_STATE_LOADED);
-    renderMarketScreen();
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("loading-indicator")).toBeNull();
-    });
-
-    expect(screen.getByText(/market data/i)).toBeOnTheScreen(); // Assuming a title
-    expect(screen.getByTestId("mock-search-bar")).toBeOnTheScreen();
-    expect(screen.getByTestId("mock-asset-list")).toBeOnTheScreen();
-    // Check if data is passed to AssetList (requires modifying mock or inspecting props)
-  });
-
-  // --- Error State ---
-  it("should display an error message if data fetching fails", async () => {
-    useMarketData.mockReturnValue(HOOK_STATE_ERROR);
-    renderMarketScreen();
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("loading-indicator")).toBeNull();
-    });
-
-    expect(
-      screen.getByText(new RegExp(HOOK_STATE_ERROR.error, "i")),
-    ).toBeOnTheScreen();
-    expect(screen.queryByTestId("mock-asset-list")).not.toBeOnTheScreen();
-  });
-
-  // --- Pull-to-Refresh Interaction ---
-  it("should call refetch function on pull-to-refresh", async () => {
-    useMarketData.mockReturnValue(HOOK_STATE_LOADED);
-    renderMarketScreen();
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("loading-indicator")).toBeNull();
-    });
-
-    // Assuming the list is within a ScrollView/FlatList with testID="market-scrollview"
-    const scrollView = screen.getByTestId("market-scrollview");
-    const { refreshControl } = scrollView.props;
-
-    if (refreshControl?.props.onRefresh) {
-      await act(async () => {
-        refreshControl.props.onRefresh();
-      });
-      expect(mockRefetchMarketData).toHaveBeenCalledTimes(1);
-    } else {
-      console.warn(
-        "Test skipped: refreshControl not found on market-scrollview.",
-      );
-      expect(true).toBe(true);
+  it("shows a loading indicator and then the default market list", async () => {
+    const { getByTestId, findByTestId, queryByTestId } = setup();
+    expect(getByTestId("loading-indicator")).toBeTruthy();
+    expect(await findByTestId("market-item-AAPL")).toBeTruthy();
+    expect(queryByTestId("loading-indicator")).toBeNull();
+    for (const symbol of DEFAULT_SYMBOLS) {
+      expect(getByTestId(`market-item-${symbol}`)).toBeTruthy();
     }
+    expect(apiService.getAssetPriceHistory).toHaveBeenCalledTimes(
+      DEFAULT_SYMBOLS.length,
+    );
   });
 
-  // TODO: Add tests for search functionality interaction
-  // TODO: Add tests for navigation when an asset is tapped (if applicable)
+  it("shows price and percentage change from the quote metadata", async () => {
+    const { findByTestId, getAllByText } = setup();
+    await findByTestId("market-item-AAPL");
+    expect(getAllByText(/110/).length).toBeGreaterThan(0);
+    expect(getAllByText(/10\.00%/).length).toBeGreaterThan(0);
+  });
+
+  it("keeps assets whose quotes load and skips the ones that fail", async () => {
+    apiService.getAssetPriceHistory.mockImplementation((symbol) =>
+      symbol === "TSLA"
+        ? Promise.reject(new Error("down"))
+        : Promise.resolve(history(symbol, 50, 50)),
+    );
+    const { findByTestId, queryByTestId } = setup();
+    await findByTestId("market-item-AAPL");
+    expect(queryByTestId("market-item-TSLA")).toBeNull();
+  });
+
+  it("reports an error with a retry when every quote fails", async () => {
+    apiService.getAssetPriceHistory.mockRejectedValue(new Error("offline"));
+    const { findByTestId, getByTestId } = setup();
+    expect((await findByTestId("error-message")).props.children).toBe(
+      "Could not load initial market data.",
+    );
+    apiService.getAssetPriceHistory.mockImplementation((symbol) =>
+      Promise.resolve(history(symbol, 10, 10)),
+    );
+    fireEvent.press(getByTestId("retry-button"));
+    expect(await findByTestId("market-item-AAPL")).toBeTruthy();
+  });
+
+  it("navigates to the asset detail screen", async () => {
+    const { findByTestId, navigation } = setup();
+    fireEvent.press(await findByTestId("market-item-MSFT"));
+    expect(navigation.navigate).toHaveBeenCalledWith("AssetDetailMarket", {
+      symbol: "MSFT",
+    });
+  });
+
+  it("searches assets and shows only the matches with their prices", async () => {
+    apiService.searchAssets.mockResolvedValue({
+      data: { assets: [{ symbol: "NFLX" }] },
+    });
+    apiService.getAssetPriceHistory.mockImplementation((symbol) =>
+      Promise.resolve(history(symbol, 300, 290)),
+    );
+    const { findByTestId, getByTestId, queryByTestId } = setup();
+    await findByTestId("market-item-AAPL");
+    fireEvent.changeText(getByTestId("market-search"), "netflix");
+    expect(await findByTestId("market-item-NFLX")).toBeTruthy();
+    expect(queryByTestId("market-item-AAPL")).toBeNull();
+    expect(apiService.searchAssets).toHaveBeenCalledWith("netflix");
+  });
+
+  it("reports a failed search", async () => {
+    apiService.searchAssets.mockRejectedValue(new Error("nope"));
+    const { findByTestId, getByTestId } = setup();
+    await findByTestId("market-item-AAPL");
+    fireEvent.changeText(getByTestId("market-search"), "x");
+    expect((await findByTestId("error-message")).props.children).toBe(
+      "Could not perform search.",
+    );
+  });
+
+  it("shows a message when a search finds nothing", async () => {
+    apiService.searchAssets.mockResolvedValue({ data: { assets: [] } });
+    const { findByTestId, getByTestId, findByText } = setup();
+    await findByTestId("market-item-AAPL");
+    fireEvent.changeText(getByTestId("market-search"), "zzzz");
+    expect(
+      await findByText("No assets found matching your search."),
+    ).toBeTruthy();
+  });
+
+  it("switches to the watchlist and shows saved symbols", async () => {
+    getWatchlist.mockResolvedValue(["AMD"]);
+    const { findByTestId, getByTestId } = setup();
+    await findByTestId("market-item-AAPL");
+    await act(async () => {
+      fireEvent.press(getByTestId("view-Watchlist"));
+    });
+    expect(await findByTestId("market-item-AMD")).toBeTruthy();
+  });
+
+  it("explains an empty watchlist", async () => {
+    const { findByTestId, getByTestId, findByText } = setup();
+    await findByTestId("market-item-AAPL");
+    await act(async () => {
+      fireEvent.press(getByTestId("view-Watchlist"));
+    });
+    expect(await findByText(/Your watchlist is empty/)).toBeTruthy();
+    await waitFor(() => expect(getWatchlist).toHaveBeenCalled());
+  });
 });

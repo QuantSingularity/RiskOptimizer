@@ -311,55 +311,40 @@ print(f"Sharpe Ratio: {sharpe}")
 ### Portfolio Optimization
 
 ```python
-from src.services.ai_optimization import PortfolioOptimizer
+from quant_ml.data import load_close_prices
+from quant_ml.optimization import optimize_weights
 
-# Initialize optimizer
-optimizer = PortfolioOptimizer()
+returns = load_close_prices(["AAPL", "MSFT", "GOOGL", "AMZN"]).pct_change().dropna()
 
-# Define portfolio
-assets = ['AAPL', 'MSFT', 'GOOGL']
-returns_data = {
-    'AAPL': [0.01, 0.02, -0.01],
-    'MSFT': [0.015, 0.01, 0.02],
-    'GOOGL': [0.02, -0.01, 0.015]
-}
-
-# Optimize
-result = optimizer.optimize(
-    returns=returns_data,
-    objective='maximize_sharpe',
-    constraints={'max_weight': 0.5}
+result = optimize_weights(
+    returns,
+    "mean_variance",
+    {"target_return": 0.15, "min_weight_per_asset": 0.1, "max_weight_per_asset": 0.4},
 )
 
-print(f"Optimal weights: {result['weights']}")
-print(f"Expected return: {result['return']}")
-print(f"Expected volatility: {result['volatility']}")
+print("Optimal Allocation:")
+for asset, weight in result["weights"].items():
+    print(f"  {asset}: {weight * 100:.2f}%")
 ```
 
 ### Risk Analysis
 
 ```python
-import pandas as pd
-from code.risk_models.risk_analysis import (
-    load_data,
+from quant_ml.risk.analysis import (
     calculate_correlation_matrix,
     historical_var,
+    load_returns,
     monte_carlo_var,
-    stress_test
+    stress_test,
 )
 
-# Load historical data
-tickers = ['AAPL', 'MSFT', 'GOOGL']
-returns = load_data(tickers)
+returns = load_returns(["AAPL", "MSFT", "GOOGL"])
 
-# Correlation analysis
 corr_matrix = calculate_correlation_matrix(returns)
 
-# VaR calculations
 hist_var = historical_var(returns, confidence_level=0.99)
-mc_var = monte_carlo_var(returns, confidence_level=0.95, n_simulations=10000)
+mc_var = monte_carlo_var(returns, confidence_level=0.95, n_simulations=10000, seed=1)
 
-# Stress testing
 stress_results = stress_test(returns, scenario_multiplier=3.0)
 
 print(f"Historical VaR:\n{hist_var}")
@@ -467,33 +452,21 @@ print(f"Max Drawdown: {max_dd:.4f}")
 
 ```python
 """Optimize portfolio using Modern Portfolio Theory."""
-import numpy as np
-import pandas as pd
+from quant_ml.data import load_close_prices
+from quant_ml.optimization import optimize_weights
 
-# Load historical data
-from code.risk_models.risk_analysis import load_data
+tickers = ["AAPL", "MSFT", "GOOGL", "AMZN"]
+returns = load_close_prices(tickers).pct_change().dropna()
 
-tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
-returns = load_data(tickers)
-
-# Calculate expected returns and covariance
-expected_returns = returns.mean() * 252  # Annualized
-cov_matrix = returns.cov() * 252
-
-# Use optimization service
-from src.services.ai_optimization import PortfolioOptimizer
-
-optimizer = PortfolioOptimizer()
-result = optimizer.optimize_portfolio(
-    expected_returns=expected_returns,
-    cov_matrix=cov_matrix,
-    target_return=0.15,
-    constraints={'max_weight': 0.4, 'min_weight': 0.1}
+result = optimize_weights(
+    returns,
+    "mean_variance",
+    {"target_return": 0.15, "min_weight_per_asset": 0.1, "max_weight_per_asset": 0.4},
 )
 
-print(f"Optimal Allocation:")
-for asset, weight in zip(tickers, result['weights']):
-    print(f"  {asset}: {weight*100:.2f}%")
+print("Optimal Allocation:")
+for asset, weight in result["weights"].items():
+    print(f"  {asset}: {weight * 100:.2f}%")
 ```
 
 ### Example 3: Blockchain Portfolio Tracking

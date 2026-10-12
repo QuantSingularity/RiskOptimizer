@@ -85,7 +85,7 @@ def test_get_db_session_rolls_back_on_error() -> object:
         from src.infrastructure.database.session import get_db_session
 
         with pytest.raises(DatabaseError):
-            with get_db_session() as session:
+            with get_db_session():
                 raise RuntimeError("simulated error")
         mock_session.rollback.assert_called_once()
         mock_session.close.assert_called_once()

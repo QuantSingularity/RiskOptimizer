@@ -17,11 +17,12 @@ const PortfolioListScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchPortfolios = async () => {
+  const fetchPortfolios = useCallback(async () => {
     setError("");
     try {
       const response = await apiService.getPortfolios();
-      setPortfolios(response.data.portfolios || []);
+      const payload = response.data?.data ?? response.data;
+      setPortfolios(payload?.portfolios || []);
     } catch (err) {
       console.error("Failed to fetch portfolios:", err);
       setError("Could not load portfolios.");
@@ -29,7 +30,7 @@ const PortfolioListScreen = ({ navigation }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   // Fetch data when the screen comes into focus
   useFocusEffect(
@@ -46,6 +47,7 @@ const PortfolioListScreen = ({ navigation }) => {
 
   const renderItem = ({ item }) => (
     <ListItem
+      testID={`portfolio-item-${item.id}`}
       bottomDivider
       onPress={() =>
         navigation.navigate("PortfolioDetail", {
@@ -74,7 +76,11 @@ const PortfolioListScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator
+          testID="loading-indicator"
+          size="large"
+          color="#007AFF"
+        />
       </View>
     );
   }
@@ -82,19 +88,33 @@ const PortfolioListScreen = ({ navigation }) => {
   if (error && portfolios.length === 0) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Button title="Retry" onPress={fetchPortfolios} />
+        <Text testID="error-message" style={styles.errorText}>
+          {error}
+        </Text>
+        <Button
+          testID="retry-button"
+          title="Retry"
+          onPress={() => {
+            setLoading(true);
+            fetchPortfolios();
+          }}
+        />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? (
+        <Text testID="error-message" style={styles.errorText}>
+          {error}
+        </Text>
+      ) : null}
       <FlatList
+        testID="portfolio-list"
         data={portfolios}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         ListEmptyComponent={
           <View style={styles.centered}>
             <Text>No portfolios found. Create one!</Text>
@@ -105,6 +125,7 @@ const PortfolioListScreen = ({ navigation }) => {
         }
       />
       <Button
+        testID="create-portfolio-button"
         icon={<Icon name="plus" type="material-community" color="white" />}
         title="Create Portfolio"
         buttonStyle={styles.createButton}

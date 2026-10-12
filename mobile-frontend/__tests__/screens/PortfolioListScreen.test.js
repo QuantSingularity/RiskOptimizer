@@ -1,232 +1,126 @@
-// mobile-frontend/__tests__/screens/PortfolioListScreen.test.js
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import PortfolioListScreen from "../../src/screens/Portfolios/PortfolioListScreen";
+import apiService from "../../src/services/apiService";
 
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react-native";
-import React from "react";
-// import PortfolioListScreen from "../../src/screens/Portfolios/PortfolioListScreen"; // Adjust path
-// import { PortfolioContext } from "../../src/context/PortfolioContext";
+jest.mock("@rneui/themed", () => require("../../test-utils/rneuiMock"));
+jest.mock("@react-navigation/native", () => ({
+  useFocusEffect: (callback) => {
+    const { useEffect: effect } = require("react");
+    effect(callback, [callback]);
+  },
+}));
+jest.mock("../../src/services/apiService", () => ({
+  __esModule: true,
+  default: { getPortfolios: jest.fn() },
+}));
 
-// Mock navigation
-// const mockNavigate = jest.fn();
-// const mockNavigation = { navigate: mockNavigate };
+const PORTFOLIOS = [
+  {
+    id: 1,
+    name: "Growth",
+    total_value: 1500.5,
+    currency: "USD",
+    risk_score: 0.2134,
+  },
+  { id: 2, name: "Income", total_value: 0, currency: "EUR", risk_score: null },
+];
 
-// Mock context
-// const mockPortfolios = [
-//   { id: "1", name: "Growth Portfolio", totalValue: 15000 },
-//   { id: "2", name: "Income Portfolio", totalValue: 25000 },
-// ];
-// const mockPortfolioContext = {
-//   portfolios: mockPortfolios,
-//   loading: false,
-//   error: null,
-//   refreshPortfolios: jest.fn(),
-// };
-
-// Mock Screen component for placeholder tests
-import {
-  ActivityIndicator,
-  Button,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-
-const MockPortfolioListScreen = ({ navigation }) => {
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(null);
-  const [portfolios, setPortfolios] = React.useState([]);
-
-  const mockPortfoliosData = [
-    { id: "1", name: "Growth Portfolio", totalValue: 15000 },
-    { id: "2", name: "Income Portfolio", totalValue: 25000 },
-  ];
-
-  React.useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Simulate API call or context loading
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
-        setPortfolios(mockPortfoliosData);
-      } catch (_err) {
-        setError("Failed to load portfolios");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [mockPortfoliosData]);
-
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      onPress={() =>
-        navigation.navigate("PortfolioDetail", { portfolioId: item.id })
-      }
-      style={styles.itemContainer}
-      testID={`portfolio-item-${item.id}`}
-    >
-      <Text style={styles.itemName}>{item.name}</Text>
-      <Text>Value: ${item.totalValue.toLocaleString()}</Text>
-    </TouchableOpacity>
-  );
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" testID="loading-indicator" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorText} testID="error-message">
-          {error}
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <Button
-        title="Create New Portfolio"
-        onPress={() => navigation.navigate("CreatePortfolio")}
-        testID="create-portfolio-button"
-      />
-      <FlatList
-        data={portfolios}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text>No portfolios found.</Text>}
-        testID="portfolio-list"
-      />
-    </View>
-  );
+const setup = () => {
+  const navigation = { navigate: jest.fn() };
+  return {
+    navigation,
+    ...render(<PortfolioListScreen navigation={navigation} />),
+  };
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  itemContainer: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
-  },
-  itemName: { fontSize: 18, fontWeight: "bold" },
-  errorText: { color: "red" },
-});
-
-describe("Portfolio List Screen", () => {
-  const mockNavigate = jest.fn();
-  const mockNavigation = { navigate: mockNavigate };
-
-  const renderListScreen = () => {
-    // return render(
-    //   <PortfolioContext.Provider value={mockPortfolioContext}>
-    //     <PortfolioListScreen navigation={mockNavigation} />
-    //   </PortfolioContext.Provider>
-    // );
-    return render(<MockPortfolioListScreen navigation={mockNavigation} />); // Render mock for now
-  };
-
-  // beforeEach(() => {
-  //   mockNavigate.mockClear();
-  //   mockPortfolioContext.refreshPortfolios.mockClear();
-  // });
-
-  it("should display loading indicator initially", () => {
-    renderListScreen();
-    // expect(screen.getByTestId("loading-indicator")).toBeOnTheScreen();
-    expect(true).toBe(true); // Placeholder assertion
+describe("PortfolioListScreen", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  it("should display the list of portfolios after loading", async () => {
-    renderListScreen();
-    // await waitFor(() => {
-    //   expect(screen.queryByTestId("loading-indicator")).toBeNull();
-    //   expect(screen.getByText(/growth portfolio/i)).toBeOnTheScreen();
-    //   expect(screen.getByText(/income portfolio/i)).toBeOnTheScreen();
-    //   expect(screen.getByText(/\$15,000/)).toBeOnTheScreen();
-    // });
-    await waitFor(() =>
-      expect(screen.queryByTestId("loading-indicator")).toBeNull(),
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("shows a loading indicator until the portfolios arrive", async () => {
+    let resolve;
+    apiService.getPortfolios.mockReturnValue(
+      new Promise((done) => (resolve = done)),
     );
-    expect(screen.getByTestId("portfolio-item-1")).toBeDefined();
-    expect(screen.getByTestId("portfolio-item-2")).toBeDefined();
-    expect(true).toBe(true); // Placeholder assertion
-  });
-
-  it("should navigate to PortfolioDetail screen when a portfolio is pressed", async () => {
-    renderListScreen();
-    await waitFor(() =>
-      expect(screen.queryByTestId("loading-indicator")).toBeNull(),
+    const { getByTestId, queryByTestId } = setup();
+    expect(getByTestId("loading-indicator")).toBeTruthy();
+    await act(async () =>
+      resolve({ data: { data: { portfolios: PORTFOLIOS } } }),
     );
-
-    const portfolioItem = screen.getByTestId("portfolio-item-1");
-    fireEvent.press(portfolioItem);
-
-    // expect(mockNavigate).toHaveBeenCalledWith("PortfolioDetail", { portfolioId: "1" });
-    // expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(true).toBe(true); // Placeholder assertion
+    expect(queryByTestId("loading-indicator")).toBeNull();
+    expect(getByTestId("portfolio-item-1")).toBeTruthy();
   });
 
-  it("should navigate to CreatePortfolio screen when 'Create New Portfolio' button is pressed", async () => {
-    renderListScreen();
-    await waitFor(() =>
-      expect(screen.queryByTestId("loading-indicator")).toBeNull(),
+  it("renders portfolios from the API envelope with formatted values", async () => {
+    apiService.getPortfolios.mockResolvedValue({
+      data: { data: { portfolios: PORTFOLIOS } },
+    });
+    const { findByTestId, getByText } = setup();
+    await findByTestId("portfolio-item-1");
+    expect(getByText("Growth")).toBeTruthy();
+    expect(getByText(/Value: USD\s+1,500\.50 \| Risk: 0\.21/)).toBeTruthy();
+    expect(getByText(/Value: EUR\s+0\.00 \| Risk: N\/A/)).toBeTruthy();
+  });
+
+  it("also accepts the unwrapped response shape", async () => {
+    apiService.getPortfolios.mockResolvedValue({
+      data: { portfolios: PORTFOLIOS },
+    });
+    const { findByTestId } = setup();
+    expect(await findByTestId("portfolio-item-2")).toBeTruthy();
+  });
+
+  it("loads once and does not refetch in a loop", async () => {
+    apiService.getPortfolios.mockResolvedValue({
+      data: { data: { portfolios: PORTFOLIOS } },
+    });
+    const { findByTestId } = setup();
+    await findByTestId("portfolio-item-1");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(apiService.getPortfolios).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an empty state", async () => {
+    apiService.getPortfolios.mockResolvedValue({
+      data: { data: { portfolios: [] } },
+    });
+    const { findByText } = setup();
+    expect(await findByText("No portfolios found. Create one!")).toBeTruthy();
+  });
+
+  it("shows an error with a working retry", async () => {
+    apiService.getPortfolios
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ data: { data: { portfolios: PORTFOLIOS } } });
+    const { findByTestId, getByTestId, queryByTestId } = setup();
+    expect((await findByTestId("error-message")).props.children).toBe(
+      "Could not load portfolios.",
     );
-
-    const createButton = screen.getByTestId("create-portfolio-button");
-    fireEvent.press(createButton);
-
-    // expect(mockNavigate).toHaveBeenCalledWith("CreatePortfolio");
-    // expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(true).toBe(true); // Placeholder assertion
+    fireEvent.press(getByTestId("retry-button"));
+    expect(await findByTestId("portfolio-item-1")).toBeTruthy();
+    expect(queryByTestId("error-message")).toBeNull();
+    expect(apiService.getPortfolios).toHaveBeenCalledTimes(2);
   });
 
-  it("should display error message if loading fails", async () => {
-    // // Mock context or API to throw error
-    // mockPortfolioContext.error = "Failed to load";
-    // mockPortfolioContext.loading = false;
-    // mockPortfolioContext.portfolios = [];
-    renderListScreen(); // Needs modification in mock to simulate error
-
-    // await waitFor(() => {
-    //   expect(screen.queryByTestId("loading-indicator")).toBeNull();
-    //   expect(screen.getByText(/failed to load portfolios/i)).toBeOnTheScreen();
-    // });
-    await waitFor(() =>
-      expect(screen.queryByTestId("loading-indicator")).toBeNull(),
+  it("navigates to a portfolio and to the create screen", async () => {
+    apiService.getPortfolios.mockResolvedValue({
+      data: { data: { portfolios: PORTFOLIOS } },
+    });
+    const { findByTestId, getByTestId, navigation } = setup();
+    fireEvent.press(await findByTestId("portfolio-item-1"));
+    expect(navigation.navigate).toHaveBeenCalledWith(
+      "PortfolioDetail",
+      expect.objectContaining({ portfolioId: 1 }),
     );
-    // Modify mock to test error path
-    expect(true).toBe(true); // Placeholder assertion
+    fireEvent.press(getByTestId("create-portfolio-button"));
+    expect(navigation.navigate).toHaveBeenCalledWith("CreatePortfolio");
   });
-
-  it("should display 'No portfolios found' message when list is empty", async () => {
-    // // Mock context with empty list
-    // mockPortfolioContext.portfolios = [];
-    // mockPortfolioContext.loading = false;
-    renderListScreen(); // Needs modification in mock for empty list
-
-    // await waitFor(() => {
-    //   expect(screen.queryByTestId("loading-indicator")).toBeNull();
-    //   expect(screen.getByText(/no portfolios found/i)).toBeOnTheScreen();
-    // });
-    await waitFor(() =>
-      expect(screen.queryByTestId("loading-indicator")).toBeNull(),
-    );
-    // Modify mock to test empty path
-    expect(true).toBe(true); // Placeholder assertion
-  });
-
-  // Add test for pull-to-refresh functionality if implemented
 });

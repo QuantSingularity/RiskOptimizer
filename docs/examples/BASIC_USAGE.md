@@ -98,17 +98,13 @@ print(f"Max Drawdown: {max_dd:.4f}")
 ## Example 5: Using Historical Data
 
 ```python
-import pandas as pd
-from code.risk_models.risk_analysis import load_data, historical_var
+from quant_ml.risk.analysis import historical_var, load_returns
 
-# Load historical price data
-tickers = ['AAPL', 'MSFT', 'GOOGL']
-returns = load_data(tickers, data_dir='data')
+returns = load_returns(["AAPL", "MSFT", "GOOGL"])
 
-# Calculate VaR for each asset
 var_results = historical_var(returns, confidence_level=0.99, horizon=1)
 
-print("Historical VaR (99%, 1-day):")
+print("Historical VaR (99%, 1-day), as a loss fraction:")
 print(var_results)
 ```
 

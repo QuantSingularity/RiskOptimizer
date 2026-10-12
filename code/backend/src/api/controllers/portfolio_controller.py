@@ -6,13 +6,14 @@ Implements RESTful API design with proper error handling.
 import logging
 from typing import Any, Dict, Optional
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, g, jsonify, request
 from src.api.middleware.auth_middleware import jwt_required
 from src.api.schemas.portfolio_schema import (
     validate_portfolio_request,
     validate_portfolio_update_request,
 )
 from src.core.exceptions import (
+    AuthorizationError,
     BlockchainError,
     NotFoundError,
     RiskOptimizerException,
@@ -745,6 +746,9 @@ def get_user_portfolios(user_id: int) -> Response:
         500:
             description: Internal server error.
     """
+    if user_id != g.user["id"] and g.user.get("role") != "admin":
+        error = AuthorizationError("You may only view your own portfolios")
+        return jsonify(create_error_response(error)), 403
     try:
         logger.info(f"Get user portfolios request for user ID: {user_id}")
 

@@ -51,7 +51,7 @@ print_usage() {
     echo ""
     echo "Options:"
     echo "  -c, --component COMPONENT  Run checks for specific component"
-    echo "                             (all, backend, frontend, ai_models, blockchain)"
+    echo "                             (all, backend, frontend, quant_ml, blockchain)"
     echo "  -f, --fix                  Automatically fix issues when possible"
     echo "  -s, --staged               Only check staged files in git"
     echo "  -v, --verbose              Show verbose output"
@@ -89,7 +89,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate component argument
-if [[ ! "$COMPONENT" =~ ^(all|backend|frontend|ai_models|blockchain)$ ]]; then
+if [[ ! "$COMPONENT" =~ ^(all|backend|frontend|quant_ml|blockchain)$ ]]; then
     log "ERROR" "Invalid component: $COMPONENT"
     print_usage
     exit 1
@@ -122,6 +122,37 @@ get_staged_files() {
 }
 
 # Function to run Python linting and formatting
+run_ruff_linting() {
+    local component=$1
+    log "INFO" "Running ruff for $component..."
+
+    pip install ruff > /dev/null
+
+    local component_dir="$PROJECT_ROOT/code/$component"
+    local report_dir="$PROJECT_ROOT/code_quality_reports/$component"
+    mkdir -p "$report_dir"
+
+    local status=0
+    if [ "$FIX" = true ]; then
+        (cd "$component_dir" && ruff check . --fix > "$report_dir/ruff.txt" 2>&1) || status=1
+        (cd "$component_dir" && ruff format . > "$report_dir/ruff_format.txt" 2>&1) || status=1
+        log "SUCCESS" "Applied ruff fixes and formatting"
+    else
+        (cd "$component_dir" && ruff check . > "$report_dir/ruff.txt" 2>&1) || status=1
+        (cd "$component_dir" && ruff format --check . > "$report_dir/ruff_format.txt" 2>&1) || status=1
+    fi
+
+    if [ "$VERBOSE" = true ]; then
+        cat "$report_dir/ruff.txt" "$report_dir/ruff_format.txt"
+    fi
+
+    if [ "$status" -ne 0 ]; then
+        log "WARNING" "ruff reported issues for $component; see $report_dir"
+    else
+        log "SUCCESS" "ruff checks passed for $component"
+    fi
+}
+
 run_python_linting() {
     local component=$1
     log "INFO" "Running Python linting for $component..."
@@ -412,25 +443,19 @@ EOF
         fi
     fi
 
-    if [ "$COMPONENT" = "all" ] || [ "$COMPONENT" = "ai_models" ]; then
-        if [ -d "$REPORT_DIR/ai_models" ]; then
+    if [ "$COMPONENT" = "all" ] || [ "$COMPONENT" = "quant_ml" ]; then
+        if [ -d "$REPORT_DIR/quant_ml" ]; then
             cat >> "$REPORT_DIR/index.html" << EOF
     <div class="component">
-        <h2>AI Models</h2>
+        <h2>quant_ml</h2>
         <h3>Python Quality Checks</h3>
         <ul>
 EOF
-            if [ -f "$REPORT_DIR/ai_models/flake8.txt" ]; then
-                echo '<li><a href="ai_models/flake8.txt">Flake8 Report</a></li>' >> "$REPORT_DIR/index.html"
+            if [ -f "$REPORT_DIR/quant_ml/ruff.txt" ]; then
+                echo '<li><a href="quant_ml/ruff.txt">Ruff Lint Report</a></li>' >> "$REPORT_DIR/index.html"
             fi
-            if [ -f "$REPORT_DIR/ai_models/black.txt" ]; then
-                echo '<li><a href="ai_models/black.txt">Black Formatting Report</a></li>' >> "$REPORT_DIR/index.html"
-            fi
-            if [ -f "$REPORT_DIR/ai_models/isort.txt" ]; then
-                echo '<li><a href="ai_models/isort.txt">Import Sorting Report</a></li>' >> "$REPORT_DIR/index.html"
-            fi
-            if [ -f "$REPORT_DIR/ai_models/mypy.txt" ]; then
-                echo '<li><a href="ai_models/mypy.txt">Type Checking Report</a></li>' >> "$REPORT_DIR/index.html"
+            if [ -f "$REPORT_DIR/quant_ml/ruff_format.txt" ]; then
+                echo '<li><a href="quant_ml/ruff_format.txt">Ruff Formatting Report</a></li>' >> "$REPORT_DIR/index.html"
             fi
             cat >> "$REPORT_DIR/index.html" << EOF
         </ul>
@@ -488,8 +513,8 @@ if [ "$COMPONENT" = "all" ] || [ "$COMPONENT" = "backend" ]; then
     run_python_linting "backend"
 fi
 
-if [ "$COMPONENT" = "all" ] || [ "$COMPONENT" = "ai_models" ]; then
-    run_python_linting "ai_models"
+if [ "$COMPONENT" = "all" ] || [ "$COMPONENT" = "quant_ml" ]; then
+    run_ruff_linting "quant_ml"
 fi
 
 if [ "$COMPONENT" = "all" ] || [ "$COMPONENT" = "frontend" ]; then
