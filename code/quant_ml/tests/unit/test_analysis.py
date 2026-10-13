@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from quant_ml.risk import analysis
+from risk import analysis
 
 
 @pytest.fixture(scope="module")

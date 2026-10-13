@@ -1,5 +1,5 @@
 import pytest
-from quant_ml.training.trainer import train_and_evaluate, train_and_save
+from training.trainer import train_and_evaluate, train_and_save
 
 
 class TestTrainer:

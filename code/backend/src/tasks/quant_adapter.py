@@ -11,8 +11,8 @@ from src.tasks.celery_app import TaskError, TaskValidationError
 
 ensure_quant_ml()
 
-from quant_ml import settings as quant_settings
-from quant_ml.risk.common import as_frame, weight_vector
+import settings as quant_settings
+from risk.common import as_frame, weight_vector
 
 logger = logging.getLogger(__name__)
 

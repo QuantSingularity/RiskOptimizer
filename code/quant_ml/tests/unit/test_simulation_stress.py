@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
-from quant_ml.risk.simulation import MAX_DRAWS, simulate_portfolio_paths
-from quant_ml.risk.stress import SCENARIO_TYPES, stress_portfolio
+from risk.simulation import MAX_DRAWS, simulate_portfolio_paths
+from risk.stress import SCENARIO_TYPES, stress_portfolio
 
 WEIGHTS = [0.5, 0.3, 0.2]
 

@@ -16,33 +16,23 @@ ensure_quant_ml()
 QUANT_ML_IMPORT_ERROR: Optional[Exception] = None
 
 try:
-    from quant_ml import settings as quant_settings
-    from quant_ml.data.loaders import available_symbols, load_close_prices
-    from quant_ml.optimization.mean_variance import (
+    import settings as quant_settings
+    from data.loaders import available_symbols, load_close_prices
+    from optimization.mean_variance import (
         discrete_allocation_suggestion,
         mean_variance_optimization,
     )
-    from quant_ml.reporting import (
-        EmailDelivery,
-        ReportArchive,
-        ReportGenerator,
-        ReportTemplate,
-    )
-    from quant_ml.risk import (
+    from reporting import EmailDelivery, ReportArchive, ReportGenerator, ReportTemplate
+    from risk import (
         CopulaMLRiskModel,
         ExtremeValueRisk,
         HybridRiskModel,
         MLRiskModel,
         ParallelRiskEngine,
     )
-    from quant_ml.risk.analysis import run_risk_analysis
-    from quant_ml.risk.common import (
-        as_frame,
-        level_key,
-        portfolio_returns,
-        weight_vector,
-    )
-    from quant_ml.serialization import to_jsonable
+    from risk.analysis import run_risk_analysis
+    from risk.common import as_frame, level_key, portfolio_returns, weight_vector
+    from serialization import to_jsonable
 except ImportError as import_error:
     QUANT_ML_IMPORT_ERROR = import_error
 

@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 
 import numpy as np
-from quant_ml.optimization import METHODS, optimize_weights, plan_rebalance
-from quant_ml.risk import performance_summary
-from quant_ml.settings import RISK_FREE_RATE
+from optimization import METHODS, optimize_weights, plan_rebalance
+from risk import performance_summary
+from settings import RISK_FREE_RATE
 from src.tasks.celery_app import (
     TaskValidationError,
     celery_app,

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from quant_ml.risk.ml import MODEL_TYPES, MLRiskModel
+from risk.ml import MODEL_TYPES, MLRiskModel
 
 
 @pytest.fixture(scope="module", params=MODEL_TYPES)

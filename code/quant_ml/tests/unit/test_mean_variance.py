@@ -1,6 +1,6 @@
 import pytest
-from quant_ml.optimization import mean_variance
-from quant_ml.optimization.mean_variance import (
+from optimization import mean_variance
+from optimization.mean_variance import (
     discrete_allocation_suggestion,
     load_prices,
     mean_variance_optimization,

@@ -14,15 +14,15 @@ ensure_quant_ml()
 QUANT_ML_IMPORT_ERROR: Optional[Exception] = None
 
 try:
-    from quant_ml.data.loaders import available_symbols, load_close_prices
-    from quant_ml.forecasting import price as forecast_module
-    from quant_ml.forecasting import sentiment as sentiment_module
-    from quant_ml.optimization.portfolio import (
+    from data.loaders import available_symbols, load_close_prices
+    from forecasting import price as forecast_module
+    from forecasting import sentiment as sentiment_module
+    from optimization.portfolio import (
         MARKET_COLUMN,
         AdvancedPortfolioOptimizer,
         ClassicalPortfolioOptimizer,
     )
-    from quant_ml.settings import default_model_path
+    from settings import default_model_path
 except ImportError as import_error:
     QUANT_ML_IMPORT_ERROR = import_error
     forecast_module = None
@@ -101,7 +101,7 @@ class AIOptimizationService:
 
     def train_default_model(self) -> bool:
         try:
-            from quant_ml.training.trainer import load_training_data
+            from training.trainer import load_training_data
 
             data = load_training_data()
             optimizer = AdvancedPortfolioOptimizer()
@@ -124,7 +124,7 @@ class AIOptimizationService:
         risk_tolerance: float = 5,
     ) -> Dict[str, Any]:
         try:
-            from quant_ml.training.trainer import train_and_save
+            from training.trainer import train_and_save
 
             with self.lock:
                 optimizer, report, path = train_and_save(

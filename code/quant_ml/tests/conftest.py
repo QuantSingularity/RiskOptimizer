@@ -33,7 +33,7 @@ def returns_frame():
 
 @pytest.fixture(scope="session")
 def real_returns():
-    from quant_ml.data.loaders import available_symbols, load_close_prices
+    from data.loaders import available_symbols, load_close_prices
 
     return load_close_prices(available_symbols()).pct_change().dropna()
 

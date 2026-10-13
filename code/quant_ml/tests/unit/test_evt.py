@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from quant_ml.risk.evt import ExtremeValueRisk
+from risk.evt import ExtremeValueRisk
 from scipy import stats
 
 

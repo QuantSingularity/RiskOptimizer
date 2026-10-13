@@ -4,15 +4,15 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from quant_ml.risk import (
+from risk import (
     ParallelRiskEngine,
     performance_summary,
     simulate_portfolio_paths,
     stress_portfolio,
 )
-from quant_ml.risk.common import historical_var_es, portfolio_returns
-from quant_ml.risk.engine import model_metrics
-from quant_ml.settings import RISK_FREE_RATE
+from risk.common import historical_var_es, portfolio_returns
+from risk.engine import model_metrics
+from settings import RISK_FREE_RATE
 from src.tasks.celery_app import (
     TaskValidationError,
     celery_app,

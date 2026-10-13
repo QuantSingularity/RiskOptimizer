@@ -12,7 +12,7 @@ from src.services.quant_ml_bridge import ensure_quant_ml
 
 ensure_quant_ml()
 
-from quant_ml.reporting import validate_recipients
+from reporting import validate_recipients
 
 COLUMN_PATTERN = re.compile(r"^[A-Za-z0-9._ -]{1,40}$")
 COPULA_TYPES = ("gaussian", "t", "clayton", "gumbel")

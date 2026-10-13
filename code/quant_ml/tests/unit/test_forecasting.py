@@ -3,8 +3,8 @@ import json
 import numpy as np
 import pandas as pd
 import pytest
-from quant_ml.forecasting import price
-from quant_ml.forecasting.price import (
+from forecasting import price
+from forecasting.price import (
     AUTO_MODELS,
     cross_validate,
     forecast_frame,
@@ -14,7 +14,7 @@ from quant_ml.forecasting.price import (
     validate_model,
     validate_periods,
 )
-from quant_ml.forecasting.sentiment import (
+from forecasting.sentiment import (
     AnalyticsUnavailableError,
     analyze_sentiment,
     summarize_sentiment,

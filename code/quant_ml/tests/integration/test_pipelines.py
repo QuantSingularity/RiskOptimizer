@@ -2,19 +2,14 @@ import json
 
 import numpy as np
 import pandas as pd
-from quant_ml.data.loaders import load_close_prices
-from quant_ml.optimization.portfolio import AdvancedPortfolioOptimizer
-from quant_ml.reporting import (
-    ReportArchive,
-    ReportGenerator,
-    ReportScheduler,
-    ReportTemplate,
-)
-from quant_ml.risk import CopulaMLRiskModel, ExtremeValueRisk, ParallelRiskEngine
-from quant_ml.risk.analysis import run_risk_analysis
-from quant_ml.serialization import to_jsonable
-from quant_ml.training.cli import main as train_main
-from quant_ml.training.trainer import train_and_save
+from data.loaders import load_close_prices
+from optimization.portfolio import AdvancedPortfolioOptimizer
+from reporting import ReportArchive, ReportGenerator, ReportScheduler, ReportTemplate
+from risk import CopulaMLRiskModel, ExtremeValueRisk, ParallelRiskEngine
+from risk.analysis import run_risk_analysis
+from serialization import to_jsonable
+from training.cli import main as train_main
+from training.trainer import train_and_save
 
 SYMBOLS = ["AAPL", "MSFT", "TSLA", "BTC_USD"]
 

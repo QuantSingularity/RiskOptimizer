@@ -3,8 +3,8 @@ import json
 
 import numpy as np
 import pandas as pd
-from quant_ml import settings
-from quant_ml.serialization import to_jsonable
+import settings
+from serialization import to_jsonable
 
 
 class TestSerialization:

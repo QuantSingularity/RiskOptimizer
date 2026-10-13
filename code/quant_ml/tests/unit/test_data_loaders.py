@@ -1,5 +1,5 @@
 import pytest
-from quant_ml.data.loaders import (
+from data.loaders import (
     available_symbols,
     load_close_prices,
     load_close_series,

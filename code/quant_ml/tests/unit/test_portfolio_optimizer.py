@@ -1,7 +1,7 @@
 import joblib
 import numpy as np
 import pytest
-from quant_ml.optimization.portfolio import (
+from optimization.portfolio import (
     AdvancedPortfolioOptimizer,
     ClassicalPortfolioOptimizer,
 )

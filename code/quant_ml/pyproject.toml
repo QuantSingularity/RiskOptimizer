@@ -31,19 +31,26 @@ forecasting = ["prophet>=1.1.4"]
 dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.4", "pypdf>=4.0"]
 
 [project.scripts]
-quant-ml-train = "quant_ml.training.cli:main"
-quant-ml-forecast = "quant_ml.forecasting.pipeline:main"
-quant-ml-evaluate = "quant_ml.training.evaluate:main"
-quant-ml-benchmark = "quant_ml.training.benchmark:main"
+quant-ml-train = "training.cli:main"
+quant-ml-forecast = "forecasting.pipeline:main"
+quant-ml-evaluate = "training.evaluate:main"
+quant-ml-benchmark = "training.benchmark:main"
+
+[tool.setuptools]
+py-modules = ["settings", "serialization"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-dir]
+"" = "src"
+
 [tool.setuptools.package-data]
-quant_ml = ["py.typed", "data/datasets/*.csv"]
+data = ["datasets/*.csv"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 addopts = "-q -p no:cacheprovider"
 markers = [
     "slow: long running tests",

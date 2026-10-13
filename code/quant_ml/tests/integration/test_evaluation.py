@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from quant_ml.training.evaluate import evaluate, main
+from training.evaluate import evaluate, main
 
 SYMBOLS = ["AAPL", "MSFT", "GOOGL", "BTC_USD"]
 

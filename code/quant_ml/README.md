@@ -9,8 +9,9 @@ quant_ml/
   pyproject.toml
   requirements.txt
   requirements-dev.txt
-  src/quant_ml/
+  src/
     settings.py        paths and shared constants (environment overridable)
+    serialization.py   JSON safe conversion of results
     data/              historical price loading and bundled datasets
     optimization/      portfolio optimizers (ML, classical, mean-variance)
     forecasting/       price forecasting and sentiment analysis
@@ -22,6 +23,19 @@ quant_ml/
     integration/       cross-module tests
     performance/       statistical calibration checks
 ```
+
+## Imports
+
+`src` is the import root, so the modules are top level:
+
+```python
+import settings
+from data.loaders import load_close_prices
+from risk.engine import ParallelRiskEngine
+from optimization.methods import optimize_weights
+```
+
+`src` reaches the import path through `pip install -e .`, the pytest `pythonpath` setting, or the backend's `quant_ml_bridge.py`.
 
 ## Install
 
@@ -49,5 +63,5 @@ pytest -m "not performance"
 
 ```
 quant-ml-train --visualize
-python -m quant_ml.training.cli --symbols AAPL MSFT BTC_USD
+python -m training.cli --symbols AAPL MSFT BTC_USD
 ```

@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
-from quant_ml.risk.copula import CopulaMLRiskModel
-from quant_ml.risk.engine import ParallelRiskEngine
-from quant_ml.risk.evt import ExtremeValueRisk
-from quant_ml.risk.ml import MLRiskModel
+from risk.copula import CopulaMLRiskModel
+from risk.engine import ParallelRiskEngine
+from risk.evt import ExtremeValueRisk
+from risk.ml import MLRiskModel
 from scipy import stats
 
 pytestmark = pytest.mark.performance

@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
-from quant_ml.optimization.methods import (
+from optimization.methods import (
     METHODS,
     black_litterman_posterior,
     optimize_weights,
     risk_contributions,
 )
-from quant_ml.risk.performance import drawdown_profile, performance_summary
+from risk.performance import drawdown_profile, performance_summary
 
 
 class TestDrawdown:

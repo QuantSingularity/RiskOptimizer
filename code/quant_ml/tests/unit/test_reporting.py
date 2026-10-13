@@ -4,13 +4,8 @@ import os
 
 import pandas as pd
 import pytest
-from quant_ml.reporting import (
-    ReportArchive,
-    ReportGenerator,
-    ReportScheduler,
-    ReportTemplate,
-)
-from quant_ml.reporting.scheduler import add_months, ensure_within
+from reporting import ReportArchive, ReportGenerator, ReportScheduler, ReportTemplate
+from reporting.scheduler import add_months, ensure_within
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ from email import policy
 from unittest.mock import MagicMock
 
 import pytest
-from quant_ml.reporting import (
+from reporting import (
     DeliveryError,
     EmailDelivery,
     ReportGenerator,

@@ -1,8 +1,8 @@
 import json
 
 import pytest
-from quant_ml.training import benchmark as benchmark_module
-from quant_ml.training.benchmark import benchmark, evt_accuracy, main
+from training import benchmark as benchmark_module
+from training.benchmark import benchmark, evt_accuracy, main
 
 SYMBOLS = ["AAPL", "MSFT", "GOOGL", "BTC_USD"]
 

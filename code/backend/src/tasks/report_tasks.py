@@ -5,15 +5,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from quant_ml.reporting import (
+from reporting import (
     EmailDelivery,
     ReportArchive,
     ReportGenerator,
     ReportTemplate,
     validate_recipients,
 )
-from quant_ml.risk import performance_summary
-from quant_ml.risk.common import historical_var_es
+from risk import performance_summary
+from risk.common import historical_var_es
 from src.tasks.celery_app import (
     TaskValidationError,
     celery_app,

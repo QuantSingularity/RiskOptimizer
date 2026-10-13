@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from quant_ml.risk.hybrid import HybridRiskModel
+from risk.hybrid import HybridRiskModel
 
 
 @pytest.fixture(scope="module")

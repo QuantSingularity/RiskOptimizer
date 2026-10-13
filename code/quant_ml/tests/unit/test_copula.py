@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from quant_ml.risk.copula import COPULA_TYPES, CopulaMLRiskModel
+from risk.copula import COPULA_TYPES, CopulaMLRiskModel
 
 
 @pytest.fixture(scope="module", params=COPULA_TYPES)

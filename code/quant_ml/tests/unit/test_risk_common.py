@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from quant_ml.risk.common import (
+from risk.common import (
     as_frame,
     as_vector,
     historical_var_es,

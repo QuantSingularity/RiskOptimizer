@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import pytest
-from quant_ml.risk.copula import CopulaMLRiskModel
-from quant_ml.risk.engine import ParallelRiskEngine, infer_asset_class, kupiec_pvalue
+from risk.copula import CopulaMLRiskModel
+from risk.engine import ParallelRiskEngine, infer_asset_class, kupiec_pvalue
 
 
 @pytest.fixture(scope="module")
@@ -47,9 +47,9 @@ class TestMonteCarlo:
         model = CopulaMLRiskModel("gaussian", 1000, seed=1).fit(returns_frame)
         sizes = engine.batches(2000)
         assert sum(sizes) == 2000 and len(sizes) > 1
-        seeds = __import__(
-            "quant_ml.risk.common", fromlist=["spawn_seeds"]
-        ).spawn_seeds(5, len(sizes))
+        seeds = __import__("risk.common", fromlist=["spawn_seeds"]).spawn_seeds(
+            5, len(sizes)
+        )
         frames = [
             model.generate_scenarios(size, seed=s)
             for size, s in zip(sizes, seeds, strict=False)
