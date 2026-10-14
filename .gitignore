@@ -455,3 +455,6 @@ allure-report/
 *.tap
 *.junit.xml
 *.xunit.xml
+
+!code/quant_ml/src/data/datasets/
+!code/quant_ml/src/data/datasets/*.csv
